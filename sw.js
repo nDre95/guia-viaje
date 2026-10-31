@@ -1,6 +1,6 @@
 // Guarda la app para usarla sin conexión. build.py pone la versión en el nombre de la caché.
-var CACHE = 'guia-v7', IMG = 'guia-img';
-var FILES = ['./', './index.html', './app.js', './styles.css', './viajes.html', './viajes.js', './album.js', './album.css', './manifest.webmanifest',
+var CACHE = 'guia-v8', IMG = 'guia-img';
+var FILES = ['./', './index.html', './guia.html', './viajes.html', './app.js', './styles.css', './viajes.js', './album.js', './album.css', './motor.js', './asistente.js', './manifest.webmanifest',
   './icon-180.png', './icon-192.png', './icon-512.png', './trips/index.json'];
 
 self.addEventListener('install', function (e) {
@@ -29,7 +29,7 @@ self.addEventListener('fetch', function (e) {
   var u = new URL(req.url);
   if (u.origin === self.location.origin) {
     // la guía y los viajes, desde la caché; las páginas, por su nombre sin parámetros
-    var key = req.mode === 'navigate' ? (/viajes\.html$/.test(u.pathname) ? './viajes.html' : './index.html') : null;
+    var key = req.mode === 'navigate' ? (/guia\.html$/.test(u.pathname) ? './guia.html' : /viajes\.html$/.test(u.pathname) ? './viajes.html' : './index.html') : null;
     e.respondWith(fromCache(CACHE, req, key));
   } else if (/(^|\.)wikimedia\.org$/.test(u.hostname)) {
     // fotos de los viajes creados con el asistente: se guardan al verlas para tenerlas sin conexión

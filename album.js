@@ -221,27 +221,47 @@ window.Album = (function () {
     var a = document.createElement('a'); a.href = URL.createObjectURL(postBlob); a.download = postName; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 2000);
   }
 
-  /* ---------- Perfil: cifras e insignias ---------- */
-  function renderProfile() {
-    var box = $('#profBox'); if (!box) return Promise.resolve();
+  /* ---------- Perfil: mis viajes, cifras e insignias ---------- */
+  function overview() {
     return trips().then(function (list) {
-      var alb = albumGet(), all = 0, got = 0, must = 0, mustGot = 0, castles = 0, full = 0, mustFull = 0, withCromo = 0, days = 0, dests = {}, gen = 0;
+      var alb = albumGet(), all = 0, got = 0, must = 0, mustGot = 0, castles = 0, full = 0, mustFull = 0, withCromo = 0, days = 0, dests = {}, gen = 0, out = [], recent = [];
+      var now = today();
       list.forEach(function (t) {
-        var cs = cromosOf(t, alb), g0 = cs.filter(function (c) { return c.got; }), m = cs.filter(function (c) { return c.must; });
+        var cs = cromosOf(t, alb), g0 = cs.filter(function (c) { return c.got; }), m = cs.filter(function (c) { return c.must; }), bt = t.b.trip, ph = t.b.photos || {};
         all += cs.length; got += g0.length; must += m.length; mustGot += m.filter(function (c) { return c.got; }).length;
         castles += g0.filter(function (c) { return /castillo|castle|palacio|palace|alcázar|château/i.test(c.ti); }).length;
         if (cs.length && g0.length === cs.length) full++;
         if (m.length && m.every(function (c) { return c.got; })) mustFull++;
         if (g0.length) withCromo++;
-        days += t.b.trip.days.length; dests[(t.b.meta.dest || {}).es || t.id] = 1; if (t.b.meta.generated) gen++;
+        days += bt.days.length; dests[(t.b.meta.dest || {}).es || t.id] = 1; if (t.b.meta.generated) gen++;
+        g0.forEach(function (c) { recent.push({ img: c.img, ph: c.ph, ti: c.ti, at: c.got.at }); });
+        var start = bt.defaultStart, end = start ? new Date(new Date(start + 'T12:00:00Z').getTime() + (bt.days.length - 1) * 864e5).toISOString().slice(0, 10) : '';
+        // el motor antiguo no decía qué es cada foto: en la web todas las fotos son direcciones
+        out.push({ id: t.id, title: tripTitle(t), start: start, end: end, days: bt.days.length, cover: ph[bt.cover] || '', got: g0.length, total: cs.length, mustGot: m.filter(function (c) { return c.got; }).length, must: m.length,
+          status: !start ? 'next' : now > end ? 'past' : now >= start ? 'now' : 'next', top: m.slice(0, 3).map(function (c) { return c.ti; }), ref: t });
       });
+      recent.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
       var B = [['🌟', 'Primer cromo', got >= 1], ['📸', '10 cromos', got >= 10], ['🏆', '50 cromos', got >= 50], ['🏰', '5 castillos', castles >= 5],
         ['⭐', 'Todos los imprescindibles de un viaje', mustFull >= 1], ['📖', 'Álbum completo', full >= 1], ['🧳', 'Cromos en 2 viajes', withCromo >= 2], ['🧭', 'Primer viaje creado', gen >= 1], ['🌍', '3 destinos', Object.keys(dests).length >= 3]];
+      return { trips: out, all: all, got: got, must: must, mustGot: mustGot, totalDays: days, badges: B, badgesOn: B.filter(function (b) { return b[2]; }).length, nextBadge: B.filter(function (b) { return !b[2]; })[0] || null, recent: recent };
+    });
+  }
+  function shortRange(t) { return t.start ? shortDate(t.start) + ' – ' + shortDate(t.end) : ''; }
+  function renderProfile() {
+    var box = $('#profBox'); if (!box) return Promise.resolve();
+    return overview().then(function (O) {
+      var B = O.badges, S = { past: 'Hecho', now: 'En curso', next: 'Próximo' };
       box.innerHTML = '<div class="pstats">' +
-        [[list.length, list.length === 1 ? 'viaje' : 'viajes'], [days, 'días de viaje'], [got + ' / ' + all, 'cromos'], [mustGot + ' / ' + must, 'imprescindibles']].map(function (s) {
+        [[O.trips.length, O.trips.length === 1 ? 'viaje' : 'viajes'], [O.totalDays, 'días de viaje'], [O.got + ' / ' + O.all, 'cromos'], [O.mustGot + ' / ' + O.must, 'imprescindibles']].map(function (s) {
           return '<div class="card stat2"><b>' + s[0] + '</b><small>' + s[1] + '</small></div>';
         }).join('') + '</div>' +
-        '<div class="card"><div class="eyebrow">Insignias · ' + B.filter(function (b) { return b[2]; }).length + ' de ' + B.length + '</div><div class="badges">' +
+        '<div class="pf-h">Mis viajes</div>' + (O.trips.length ? O.trips.slice().sort(function (a, b) { return String(b.start).localeCompare(String(a.start)); }).map(function (t) {
+          return '<div class="card pf-trip">' + (t.cover ? '<div class="pf-ph" style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"></div>' : '<div class="pf-ph"></div>') +
+            '<div class="pf-m"><span class="pf-st ' + t.status + '">' + S[t.status] + '</span><b>' + esc(t.title) + '</b><small>' + esc(shortRange(t)) + ' · ' + t.days + (t.days === 1 ? ' día' : ' días') + '</small>' +
+            '<div class="alb-bar"><i style="width:' + (t.total ? Math.round(t.got / t.total * 100) : 0) + '%"></i></div><small>' + t.got + ' de ' + t.total + ' cromos · ' + t.mustGot + ' de ' + t.must + ' imprescindibles</small>' +
+            (cfg.single ? '' : '<div class="btn-row"><button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button></div>') + '</div></div>';
+        }).join('') : '<p class="note">Aún no hay viajes.</p>') +
+        '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + B.length + '</div><div class="card"><div class="badges">' +
         B.map(function (b) { return '<div class="bdg' + (b[2] ? '' : ' off') + '"><i>' + b[0] + '</i>' + esc(b[1]) + '</div>'; }).join('') + '</div></div>';
     });
   }
@@ -276,5 +296,5 @@ window.Album = (function () {
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('#crView.on')) closeCromo(); });
   }
 
-  return { init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf };
+  return { init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf };
 })();
