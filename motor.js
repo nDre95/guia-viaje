@@ -192,7 +192,7 @@ window.Motor = (function () {
           if (x.unesco) x.fame += 0.06;
           if (x.visitors) x.fame += 0.04;
           // una obra famosa dentro de un sitio le da su fama (La última cena, la Gioconda…)
-          arts.forEach(function (w) { if (km(x, w) < 0.12 && /visit/.test(KINDS[x.kind].t)) { x.fame += Math.min(0.12, w.links / 800); (x.art = x.art || []).push(w.n); } });
+          arts.forEach(function (w) { if (km(x, w) < 0.12 && /visit/.test(KINDS[x.kind].t)) { x.fame += Math.min(0.12, w.links / 800); (x.art = x.art || []).push(w.n); (x.artEn = x.artEn || []).push(w.en || w.n); } });
           if (x.dist > r * 0.75) x.fame -= 0.04;
         });
         kept.sort(function (a, b) { return b.fame - a.fame; });
@@ -519,7 +519,7 @@ window.Motor = (function () {
         if (p.soft) { it.at = p.soft; it.soft = 1; }
         if (p.lead) it.lead = p.lead;
         var tips = (it.tips || []).slice();
-        if (p.art) tips.push(tr('Aquí se conserva: ' + p.art.slice(0, 3).join(', ') + '.'));
+        if (p.art) { tips.push(tr('Aquí se conserva: ' + p.art.slice(0, 3).join(', ') + '.')); it.artEn = (p.artEn || p.art).slice(0, 3); }
         if (p.web) tips.push(tr('Web oficial: ' + p.web));
         tips.push(tr('Comprueba horario y precio en la web oficial antes de ir.'));
         it.tips = tips;
@@ -714,9 +714,11 @@ window.Motor = (function () {
 
   /* ---------- Capa en inglés: nombres y descripciones de Wikipedia; el resto, con las tablas de lang.js ---------- */
   function addEnglish(b) {
-    var T = b.trip, all = [], cityEn = {}, E = { items: {}, days: {}, checklist: {}, guide: {}, route: [], wx: [], types: {} };
+    var T = b.trip, all = [], cityEn = {}, cts = (b.meta.generated || {}).countries || [], E = { items: {}, days: {}, checklist: {}, guide: {}, route: [], wx: [], types: {} };
     function cityOf(n) { return cityEn[n] || n; }
-    function swapCities(x) { Object.keys(cityEn).forEach(function (n) { x = String(x).split(n).join(cityEn[n]); }); return x; }
+    // de lo más largo a lo más corto: «Chequia y Austria» antes que «Austria»
+    function swapCities(x) { Object.keys(cityEn).sort(function (p, q) { return q.length - p.length; }).forEach(function (n) { x = String(x).split(n).join(cityEn[n]); }); return x; }
+    function en1(x) { return swapCities(toEn(x)); }
     T.days.forEach(function (d) { d.items.concat(d.extras || []).forEach(function (it) { all.push(it); }); });
     function wdOf(it) { return it.wd || (it.src && it.src.wd) || null; }
     var ids = all.map(wdOf).filter(function (q, i, a) { return q && a.indexOf(q) === i; }), info = {}, batches = [];
@@ -731,7 +733,7 @@ window.Motor = (function () {
       });
     }).then(function () {
       // los nombres de las ciudades (Praga → Prague), con los enlaces entre idiomas de Wikipedia
-      var towns = T.days.map(function (d) { return d.title; }).filter(function (v, k, a) { return v && a.indexOf(v) === k; });
+      var towns = T.days.map(function (d) { return d.title; }).concat(cts).filter(function (v, k, a) { return v && a.indexOf(v) === k; });
       return pool(towns, 3, function (n) {
         return getJSON('https://es.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=langlinks&lllang=en&titles=' + encodeURIComponent(n)).then(function (j) {
           var pg = j.query.pages, ll = pg[Object.keys(pg)[0]].langlinks;
@@ -739,16 +741,18 @@ window.Motor = (function () {
         });
       });
     }).then(function () {
+      if (cts.length > 1) cityEn[cts.join(' y ')] = cts.map(cityOf).join(' and ');
       var names = {};
       all.forEach(function (it) {
-        var w = info[wdOf(it)] || {}, o = {}, ti = w.n || toEn(it.ti);
+        var w = info[wdOf(it)] || {}, o = {}, ti = w.n || en1(it.ti);
         if (ti !== it.ti) { o.ti = ti; names[it.ti] = ti; }
         if (w.lead) o.lead = w.lead;
-        if (it.tips) o.tips = it.tips.map(toEn);
+        if (it.tips) o.tips = it.tips.map(en1);
+        if (it.artEn && o.tips) o.tips = o.tips.map(function (t) { return /^Kept here:/.test(t) ? 'Kept here: ' + it.artEn.join(', ') + '.' : t; });
         if (it.filmEn) o.film = it.filmEn;
-        if (it.q && !wdOf(it)) o.q = toEn(it.q);
+        if (it.q && !wdOf(it)) o.q = en1(it.q);
         if (it.pl) o.pl = cityOf(it.pl);
-        o.see = w.page ? ['More on Wikipedia: ' + w.page] : it.see ? it.see.map(toEn) : undefined;
+        o.see = w.page ? ['More on Wikipedia: ' + w.page] : it.see ? it.see.map(en1) : undefined;
         if (!o.see) delete o.see;
         if (it.pl && /→/.test(it.pl)) o.pl = swapCities(it.pl);
         E.items[it.id] = o;
@@ -757,11 +761,11 @@ window.Motor = (function () {
       T.days.forEach(function (d) {
         E.days[d.id] = { title: cityOf(d.title), ref: cityOf(d.ref && d.ref.name), sub: String(d.sub || '').split(', ').map(nameEn).join(', ') };
         if (d.sub === 'Día libre') E.days[d.id].sub = toEn(d.sub);
-        if (d.guide && d.guide.length) E.guide[d.id] = d.guide.map(function (g) { return { t: toEn(g.t) }; });
+        if (d.guide && d.guide.length) E.guide[d.id] = d.guide.map(function (g) { return { t: en1(g.t), pl: cityOf(g.pl) }; });
       });
       (T.checklist || []).forEach(function (c) {
-        var o = { title: toEn(c.title), items: {} };
-        c.items.forEach(function (it) { o.items[it.id] = { t: toEn(it.t) }; if (it.n) o.items[it.id].n = toEn(it.n); });
+        var o = { title: en1(c.title), items: {} };
+        c.items.forEach(function (it) { o.items[it.id] = { t: en1(it.t) }; if (it.n) o.items[it.id].n = en1(it.n); });
         E.checklist[c.id] = o;
       });
       (T.route || []).forEach(function (r, k) {
@@ -772,10 +776,12 @@ window.Motor = (function () {
       b.trip_en = E;
       (T.wx || []).forEach(function (w) { E.wx.push({ n: cityOf(w.n) }); });
       (T.filmRoutes || []).forEach(function (fr) { (fr.groups || []).forEach(function (g) { g.ti_en = cityOf(g.ti); }); });
-      b.meta.title.en = swapCities(toEn(b.meta.title.es));
+      b.meta.title.en = swapCities(toEn(b.meta.title.es)).replace(/ y /g, ' and ');
+      (T.stays || []).forEach(function (z) { z.town_en = cityOf(z.town); });
+      (b.credits || []).forEach(function (c) { c.place_en = names[c.place] || c.place; });
       if (b.meta.dest) b.meta.dest.en = swapCities(b.meta.dest.es).replace(/ y /g, ' and ');
       var st = b.meta.strings && b.meta.strings.en; if (st) { st.coverTitle = swapCities(st.coverTitle).replace(/ y /g, ' and '); st.coverAria = swapCities(st.coverAria).replace(/ y /g, ' and '); }
-      b.meta.enReady = 1;
+      b.meta.enReady = 2;
       return b;
     });
   }
@@ -790,6 +796,21 @@ window.Motor = (function () {
   /* ---------- Todo junto ---------- */
   // spec: { title, start, mode, pace, style, ints, stops:[{name,lat,lon,bb,cc,country,days,stay}], fin:{t,p}, fout:{t,p}, fixed:[{n,day,at}] }
   function generate(sp, step) {
+    return (ui() === 'en' ? spanishNames(sp) : Promise.resolve()).then(function () { return generate0(sp, step); });
+  }
+  // la base del viaje va en español: con la app en inglés, «Rome» se guarda como «Roma» y la capa inglesa la devuelve
+  function spanishNames(sp) {
+    function one(n) {
+      return getJSON('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=langlinks&lllang=es&titles=' + encodeURIComponent(n), null, 8000).then(function (j) {
+        var pg = j.query.pages, ll = pg[Object.keys(pg)[0]].langlinks; return ll && ll[0] ? ll[0]['*'].replace(/\s*\(.*$/, '') : n;
+      }).catch(function () { return n; });
+    }
+    var seen = {};
+    return pool(sp.stops, 3, function (c) {
+      return one(c.name).then(function (es) { c.name = es; return c.country ? (seen[c.country] = seen[c.country] || one(c.country)) : c.country; }).then(function (ce) { if (ce) c.country = ce; });
+    });
+  }
+  function generate0(sp, step) {
     step = step || function () { return { ok: function () {}, warn: function () {} }; };
     var c0 = sp.stops[0], title = sp.title, nDays = sp.stops.reduce(function (s, c) { return s + c.days; }, 0), tz = 'UTC', tzOff = 0;
     if (!title) title = tr((sp.stops.length === 1 ? c0.name : sp.stops.length === 2 ? sp.stops[0].name + (lg() === 'en' ? ' and ' : ' y ') + sp.stops[1].name : c0.country || c0.name) + ' en ' + nDays + (nDays === 1 ? ' día' : ' días'));

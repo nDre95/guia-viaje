@@ -82,7 +82,7 @@
     DB.all().then(function (l) {
       (l || []).forEach(function (x) {
         var b = x.bundle;
-        var needF = b.meta.generated && !b.meta.filmsReady, needE = b.meta.generated && !b.meta.enReady && b.meta.lang !== 'en';
+        var needF = b.meta.generated && !b.meta.filmsReady, needE = b.meta.generated && b.meta.enReady !== 2 && b.meta.lang !== 'en';
         if (!needF && !needE) return;
         enWork[x.id] = (needF ? Motor.addFilms(b).catch(function () { return b; }) : Promise.resolve(b)).then(function () { return needE ? Motor.addEnglish(b) : b; }).then(function () { return DB.put({ id: x.id, at: x.at, bundle: b }); }).then(function () { delete enWork[x.id]; Album.reset(); }, function () { delete enWork[x.id]; });
       });
