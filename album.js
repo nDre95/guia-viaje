@@ -49,14 +49,33 @@ window.Album = (function () {
     var m = /^url\(["']?([\s\S]*?)["']?\)$/.exec(u); return m ? m[1] : '';
   }
 
+  var openT = null;   // viaje abierto en el álbum
+  function coverOf(t) {
+    var bt = t.b.trip, ph = t.b.photos || {}, c = bt.cover;
+    if (c && ph[c]) return { st: ' style="background-image:url(&quot;' + esc(ph[c]) + '&quot;)"', cl: '' };
+    return { st: '', cl: c ? ' ph ph-' + c : '' };
+  }
   function renderAlbum() {
     var box = $('#albumBox'); if (!box) return Promise.resolve();
     if (!TRIPS) box.innerHTML = '<p class="note">Cargando…</p>';
     return trips().then(function (list) {
-      var alb = albumGet();
-      box.innerHTML = list.filter(function (t) { return cromosOf(t, alb).length; }).map(function (t) {
-        var cs = cromosOf(t, alb), got = cs.filter(function (c) { return c.got; }).length;
-        return '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
+      var alb = albumGet(), withC = list.filter(function (t) { return cromosOf(t, alb).length; });
+      if (cfg.single && withC[0]) openT = withC[0].id;
+      var cur = withC.filter(function (t) { return t.id === openT; })[0];
+      if (!cur) {
+        openT = null;
+        var pb = $('#postBox'); if (pb) pb.hidden = true;
+        // al principio, solo los viajes: compacto
+        box.innerHTML = withC.map(function (t) {
+          var cs = cromosOf(t, alb), got = cs.filter(function (c) { return c.got; }).length, cv = coverOf(t);
+          return '<button type="button" class="card alb-row sq" data-albopen="' + esc(t.id) + '"><span class="alb-ph' + cv.cl + '"' + cv.st + '></span><span class="alb-m"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + ' cromos</small>' +
+            '<span class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></span></span><svg class="ic alb-go" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
+        }).join('') || '<p class="note">Aún no hay viajes.</p>';
+        return;
+      }
+      var t = cur, cs = cromosOf(t, alb), got = cs.filter(function (c) { return c.got; }).length;
+      box.innerHTML = (cfg.single ? '' : '<button type="button" class="alb-back sq" data-albback><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg><span>Todos los viajes</span></button>') +
+        '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
           '<div class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></div>' +
           '<div class="crs">' + cs.map(function (c) {
             return '<button type="button" class="cr' + (c.got ? ' got' : '') + (c.must ? ' must' : '') + phCls(c) + '" data-cr="' + esc(t.id + '|' + c.id) + '"' + phStyle(c) + '>' +
@@ -64,7 +83,6 @@ window.Album = (function () {
           }).join('') + '</div>' +
           '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">Crear postal</button>' : '') +
           (cfg.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button>') + '</div></div>';
-      }).join('') || '<p class="note">Aún no hay viajes.</p>';
     });
   }
 
@@ -285,7 +303,9 @@ window.Album = (function () {
     document.addEventListener('click', function (e) {
       var t = e.target; if (!t.closest) return;
       if (t.closest('#crView')) { viewerClick(e); return; }
-      var c = t.closest('[data-cr]'), pb = t.closest('[data-post]');
+      var c = t.closest('[data-cr]'), pb = t.closest('[data-post]'), ao = t.closest('[data-albopen]');
+      if (ao) { openT = ao.getAttribute('data-albopen'); renderAlbum(); window.scrollTo(0, 0); return; }
+      if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
       if (c) openCromo(c.getAttribute('data-cr'));
       else if (pb) makePostcard(pb.getAttribute('data-post'));
       else if (t.closest('#postSave')) postSave();

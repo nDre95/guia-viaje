@@ -1283,7 +1283,8 @@ html.compact .tl .ev--drive:not(.open) .drv-band{background:linear-gradient(135d
 /* Mapa ilustrado del viaje: bolita, slider y ficha */
 .map-card{margin:0 0 14px;padding:12px}
 .map-card .eyebrow{margin-bottom:8px}
-.map-wrap{border-radius:16px;overflow:hidden}
+.map-wrap{position:relative;border-radius:16px;overflow:hidden}
+.map-attr{position:absolute;right:6px;bottom:3px;font-size:9.5px;color:var(--txt3);background:rgba(127,127,127,.14);padding:0 4px;border-radius:4px}
 .map-sea{fill:#eceee9}.map-land{fill:#dcd8cc}.map-rail{stroke:#eceee9}
 html[data-theme="dark"] .map-sea{fill:#22242a}html[data-theme="dark"] .map-land{fill:#35383f}html[data-theme="dark"] .map-rail{stroke:#22242a}
 .map-svg{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none}

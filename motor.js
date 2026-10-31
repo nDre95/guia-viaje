@@ -163,7 +163,7 @@ window.Motor = (function () {
       list.forEach(function (x) { x.dist = km(city, x); });
       // una estatua pegada a un museo o iglesia es parte de la visita
       list = list.filter(function (x) {
-        if (x.kind !== 'monument' || !/sculpture|statue/i.test(x.types) || !list.some(function (o) { return o !== x && KINDS[o.kind].t === 'visit' && km(o, x) < (o.kind === 'museum' ? 0.35 : 0.12); })) return true;
+        if (x.kind !== 'monument' || !/sculpture|statue/i.test(x.types) || /fountain|memorial|monument|colossal/i.test(x.types) || !list.some(function (o) { return o !== x && KINDS[o.kind].t === 'visit' && km(o, x) < (o.kind === 'museum' ? 0.35 : 0.12); })) return true;
         arts.push(x); return false;
       });
       // las 120 con más Wikipedias se comparan por visitas reales
@@ -183,7 +183,7 @@ window.Motor = (function () {
           var zl = Math.log10(1 + x.links) / maxL, zv = x.views ? Math.log10(1 + x.views) / maxV : someV ? zl * 0.8 : zl;   // si Wikipedia no responde, se estima
           x.fame = 0.62 * zv + 0.38 * zl;
           // los estadios y pabellones tienen muchas visitas por el deporte, no por turismo
-          if (/stadium|arena|sports venue|indoor/i.test(x.types)) x.fame *= 0.72;
+          if (x.kind === 'show' && /stadium|arena|sports venue|indoor/i.test(x.types)) x.fame *= 0.72;   // el Coliseo también figura como «estadio»: no se toca
           // rascacielos y plazas sin más: se leen mucho, pero no suelen ser el motivo del viaje
           if (/skyscraper|office/i.test(x.types) && (x.views || 0) < 40000) x.fame *= 0.86;
           if (x.kind === 'square' && (x.views || 0) < 20000 && !/pedestrian|tourist|commercial|arcade|cathedral square/i.test(x.types)) x.fame *= 0.9;
@@ -200,7 +200,7 @@ window.Motor = (function () {
         var out = [], cityT = tokens(city.name);
         kept.forEach(function (x) {
           var tx = tokens(x.n).filter(function (t) { return cityT.indexOf(t) < 0; });
-          if (!out.some(function (o) { var d = km(o, x); return d < 0.07 || (d < 0.35 && tx.some(function (t) { return tokens(o.n).indexOf(t) >= 0; })); })) out.push(x);
+          if (!out.some(function (o) { var d = km(o, x); return (d < 0.07 && o.kind === x.kind) || (d < 0.35 && tx.some(function (t) { return tokens(o.n).indexOf(t) >= 0; })); })) out.push(x);
         });
         return out;
       });
@@ -279,7 +279,7 @@ window.Motor = (function () {
   }
 
   /* ---------- Elegir: primero lo imprescindible; después, según gustos, variedad y que quede a mano ---------- */
-  function catOf(x) { return /stadium|arena|sports venue/i.test(x.types) ? 'sports' : KINDS[x.kind].cat; }
+  function catOf(x) { return x.kind === 'show' && /stadium|arena|sports venue/i.test(x.types) ? 'sports' : KINDS[x.kind].cat; }
   function nicho(x, ints) { return (x.kind === 'family' || catOf(x) === 'sports') && !(ints || {})[catOf(x)]; }
   function gustosPeso(x, ints) {
     var has = Object.keys(ints || {}).length;
@@ -302,6 +302,10 @@ window.Motor = (function () {
       if (!best || bs < 0.28) break;
       take(best);
     }
+    // lo famoso y rápido que queda de paso (una fuente, una plaza, un barrio): entra aunque el día vaya justo
+    var bonus = Math.ceil(maxN * 0.3);
+    list.filter(function (x) { return left.indexOf(x) >= 0 && ['square', 'monument', 'quarter', 'market'].indexOf(x.kind) >= 0 && x.fame >= 0.6 && chosen.some(function (c) { return km(c, x) < 1.2; }); })
+      .slice(0, bonus).forEach(take);
     return { chosen: chosen, left: left };
   }
 
@@ -336,7 +340,8 @@ window.Motor = (function () {
       ov.g.forEach(function (x) {
         var rest = ov.g.filter(function (y) { return y !== x; });
         order.forEach(function (d) {
-          if (d === ov || load(d.g) + dwell(x) + 12 > d.c * 1.05 || d.g.length >= maxStops) return;
+          // si le sobran paradas, se reparte aunque el otro día vaya justo; si solo va justo, a un día con hueco
+          if (d === ov || d.g.length >= maxStops || (ov.g.length <= maxStops && load(d.g) + dwell(x) + 12 > d.c * 1.05)) return;
           var dist0 = d.g.length ? link([x], d.g) : 1, c = dist0 - link([x], rest);
           if (c < cost) { cost = c; mv = x; to = d; }
         });
@@ -403,7 +408,7 @@ window.Motor = (function () {
       var fixedHere = (sp.fixed || []).filter(function (f) { return f.pt && f.day >= firstDay && f.day < firstDay + c.days; });
       var mustN = Math.min(maxN, Math.max(2, Math.ceil(c.days * Math.min(P.max, 4))));
       var pick = pickSights(data, totalCap, maxN, sp.ints, mustN);
-      var groups = clusterDays(pick.chosen, caps, { maxStops: P.max + 1 });
+      var groups = clusterDays(pick.chosen, caps, { maxStops: P.max + 2 });
       fillDays(groups, caps, pick.left, c, sp.ints, P.max + 1);
       var C = { lat: c.lat, lon: c.lon, name: c.stay || '', town: c.name };
       var stayPt = c.stayPt || C;
@@ -417,7 +422,7 @@ window.Motor = (function () {
       // alternativas de cada día: lo mejor que no se ha usado, cerca
       groups.forEach(function (g, k) {
         var d = days[firstDay + k], ctr = g.length ? g[0] : c;
-        d.extras = pick.left.slice().sort(function (a, b) { return (b.fame - 0.03 * km(ctr, b)) - (a.fame - 0.03 * km(ctr, a)); }).slice(0, 6);
+        d.extras = pick.left.slice().sort(function (a, b) { return (b.fame - 0.03 * km(ctr, b)) - (a.fame - 0.03 * km(ctr, a)); }).slice(0, 10);
         d.extras.forEach(function (x) { pick.left.splice(pick.left.indexOf(x), 1); });
       });
       dayNo += c.days;
@@ -570,7 +575,7 @@ window.Motor = (function () {
       }
       if (!d.last) stays.push({ id: did, town: town, lat: +stayPt.lat.toFixed(5), lon: +stayPt.lon.toFixed(5) });
       var extras = (d.extras || []).map(function (p, j) {
-        var K = KINDS[p.kind], x = { id: 'x-' + did + '-' + (j + 1), t: K.t, wd: p.wd || null, ti: p.n, pl: town, d: dwell(p), lat: +p.lat.toFixed(5), lon: +p.lon.toFixed(5) };
+        var K = KINDS[p.kind], x = { id: 'x-' + did + '-' + (j + 1), t: K.t, k: p.kind, wd: p.wd || null, ti: p.n, pl: town, d: dwell(p), lat: +p.lat.toFixed(5), lon: +p.lon.toFixed(5) };
         if (p.lead) x.lead = p.lead; var ph = photo(p); if (ph) x.ph = ph;
         var tags = []; if (K.rain) tags.push('rain'); if (K.photo) tags.push('photo'); if (tags.length) x.tags = tags;
         return x;
@@ -653,6 +658,60 @@ window.Motor = (function () {
     }, Promise.resolve());
   }
 
+  /* ---------- Cine: películas rodadas en cada destino (Wikidata, propiedad «lugar de rodaje») ---------- */
+  function filmsQuery(c, r) {
+    return "SELECT ?film (SAMPLE(?fes) AS ?es) (SAMPLE(?fen) AS ?en) (MIN(?dd) AS ?date) ?loc (SAMPLE(?les) AS ?les0) (SAMPLE(?len) AS ?len0) (SAMPLE(?co) AS ?c) (MAX(?n0) AS ?n) (GROUP_CONCAT(DISTINCT ?tl; separator='|') AS ?types) WHERE {" +
+      ' SERVICE wikibase:around { ?loc wdt:P625 ?co. bd:serviceParam wikibase:center "Point(' + c.lon.toFixed(4) + ' ' + c.lat.toFixed(4) + ')"^^geo:wktLiteral. bd:serviceParam wikibase:radius "' + r + '". }' +
+      ' ?film wdt:P915 ?loc; wikibase:sitelinks ?n0; wdt:P31/wdt:P279? wd:Q11424.' +
+      " ?loc wdt:P31 ?t. ?t rdfs:label ?tl. FILTER(LANG(?tl) = 'en')" +
+      " OPTIONAL { ?film rdfs:label ?fes. FILTER(LANG(?fes) = 'es') } OPTIONAL { ?film rdfs:label ?fen. FILTER(LANG(?fen) = 'en') } OPTIONAL { ?film wdt:P577 ?dd. }" +
+      " OPTIONAL { ?loc rdfs:label ?les. FILTER(LANG(?les) = 'es') } OPTIONAL { ?loc rdfs:label ?len. FILTER(LANG(?len) = 'en') }" +
+      '} GROUP BY ?film ?loc ORDER BY DESC(?n) LIMIT 40';
+  }
+  function addFilms(b) {
+    var T = b.trip, cities = [], mode = b.meta.mode === 'car' ? 'driving' : 'walking', n = 0;
+    T.days.forEach(function (d, di) { var nm = d.title, c = (d.ref || {}); if (c.lat != null && !cities.some(function (x) { return x.name === nm; })) cities.push({ name: nm, lat: c.lat, lon: c.lon, di: di }); });
+    var groups = [], alsoEs = [], alsoEn = [], over = (b.trip_en || {}).items;
+    return pool(cities, 2, function (c) {
+      return sparql(filmsQuery(c, 12)).then(function (j) {
+        var bySite = {}, seen = {}, ids = [];
+        (j.results.bindings || []).forEach(function (r) {
+          var fes = (r.es || r.en || {}).value, fen = (r.en || r.es || {}).value, y = r.date ? String(r.date.value).slice(0, 4) : ''; if (!fes || /^Q\d+$/.test(fes)) return;
+          var kind = classify(r.types.value);
+          if (!kind || kind === 'art' || PLACE.test(r.types.value.toLowerCase())) { if (!seen[fes] && alsoEs.length < 8) { seen[fes] = 1; alsoEs.push(fes); alsoEn.push(fen); } return; }
+          var q = r.loc.value.split('/').pop(), m = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(r.c.value); if (!m) return;
+          var S = bySite[q] = bySite[q] || { wd: q, n: (r.les0 || r.len0 || {}).value, en: (r.len0 || r.les0 || {}).value, kind: kind, lat: +m[2], lon: +m[1], es: [], enF: [] };
+          if (S.es.length < 3) { S.es.push(fes + (y ? ' (' + y + ')' : '')); S.enF.push(fen + (y ? ' (' + y + ')' : '')); }
+        });
+        // los sitios del plan o de las ideas reciben su película; los demás se añaden como ideas de ese día
+        Object.keys(bySite).slice(0, 8).forEach(function (q) {
+          var S = bySite[q]; if (!S.n) return;
+          var txtEs = S.es.join(', ') + ': aquí se rodaron escenas.', txtEn = S.enF.join(', ') + ': scenes were filmed here.', hit = null;
+          T.days.forEach(function (d) { d.items.concat(d.extras || []).forEach(function (it) { if (!hit && it.lat != null && (((it.src && it.src.wd) || it.wd) === q || km(it, S) < 0.1)) hit = it; }); });
+          if (!hit) {
+            var K = KINDS[S.kind]; hit = { id: 'x-film-' + (++n), t: K.t, k: S.kind, wd: q, ti: S.n, pl: c.name, d: Math.max(20, K.d[0]), lat: +S.lat.toFixed(5), lon: +S.lon.toFixed(5), q: S.n + ', ' + c.name };
+            (T.days[c.di].extras = T.days[c.di].extras || []).push(hit);
+            if (over) over[hit.id] = { ti: S.en };
+          }
+          hit.film = txtEs; hit.filmEn = txtEn; hit.tags = (hit.tags || []).filter(function (x) { return x !== 'film'; }).concat(['film']);
+          if (over) { over[hit.id] = over[hit.id] || {}; over[hit.id].film = txtEn; }
+          ids.push(hit.id);
+        });
+        if (ids.length) groups.push({ ti: c.name, ti_en: c.name, mode: ids.length > 1 ? mode : '', ids: ids });
+      });
+    }).then(function () {
+      b.meta.filmsReady = 1;
+      if (!groups.length && !alsoEs.length) { T.filmRoutes = []; return b; }
+      var one = groups.reduce(function (s, g) { return s + g.ids.length; }, 0);
+      function join(a) { return a.slice(0, 6).join(', '); }
+      T.filmRoutes = [{ id: 'cine', auto: 1, ti: 'Ruta de cine', ti_en: 'Film route', groups: groups,
+        lead: (one ? 'Lugares donde se han rodado películas conocidas, según Wikidata. ' : '') + (alsoEs.length ? 'También se rodó por aquí: ' + join(alsoEs) + '.' : ''),
+        lead_en: (one ? 'Places where well-known films were shot, according to Wikidata. ' : '') + (alsoEn.length ? 'Also filmed around here: ' + join(alsoEn) + '.' : ''),
+        card: join(alsoEs.length ? alsoEs : groups[0].ids.map(function () { return ''; }).filter(Boolean)) || 'Lugares de rodaje de este destino', card_en: join(alsoEn) || 'Filming locations in this destination' }];
+      return b;
+    });
+  }
+
   /* ---------- Capa en inglés: nombres y descripciones de Wikipedia; el resto, con las tablas de lang.js ---------- */
   function addEnglish(b) {
     var T = b.trip, all = [], cityEn = {}, E = { items: {}, days: {}, checklist: {}, guide: {}, route: [], wx: [], types: {} };
@@ -686,6 +745,7 @@ window.Motor = (function () {
         if (ti !== it.ti) { o.ti = ti; names[it.ti] = ti; }
         if (w.lead) o.lead = w.lead;
         if (it.tips) o.tips = it.tips.map(toEn);
+        if (it.filmEn) o.film = it.filmEn;
         if (it.q && !wdOf(it)) o.q = toEn(it.q);
         if (it.pl) o.pl = cityOf(it.pl);
         o.see = w.page ? ['More on Wikipedia: ' + w.page] : it.see ? it.see.map(toEn) : undefined;
@@ -711,6 +771,7 @@ window.Motor = (function () {
       Object.keys(T.types || {}).forEach(function (k) { E.types[k] = toEn(T.types[k].label); });
       b.trip_en = E;
       (T.wx || []).forEach(function (w) { E.wx.push({ n: cityOf(w.n) }); });
+      (T.filmRoutes || []).forEach(function (fr) { (fr.groups || []).forEach(function (g) { g.ti_en = cityOf(g.ti); }); });
       b.meta.title.en = swapCities(toEn(b.meta.title.es));
       if (b.meta.dest) b.meta.dest.en = swapCities(b.meta.dest.es).replace(/ y /g, ' and ');
       var st = b.meta.strings && b.meta.strings.en; if (st) { st.coverTitle = swapCities(st.coverTitle).replace(/ y /g, ' and '); st.coverAria = swapCities(st.coverAria).replace(/ y /g, ' and '); }
@@ -797,6 +858,9 @@ window.Motor = (function () {
       return travelTable(bundle).then(function (tv) { bundle.travel = tv; s8.ok('Rutas calculadas entre ' + tv.k.length + ' puntos'); return bundle; })
         .catch(function () { s8.warn('Sin rutas reales: la guía estimará los tiempos por distancia'); return bundle; });
     }).then(function (bundle) {
+      var s8a = step('Películas rodadas aquí (Wikidata)');
+      return addFilms(bundle).then(function () { s8a.ok(tr('Ruta de cine lista')); return bundle; }, function () { s8a.warn('Sin datos de películas por ahora'); return bundle; });
+    }).then(function (bundle) {
       var s8b = step('Textos en inglés (Wikipedia)');
       return addEnglish(bundle).then(function () { s8b.ok('Guía en español e inglés'); return bundle; }, function () { s8b.warn('Textos en inglés pendientes: se completarán al volver a Home'); return bundle; });
     }).then(function (bundle) {
@@ -816,5 +880,5 @@ window.Motor = (function () {
     });
   }
 
-  return { discover: discover, generate: generate, classify: classify, searchCountry: searchCountry, addEnglish: addEnglish, localized: localized, searchCity: searchCity, suggestCities: suggestCities, placeInfo: placeInfo, photoOf: photoOf, km: km, addDays: addDays, KINDS: KINDS, _buildPlan: buildPlan, _dwell: dwell };
+  return { discover: discover, generate: generate, classify: classify, searchCountry: searchCountry, addEnglish: addEnglish, addFilms: addFilms, localized: localized, searchCity: searchCity, suggestCities: suggestCities, placeInfo: placeInfo, photoOf: photoOf, km: km, addDays: addDays, KINDS: KINDS, _buildPlan: buildPlan, _dwell: dwell };
 })();

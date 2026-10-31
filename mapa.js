@@ -1,6 +1,7 @@
-/* ===== Mapa del viaje: diseño minimalista, no un mapa copiado =====
-   Solo una silueta lisa de la tierra (Natural Earth, dominio público, vía world-atlas), sin fronteras ni islitas,
-   la ruta de un color por día y pines con la foto de cada sitio pasada a dibujo a lápiz.
+/* ===== Mapa del viaje: diseño minimalista =====
+   De fondo, un mapa real sin rótulos (baldosas Canvas de Esri, sin clave: costa, ríos, calles), claro u oscuro según
+   el tema; debajo, por si no hay conexión, una silueta lisa de la tierra (Natural Earth, dominio público, vía world-atlas).
+   Encima, la ruta de un color por día y pines con la foto de cada sitio pasada a dibujo a lápiz.
    Un slider mueve la bolita naranja por toda la ruta: cada tramo se dibuja según cómo se hace (avión en arco, coche en
    puntitos, tren como una vía, a pie…) y al llegar a un sitio se despliegan su foto y su descripción.
    Sin librerías. Mapa.mount(el, { days, land, title, id, mode, photos, dayLabel, heading, lang }) */
@@ -188,11 +189,13 @@ window.Mapa = (function () {
     var days = o.days.filter(function (d) { return true; }), all = [];
     days.forEach(function (d) { d.stops.forEach(function (s) { all.push(s); }); });
     if (!all.length) return '';
-    var id = 'm' + (++uid), b = boundsOf(all), lat0 = (b.s + b.n) / 2, cs = Math.cos(lat0 * Math.PI / 180), rand = rnd(all.length + 7);
-    var spanX = Math.max((b.e - b.w) * cs, 0.004), spanY = Math.max(b.n - b.s, 0.004), H = Math.round(W * clamp(spanY / spanX, 0.85, 1.25)), pad = 100, top = 110;
-    var k = Math.min((W - pad * 2) / spanX, (H - pad - top) / spanY), cx = (b.w + b.e) / 2, cy = (b.s + b.n) / 2, midY = (H + top - pad) / 2 + 12;
-    function X(lon) { return W / 2 + (lon - cx) * cs * k; }
-    function Y(lat) { return midY - (lat - cy) * k; }
+    var id = 'm' + (++uid), b = boundsOf(all), rand = rnd(all.length + 7);
+    // proyección de Mercator (en grados), la misma de las baldosas, para que todo encaje
+    function merc(lat) { var l = clamp(lat, -85, 85) * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + l / 2)) * 180 / Math.PI; }
+    var spanX = Math.max(b.e - b.w, 0.006), spanY = Math.max(merc(b.n) - merc(b.s), 0.006), H = Math.round(W * clamp(spanY / spanX, 0.85, 1.25)), pad = 100, top = 110;
+    var k = Math.min((W - pad * 2) / spanX, (H - pad - top) / spanY), cx = (b.w + b.e) / 2, cy = (merc(b.s) + merc(b.n)) / 2, midY = (H + top - pad) / 2 + 12;
+    function X(lon) { return W / 2 + (lon - cx) * k; }
+    function Y(lat) { return midY - (merc(lat) - cy) * k; }
     var svg = '<svg class="map-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.title || 'Mapa del viaje') + '">';
     svg += '<rect class="map-sea" width="' + W + '" height="' + H + '"/>';
     (o.land || []).forEach(function (r) {
@@ -205,6 +208,17 @@ window.Mapa = (function () {
       if (q.length < 4 || Math.max.apply(null, xs) - Math.min.apply(null, xs) + Math.max.apply(null, ys) - Math.min.apply(null, ys) < 46) return;
       svg += '<path class="map-land" d="' + curve(q, true) + '"/>';
     });
+    // el mapa de fondo: baldosas a la escala justa
+    var z = clamp(Math.ceil(Math.log(k * 360 / 256) / Math.LN2), 1, 16), n2 = Math.pow(2, z), size = k * 360 / n2;
+    var tx0 = Math.floor((cx - W / 2 / k + 180) / 360 * n2), tx1 = Math.floor((cx + W / 2 / k + 180) / 360 * n2);
+    function tileY(py) { var m = cy + (midY - py) / k; return Math.floor((180 - m) / 360 * n2); }
+    var ty0 = Math.max(0, tileY(0)), ty1 = Math.min(n2 - 1, tileY(H)), style = document.documentElement.getAttribute('data-theme') === 'dark' ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
+    svg += '<g class="map-tiles">';
+    for (var tx = tx0; tx <= tx1; tx++) for (var ty = ty0; ty <= ty1; ty++) {
+      var wx = ((tx % n2) + n2) % n2, px = W / 2 + ((tx / n2 * 360 - 180) - cx) * k, py = midY - ((180 - ty / n2 * 360) - cy) * k;
+      svg += '<image x="' + px.toFixed(2) + '" y="' + py.toFixed(2) + '" width="' + (size + 0.6).toFixed(2) + '" height="' + (size + 0.6).toFixed(2) + '" preserveAspectRatio="none" href="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/' + style + '/MapServer/tile/' + z + '/' + ty + '/' + wx + '"/>';
+    }
+    svg += '</g>';
     // toda la ruta, parada a parada, con cómo se hace cada tramo
     var seq = [], legs = [];
     days.forEach(function (d, di) { d.stops.forEach(function (st, si) { seq.push({ s: st, di: di, si: si, x: X(st.lon), y: Y(st.lat), jump: !si && d.jump }); }); });
@@ -321,7 +335,7 @@ window.Mapa = (function () {
       R0 = r; lastInfo = '';
       var last = r.seq.length - 1, used = [], stops = r.seq.map(function (q, i) { return COLORS[q.di % COLORS.length] + ' ' + (last ? (i / last * 100).toFixed(1) : 0) + '%'; });
       r.seq.forEach(function (q, i) { if (!used.some(function (u) { return u.di === q.di; })) used.push({ di: q.di, i: i, title: o.days[q.di].title }); });
-      el.innerHTML = '<div class="card map-card">' + (o.heading ? '<div class="eyebrow">' + esc(o.heading) + '</div>' : '') + '<div class="map-wrap">' + r.svg + '</div>' +
+      el.innerHTML = '<div class="card map-card">' + (o.heading ? '<div class="eyebrow">' + esc(o.heading) + '</div>' : '') + '<div class="map-wrap">' + r.svg + '<small class="map-attr">Esri, HERE, Garmin, © OpenStreetMap</small></div>' +
         '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="' + esc(H0.play) + '"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>' +
         '<input class="map-range" type="range" min="0" max="' + last + '" step="0.005" value="' + t() + '" aria-label="' + esc(H0.hint) + '" style="--track:linear-gradient(90deg,' + (stops.length > 1 ? stops.join(',') : COLORS[0] + ',' + COLORS[0]) + ')"></div>' +
         '<div class="map-info"></div>' +
