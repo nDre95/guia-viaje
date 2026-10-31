@@ -19,13 +19,15 @@ window.Mapa = (function () {
 
   /* ---------- Qué sale en el mapa ---------- */
   function isSight(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole && it.lat != null && !/aeropuerto|airport/i.test(it.ti); }
-  function fromTrip(trip) { return trip.days.map(function (d) { return { title: d.title, jump: d.items.some(function (i) { return i.jump; }), stops: d.items.filter(isSight) }; }); }
+  // la ruta va de principio a fin: también el aeropuerto de llegada y el de salida, aunque no lleven dibujo
+  function isStop(it) { return isSight(it) || (!!it && it.lat != null && !it.hidden && /aeropuerto|airport|^llegada/i.test(it.ti)); }
+  function fromTrip(trip) { return trip.days.map(function (d) { return { title: d.title, jump: d.items.some(function (i) { return i.jump; }), stops: d.items.filter(isStop) }; }); }
   function weight(s) { return (s.must ? 1e7 : 0) + ((s.src || {}).views || 0) + ((s.src || {}).links || 0) * 50 + (s.ph || s.sk ? 500 : 0); }
   // los sitios con dibujo: los más representativos de cada día
   function pickPins(days) {
     var per = days.length <= 2 ? 3 : days.length <= 5 ? 2 : 1, out = [];
     days.forEach(function (d, di) {
-      d.stops.slice().sort(function (a, b) { return weight(b) - weight(a); }).slice(0, per).forEach(function (s) { out.push({ s: s, di: di }); });
+      d.stops.filter(isSight).sort(function (a, b) { return weight(b) - weight(a); }).slice(0, per).forEach(function (s) { out.push({ s: s, di: di }); });
     });
     return out;
   }
@@ -213,9 +215,12 @@ window.Mapa = (function () {
       legs.push({ m: m, ax: a0.x, ay: a0.y, cx: cxx, cy: cyy, bx: q.x, by: q.y, di: q.di, km: kmBetween(a0.s, q.s) });
     });
     legs.forEach(function (l, n) {
-      // de un día al siguiente en la misma zona se duerme, no se viaja: no se dibuja
-      if (seq[n].di !== seq[n + 1].di && l.km < 60 && l.m !== 'train') return;
       var col = COLORS[l.di % COLORS.length], d0 = 'M' + l.ax.toFixed(1) + ' ' + l.ay.toFixed(1) + 'Q' + l.cx.toFixed(1) + ' ' + l.cy.toFixed(1) + ' ' + l.bx.toFixed(1) + ' ' + l.by.toFixed(1);
+      // la ruta nunca se corta. De un día al siguiente dentro de la misma zona se duerme, no se viaja: línea fina y discreta
+      if (seq[n].di !== seq[n + 1].di && l.km < 15 && l.m !== 'train' && l.m !== 'plane') {
+        svg += '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-dasharray="0.1 9" stroke-linecap="round" opacity=".55"/>';
+        return;
+      }
       svg += (
         l.m === 'plane' ? '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="4" stroke-dasharray="16 11" stroke-linecap="round"/>' :
         l.m === 'car' ? '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="7.5" stroke-dasharray="0.1 15" stroke-linecap="round"/>' :
@@ -350,5 +355,5 @@ window.Mapa = (function () {
       }).catch(function () {});
     }
   }
-  return { mount: mount, corsUrl: corsUrl, fromTrip: fromTrip, landFor: landFor, sketch: sketch, pickPins: pickPins, photoOf: photoOf };
+  return { mount: mount, corsUrl: corsUrl, isStop: isStop, fromTrip: fromTrip, landFor: landFor, sketch: sketch, pickPins: pickPins, photoOf: photoOf };
 })();

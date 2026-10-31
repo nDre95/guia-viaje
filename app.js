@@ -2641,7 +2641,7 @@ var View = (function () {
     if (window.Mapa) Mapa.mount($('#tripMap'), {
       id: META.id, title: (META.title || {})[I18N.lang] || (META.title || {}).es || '', dayLabel: L('day'), lang: I18N.lang, mode: META.mode || 'car', land: T.mapLand || null,
       photos: window.TRIP_PHOTOS || null,
-      days: plans.map(function (p) { return { title: p.day.title, jump: p.ev.some(function (e) { return e.it.jump && !e.skip; }), stops: p.ev.filter(function (e) { return !e.skip && e.it.lat != null && V.isCromo(e.it); }).map(function (e) { return e.it; }) }; })
+      days: plans.map(function (p) { return { title: p.day.title, jump: p.ev.some(function (e) { return e.it.jump && !e.skip; }), stops: p.ev.filter(function (e) { return !e.skip && Mapa.isStop(e.it); }).map(function (e) { return e.it; }) }; })
     });
   }
 
