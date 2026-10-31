@@ -33,6 +33,10 @@
   .trip-m .btn{padding:7px 11px;font-size:13px}
   .tag-gen{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--orange-t)}
   /* Home */
+  .hm-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .lang-sw{flex:0 0 auto;display:flex;padding:3px;border-radius:999px;background:var(--fill2);margin-top:6px}
+  .lang-sw button{-webkit-appearance:none;appearance:none;border:0;background:none;border-radius:999px;padding:5px 10px;font:750 12.5px -apple-system,system-ui,sans-serif;color:var(--txt2);cursor:pointer;transition:background .25s,color .25s}
+  .lang-sw button.on{background:var(--orange);color:#fff}
   [hidden]{display:none!important}
   .rv-h{animation:rvH .65s var(--smooth) both;animation-delay:var(--d,0ms)}
   @keyframes rvH{from{opacity:0;transform:translateY(18px) scale(.98)}}
@@ -150,6 +154,9 @@
   .wz-city i{position:absolute;z-index:1;top:6px;right:6px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--orange);color:#fff;transform:scale(0);transition:transform .45s var(--spring)}
   .wz-city i .ic{width:14px;height:14px;stroke-width:3}
   .wz-city.on{box-shadow:0 0 0 3px var(--orange);transform:scale(.96)}.wz-city.on i{transform:scale(1)}
+  .wz-popt{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--txt3);margin:18px 2px -4px}
+  .wz-skel{display:block;cursor:default;background:var(--fill2);animation:livePulse 1.4s infinite}
+  .wz-skel::after{display:none}
   .wz-map{position:relative;height:180px;border-radius:18px;overflow:hidden;background:var(--fill2);margin:14px 0 10px;animation:wzPop .5s var(--smooth) both}
   .wz-map img{position:absolute;width:256px;height:256px;max-width:none;user-select:none}
   html[data-theme=dark] .wz-map img{filter:invert(.92) hue-rotate(180deg) brightness(.9) contrast(.9)}
@@ -215,7 +222,7 @@
 <body>
 <main class="vj">
 <section id="tab-home" class="vtab">
-  <h1>Hola <em>viajero</em></h1>
+  <div class="hm-top"><h1>Hola <em>viajero</em></h1><div class="lang-sw" role="group" aria-label="Idioma / Language"><button type="button" data-l="es">ES</button><button type="button" data-l="en">EN</button></div></div>
   <p class="lead">Lo más importante, de un vistazo.</p>
   <div id="homeBox"></div>
 </section>
@@ -243,12 +250,13 @@
   <div id="profBox"></div>
   <div class="pf-h">Ajustes</div>
   <div class="card">
+    <div class="wz-fld"><span>Idioma</span><div class="opts" id="langOpts"><button type="button" class="opt" data-l="es">Español</button><button type="button" class="opt" data-l="en">English</button></div></div>
     <div class="wz-fld"><span>Tema</span><div class="opts" id="themeOpts"><button type="button" class="opt" data-th="auto">Automático</button><button type="button" class="opt" data-th="light">Claro</button><button type="button" class="opt" data-th="dark">Oscuro</button></div></div>
     <div class="wz-fld" style="margin:0"><span>Copia del álbum</span><div class="btn-row"><button type="button" class="btn ghost sq" id="albExp">Guardar copia</button><label class="btn ghost sq">Cargar copia<input type="file" accept="application/json,.json" id="albImp" hidden></label></div></div>
   </div>
 </section>
 
-  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía v11 · 31 oct 2026</p>
+  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía v12 · 31 oct 2026</p>
 </main>
 <div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
 <nav class="vnav" role="tablist" aria-label="Secciones">
@@ -275,6 +283,7 @@
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"></path></symbol>
   <symbol id="i-route" viewBox="0 0 24 24"><path d="M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h6.5a3.5 3.5 0 0 0 0-7h-5a3.5 3.5 0 0 1 0-7H16"></path></symbol>
 </defs></svg>
+<script src="lang.js"></script>
 <script src="mapa.js"></script>
 <script src="motor.js"></script>
 <script src="album.js"></script>

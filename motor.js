@@ -5,6 +5,8 @@
    Referencia para medirlo: tests/motor-benchmark.html */
 window.Motor = (function () {
   'use strict';
+  function lg() { return window.Lang ? Lang.get() : 'es'; }
+  function tr(x) { return window.Lang ? Lang.translate(x) : x; }
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function p2(n) { return (n < 10 ? '0' : '') + n; }
@@ -34,7 +36,7 @@ window.Motor = (function () {
   function nominatim(params) {
     var wait = Math.max(0, nomLast + 1100 - Date.now()); nomLast = Date.now() + wait;
     return sleep(wait).then(function () {
-      return getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&accept-language=es&' + params);
+      return getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&accept-language=' + lg() + '&' + params);
     });
   }
   var OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
@@ -78,7 +80,7 @@ window.Motor = (function () {
   };
   var KIND_ORDER = ['family', 'museum', 'sacred', 'palace', 'ruins', 'market', 'show', 'garden', 'nature', 'square', 'monument', 'quarter'];
   // lo que nunca es una visita, aunque también tenga otra clase
-  var NEVER = /\b(university|college|school|company|business|enterprise|brand|fashion house|manufacturer|airline|railway station|railway line|railway company|rapid transit|metro|subway|train station|bus station|airport|hospital|embassy|consulate|bank|hotel|government|race track|racing circuit|street circuit|motorsport|ministry|parliament of|political|organi[sz]ation|publisher|newspaper|television|radio|sports (club|team)|football club|military unit|rebellion|battle|war|revolution|olympic|festival|recurring event|sporting event|tournament|film|novel|book|album|song)\b/;
+  var NEVER = /\b(university|college|school|company|business|enterprise|brand|fashion house|manufacturer|airline|railway station|railway line|railway company|rapid transit|metro|subway|train station|bus station|airport|hospital|embassy|consulate|bank|stock exchange|hotel|government|race track|racing circuit|street circuit|motorsport|ministry|parliament of|political|organi[sz]ation|publisher|newspaper|television|radio|sports (club|team)|football club|military unit|rebellion|battle|war|revolution|olympic|festival|recurring event|sporting event|tournament|film|novel|book|album|song)\b/;
   var PLACE = /\b(city|town|village|big city|metropolis|municipality|comune|commune|capital|prefecture|ward|borough|province|county|region|state|country|republic|kingdom|duchy|empire|sovereign|administrative|census|river|human settlement|former|metropolitan|arrondissement|sestiere)\b/;
   var ART = /\b(painting|fresco|wall painting|mural|work of art)\b/;
   function classify(types) {
@@ -114,7 +116,7 @@ window.Motor = (function () {
   function rowsToSights(j) {
     return (j.results.bindings || []).map(function (b) {
       var m = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(b.c.value), types = b.types.value, kind = classify(types);
-      return { wd: b.item.value.split('/').pop(), n: (b.es || b.en || {}).value, en: (b.en || {}).value, lat: m ? +m[2] : null, lon: m ? +m[1] : null, links: +b.n.value, kind: kind, types: types,
+      return { wd: b.item.value.split('/').pop(), n: ((lg() === 'en' ? b.en || b.es : b.es || b.en) || {}).value, en: (b.en || {}).value, lat: m ? +m[2] : null, lon: m ? +m[1] : null, links: +b.n.value, kind: kind, types: types,
         img: b.image ? b.image.value.replace(/^http:/, 'https:') + '?width=800' : '', web: b.site ? b.site.value : '', visitors: b.visitors ? +b.visitors.value : 0, unesco: !!b.unesco };
     }).filter(function (x) { return x.n && x.kind && x.lat != null && !/^Q\d+$/.test(x.n); });
   }
@@ -161,7 +163,7 @@ window.Motor = (function () {
       var top = list.slice().sort(function (a, b) { return b.links - a.links; }).slice(0, 120);
       return articles(top.map(function (x) { return x.wd; })).catch(function () { return {}; }).then(function (ar) {
         return pool(top, 5, function (x) {
-          var a = ar[x.wd] || {}; x.wiki = a.es ? ['es', a.es] : a.en ? ['en', a.en] : null;
+          var a = ar[x.wd] || {}, first = lg() === 'en' ? ['en', 'es'] : ['es', 'en']; x.wiki = a[first[0]] ? [first[0], a[first[0]]] : a[first[1]] ? [first[1], a[first[1]]] : null;
           var lang = a.en ? 'en' : a.es ? 'es' : null; if (!lang) return;
           return pageviews(lang, a.en || a.es).then(function (v) { x.views = lang === 'en' ? v : v * 3; });
         });
@@ -217,23 +219,35 @@ window.Motor = (function () {
     });
   }
   // las ciudades más conocidas de un país (por número de Wikipedias)
+  var SUG = {};
   function suggestCities(countryWd) {
     if (!countryWd) return Promise.resolve([]);
-    var q = 'SELECT ?c (SAMPLE(?les) AS ?es) (SAMPLE(?len) AS ?en) (SAMPLE(?co) AS ?p) (MAX(?n0) AS ?n) (SAMPLE(?img) AS ?image) WHERE { ?c wdt:P17 wd:' + countryWd + '; wdt:P31/wdt:P279* wd:Q515; wikibase:sitelinks ?n0; wdt:P625 ?co. FILTER(?n0 > 40)' +
+    if (SUG[countryWd]) return SUG[countryWd];
+    SUG[countryWd] = fetchCities(countryWd);
+    SUG[countryWd].catch(function () { delete SUG[countryWd]; });
+    return SUG[countryWd];
+  }
+  function fetchCities(countryWd) {
+    var q = 'SELECT ?c (SAMPLE(?les) AS ?es) (SAMPLE(?len) AS ?en) (SAMPLE(?co) AS ?p) (MAX(?n0) AS ?n) (SAMPLE(?img) AS ?image) WHERE { ?c wdt:P17 wd:' + countryWd + '; wdt:P31/wdt:P279* wd:Q515; wikibase:sitelinks ?n0; wdt:P625 ?co. FILTER(?n0 > 25)' +
       " OPTIONAL { ?c rdfs:label ?les. FILTER(LANG(?les) = 'es') } OPTIONAL { ?c rdfs:label ?len. FILTER(LANG(?len) = 'en') } OPTIONAL { ?c wdt:P18 ?img. } } GROUP BY ?c ORDER BY DESC(?n) LIMIT 12";
     return sparql(q).then(function (j) {
       return (j.results.bindings || []).map(function (b) {
         var m = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(b.p.value);
-        return { name: (b.es || b.en || {}).value, lat: m ? +m[2] : null, lon: m ? +m[1] : null, img: b.image ? b.image.value.replace(/^http:/, 'https:') + '?width=480' : '', links: +b.n.value };
+        return { name: ((lg() === 'en' ? b.en || b.es : b.es || b.en) || {}).value, lat: m ? +m[2] : null, lon: m ? +m[1] : null, img: b.image ? b.image.value.replace(/^http:/, 'https:') + '?width=480' : '', links: +b.n.value };
       }).filter(function (x) { return x.name && x.lat != null && !/^Q\d+$/.test(x.name); });
     });
   }
   function wikiSummary(lang, title) {
     return getJSON('https://' + lang + '.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title.replace(/ /g, '_'))).catch(function () { return null; });
   }
-  function firstSentences(t, n) { var m = String(t).replace(/\s*\([^)]*\)/g, '').match(/[^.!?]+[.!?]+/g); return m ? m.slice(0, n).join('').trim() : String(t).slice(0, 220); }
+  function firstSentences(t, n) { var c = String(t), c0; do { c0 = c; c = c.replace(/\s*\([^()]*\)/g, ''); } while (c !== c0); var m = c.replace(/\s*\([^)]*$/, '').replace(/\s*\(,/g, ',').match(/[^.!?]+[.!?]+/g); return m ? m.slice(0, n).join('').trim() : String(t).slice(0, 220); }
+  // una foto bonita de un sitio (la de su artículo de Wikipedia)
+  function photoOf(title) {
+    return wikiSummary('en', title).then(function (s) { return s && s.thumbnail ? s.thumbnail.source : ''; });
+  }
   function placeInfo(name) {
-    return wikiSummary('es', name).then(function (s) { return s && s.extract && s.type !== 'disambiguation' ? s : wikiSummary('en', name); }).then(function (s) {
+    var L0 = lg() === 'en' ? ['en', 'es'] : ['es', 'en'];
+    return wikiSummary(L0[0], name).then(function (s) { return s && s.extract && s.type !== 'disambiguation' ? s : wikiSummary(L0[1], name); }).then(function (s) {
       return s ? { text: firstSentences(s.extract || '', 2), img: s.originalimage ? (s.thumbnail || s.originalimage).source.replace(/\/\d+px-/, '/800px-') : '' } : null;
     });
   }
@@ -443,6 +457,7 @@ window.Motor = (function () {
     drive: { icon: 'car', label: 'Ruta' }, car: { icon: 'key', label: 'Coche' }, hotel: { icon: 'bed', label: 'Hotel' }, night: { icon: 'moon', label: 'Noche' }, tour: { icon: 'ghost', label: 'Tour' },
     train: { icon: 'plane', label: 'Viaje' }, shop: { icon: 'shop', label: 'Compras' } };
   function checklist(sp, country) {
+    if (lg() === 'en') country = country.replace(' y ', ' and ');
     var c = [
       { id: 'doc', icon: 'doc', title: 'Documentos', items: [{ id: 'pasaporte', t: 'DNI o pasaporte en vigor', imp: 1, n: 'Comprueba qué documento pide ' + country + ' y si hace falta visado o autorización.' },
         { id: 'seguro', t: 'Seguro de viaje o tarjeta sanitaria', imp: 1 }, { id: 'reservas', t: 'Reservas guardadas en «Reservas y billetes»' }] },
@@ -453,11 +468,13 @@ window.Motor = (function () {
       { id: 'vdoc', icon: 'plane', title: 'Vuelta', when: 'back', items: [{ id: 'vcheckin', t: 'Check-in online del vuelo de vuelta', imp: 1 }, { id: 'vmaleta', t: 'Maleta revisada (líquidos, peso)' }] }
     ];
     if (sp.mode === 'car') c.splice(2, 0, { id: 'car', icon: 'car', title: 'Coche', items: [{ id: 'carnet', t: 'Carné de conducir', imp: 1, n: 'Algunos países piden el permiso internacional.' }, { id: 'alquiler', t: 'Reserva del coche de alquiler', imp: 1 }] });
+    c.forEach(function (g) { g.title = tr(g.title); g.items.forEach(function (i) { i.t = tr(i.t); if (i.n) i.n = tr(i.n); }); });
     return c;
   }
   function nameOf(tg) { return tg['name:es'] || tg.name || tg['name:en']; }
   function placeOf(tg, fallback) { return tg['addr:city'] || tg['addr:town'] || tg['addr:village'] || fallback || ''; }
   function assemble(plan, food, sp, meta0) {
+    var EN0 = lg() === 'en', AT = EN0 ? ' at ' : ' en ';
     var photos = {}, credits = [], nPh = 0, foodUsed = {}, walkMode = sp.mode !== 'car';
     function photo(p) {
       if (!p.img) return '';
@@ -471,50 +488,50 @@ window.Motor = (function () {
       return food.filter(function (f) { return !foodUsed[f.n] && km(pt, f) < 1 && (!re || re.test(f.tg.amenity || '')); })
         .sort(function (a, b) { return rich(b) - rich(a) || km(pt, a) - km(pt, b); }).slice(0, n || 1);
     }
-    function hours(tg) { return tg.opening_hours ? 'Horario en OpenStreetMap: ' + tg.opening_hours + ' (compruébalo antes de ir).' : ''; }
+    function hours(tg) { return tg.opening_hours ? tr('Horario en OpenStreetMap: ' + tg.opening_hours + ' (compruébalo antes de ir).') : ''; }
     var stays = [], days = [], route = [];
     plan.forEach(function (d, k) {
       var did = 'd' + (k + 1), items = [], n = 0, c = d.city, town = c.name, hotelName = c.stay || '', stayPt = d.stay;
       function id() { return did + '-' + (++n); }
       function meal(ti, at, dur, pt, re, fallbackQ) {
         var f = pt ? foodNear(pt, 1, re)[0] : null; if (f) foodUsed[f.n] = 1;
-        var x = { id: id(), t: 'food', ti: f ? ti + ' en ' + f.n : ti, pl: f ? placeOf(f.tg, town) : town, d: dur, lat: f ? +f.lat.toFixed(5) : +(pt || stayPt).lat.toFixed(5), lon: f ? +f.lon.toFixed(5) : +(pt || stayPt).lon.toFixed(5),
-          q: f ? f.n + ', ' + town : fallbackQ, tips: f ? [f.tg.cuisine ? 'Cocina: ' + f.tg.cuisine.replace(/;/g, ', ') + '.' : '', hours(f.tg)].filter(Boolean) : ['El botón de Maps abre los sitios cercanos.'] };
+        var x = { id: id(), t: 'food', ti: f ? tr(ti) + AT + f.n : tr(ti), pl: f ? placeOf(f.tg, town) : town, d: dur, lat: f ? +f.lat.toFixed(5) : +(pt || stayPt).lat.toFixed(5), lon: f ? +f.lon.toFixed(5) : +(pt || stayPt).lon.toFixed(5),
+          q: f ? f.n + ', ' + town : tr(fallbackQ), tips: f ? [f.tg.cuisine ? tr('Cocina: ' + f.tg.cuisine.replace(/;/g, ', ') + '.') : '', hours(f.tg)].filter(Boolean) : [tr('El botón de Maps abre los sitios cercanos.')] };
         if (at) x.at = at;
         items.push(x);
       }
       function stopItem(p) {
         var K = KINDS[p.kind], it = { id: id(), t: K.t, k: p.kind, ti: p.n, pl: town, d: p.dd || dwell(p), lat: +p.lat.toFixed(5), lon: +p.lon.toFixed(5), q: p.n + ', ' + town };
         if (p.must) it.must = 1;
-        if (p.fixedAt) { it.at = p.fixedAt; it.tips = ['Entrada con hora: llega 15 min antes.']; }
+        if (p.fixedAt) { it.at = p.fixedAt; it.tips = [tr('Entrada con hora: llega 15 min antes.')]; }
         if (p.soft) { it.at = p.soft; it.soft = 1; }
         if (p.lead) it.lead = p.lead;
         var tips = (it.tips || []).slice();
-        if (p.art) tips.push('Aquí se conserva: ' + p.art.slice(0, 3).join(', ') + '.');
-        if (p.web) tips.push('Web oficial: ' + p.web);
-        tips.push('Comprueba horario y precio en la web oficial antes de ir.');
+        if (p.art) tips.push(tr('Aquí se conserva: ' + p.art.slice(0, 3).join(', ') + '.'));
+        if (p.web) tips.push(tr('Web oficial: ' + p.web));
+        tips.push(tr('Comprueba horario y precio en la web oficial antes de ir.'));
         it.tips = tips;
         var ph = photo(p); if (ph) it.ph = ph;
         var tags = []; if (K.photo) tags.push('photo'); if (K.rain) tags.push('rain'); if (tags.length) it.tags = tags;
         if (K.out) it.light = 1;
-        if (p.page) it.see = ['Más en Wikipedia: ' + p.page];
+        if (p.page) it.see = [tr('Más en Wikipedia: ' + p.page)];
         it.src = { wd: p.wd || null, links: p.links || 0, views: Math.round(p.views || 0) };
         items.push(it);
       }
       // el comienzo del día
       var firstNight = k === 0 || d.moved;
       if (k === 0 && sp.fin && sp.fin.t) {
-        items.push({ id: id(), t: 'train', ti: 'Llegada' + (sp.fin.p ? ' a ' + sp.fin.p : ''), at: sp.fin.t, d: walkMode ? 45 : 30, lat: +(sp.airIn || stayPt).lat.toFixed(5), lon: +(sp.airIn || stayPt).lon.toFixed(5), tips: ['Cuenta con el control de pasaportes y las maletas.'] });
-        if (!walkMode) items.push({ id: id(), t: 'car', ti: 'Recoger el coche de alquiler', d: 45, lat: +(sp.airIn || stayPt).lat.toFixed(5), lon: +(sp.airIn || stayPt).lon.toFixed(5), pickup: 1, tips: ['Revisa el coche y haz fotos antes de salir.'] });
+        items.push({ id: id(), t: 'train', ti: tr('Llegada' + (sp.fin.p ? ' a ' + sp.fin.p : '')), at: sp.fin.t, d: walkMode ? 45 : 30, lat: +(sp.airIn || stayPt).lat.toFixed(5), lon: +(sp.airIn || stayPt).lon.toFixed(5), tips: [tr('Cuenta con el control de pasaportes y las maletas.')] });
+        if (!walkMode) items.push({ id: id(), t: 'car', ti: tr('Recoger el coche de alquiler'), d: 45, lat: +(sp.airIn || stayPt).lat.toFixed(5), lon: +(sp.airIn || stayPt).lon.toFixed(5), pickup: 1, tips: [tr('Revisa el coche y haz fotos antes de salir.')] });
       } else if (k > 0) {
         var prevStay = plan[k - 1].stay;
-        items.push({ id: id(), t: 'food', ti: d.moved ? 'Desayuno y check-out' : 'Desayuno', d: d.ST === STYLE.afternoon && !d.moved ? 50 : d.moved ? 45 : 30, lat: +prevStay.lat.toFixed(5), lon: +prevStay.lon.toFixed(5) });
+        items.push({ id: id(), t: 'food', ti: tr(d.moved ? 'Desayuno y check-out' : 'Desayuno'), d: d.ST === STYLE.afternoon && !d.moved ? 50 : d.moved ? 45 : 30, lat: +prevStay.lat.toFixed(5), lon: +prevStay.lon.toFixed(5) });
       }
       if (d.moved && walkMode) {
         var mk = km(d.prev, c), mm = legMinutes(mk), how = mk < 700 ? 'tren o autobús' : 'avión';
-        items.push({ id: id(), t: 'train', jump: 1, ti: 'Viaje a ' + town, pl: d.prev.name + ' → ' + town, d: mm, lat: +c.lat.toFixed(5), lon: +c.lon.toFixed(5), tips: ['Tiempo aproximado en ' + how + ' (' + Math.round(mk) + ' km en línea recta), con esperas. El billete lo reservas tú: busca horarios antes de ir y ajusta el plan.'] });
+        items.push({ id: id(), t: 'train', jump: 1, ti: tr('Viaje a ' + town), pl: d.prev.name + ' → ' + town, d: mm, lat: +c.lat.toFixed(5), lon: +c.lon.toFixed(5), tips: [tr('Tiempo aproximado en ' + how + ' (' + Math.round(mk) + ' km en línea recta), con esperas. El billete lo reservas tú: busca horarios antes de ir y ajusta el plan.')] });
       }
-      if (firstNight && !d.last) items.push({ id: id(), t: 'hotel', ti: (k === 0 && !d.moved ? 'Dejar las maletas en ' : 'Check-in en ') + (hotelName || 'el alojamiento'), pl: town, d: 20, lat: +stayPt.lat.toFixed(5), lon: +stayPt.lon.toFixed(5), stay: did });
+      if (firstNight && !d.last) items.push({ id: id(), t: 'hotel', ti: tr((k === 0 && !d.moved ? 'Dejar las maletas en ' : 'Check-in en ') + (hotelName || 'el alojamiento')), pl: town, d: 20, lat: +stayPt.lat.toFixed(5), lon: +stayPt.lon.toFixed(5), stay: did });
       // las visitas de la mañana, comida, las de la tarde
       var am = d.am.slice(), pm = d.pm.slice();
       // entradas con hora: se colocan donde les toca
@@ -534,14 +551,14 @@ window.Motor = (function () {
       // tiempo para una copa
       var lastStop = pm[pm.length - 1] || lastAm;
       if ((d.P.drinks || d.ST === STYLE.spread) && d.arrive < hm(d.ST.dinner) - 180 && !(d.last && sp.fout && sp.fout.t)) meal(d.P.drinks ? 'Tarde de bares y aperitivo' : 'Aperitivo', fmt(hm(d.ST.dinner) - (d.P.drinks ? 120 : 75)), d.P.drinks ? 90 : 50, lastStop, /bar|pub|cafe/, 'bares cerca de ' + (lastStop.n || town));
-      if (!d.stops.length && d.arrive < hm(d.ST.dinner) - 120) items.push({ id: id(), t: 'walk', ti: 'Paseo libre por ' + town, pl: town, d: 120, lat: +c.lat.toFixed(5), lon: +c.lon.toFixed(5), q: town, tips: ['No he encontrado más sitios conocidos para este día: es un buen momento para perderse por la zona. En «Más ideas» tienes alternativas.'] });
+      if (!d.stops.length && d.arrive < hm(d.ST.dinner) - 120) items.push({ id: id(), t: 'walk', ti: tr('Paseo libre por ' + town), pl: town, d: 120, lat: +c.lat.toFixed(5), lon: +c.lon.toFixed(5), q: town, tips: [tr('No he encontrado más sitios conocidos para este día: es un buen momento para perderse por la zona. En «Más ideas» tienes alternativas.')] });
       // el final del día
       if (d.last && sp.fout && sp.fout.t) {
         var ap = sp.airOut || stayPt;
-        if (!walkMode) items.push({ id: id(), t: 'car', ti: 'Devolver el coche', d: 30, lat: +ap.lat.toFixed(5), lon: +ap.lon.toFixed(5) });
-        items.push({ id: id(), t: 'train', ti: 'Aeropuerto · vuelo a las ' + sp.fout.t, at: fmt(hm(sp.fout.t) - 120), d: 120, lat: +ap.lat.toFixed(5), lon: +ap.lon.toFixed(5), tips: ['Llega 2 h antes del vuelo.'] });
+        if (!walkMode) items.push({ id: id(), t: 'car', ti: tr('Devolver el coche'), d: 30, lat: +ap.lat.toFixed(5), lon: +ap.lon.toFixed(5) });
+        items.push({ id: id(), t: 'train', ti: tr('Aeropuerto · vuelo a las ' + sp.fout.t), at: fmt(hm(sp.fout.t) - 120), d: 120, lat: +ap.lat.toFixed(5), lon: +ap.lon.toFixed(5), tips: [tr('Llega 2 h antes del vuelo.')] });
       } else {
-        if (!firstNight && !d.last) items.push({ id: id(), t: 'hotel', ti: hotelName ? 'Vuelta a ' + hotelName : 'Vuelta al alojamiento', pl: town, d: 15, lat: +stayPt.lat.toFixed(5), lon: +stayPt.lon.toFixed(5), stay: did });
+        if (!firstNight && !d.last) items.push({ id: id(), t: 'hotel', ti: tr(hotelName ? 'Vuelta a ' + hotelName : 'Vuelta al alojamiento'), pl: town, d: 15, lat: +stayPt.lat.toFixed(5), lon: +stayPt.lon.toFixed(5), stay: did });
         meal('Cena', d.ST.dinner, d.P.dinner, stayPt === d.stay ? (lastStop.lat != null ? lastStop : stayPt) : stayPt, /restaurant|pub/, 'restaurantes cerca de ' + (hotelName || town));
       }
       if (!d.last) stays.push({ id: did, town: town, lat: +stayPt.lat.toFixed(5), lon: +stayPt.lon.toFixed(5) });
@@ -554,28 +571,28 @@ window.Motor = (function () {
       var guide = foodNear(stayPt, 8).concat(foodNear(lastAm, 4)).map(function (f) {
         foodUsed[f.n] = 1;
         var kind = /pub|bar/.test(f.tg.amenity) ? 'pub' : 'eat';
-        return { k: kind, n: f.n, pl: placeOf(f.tg, town), p: '', t: [f.tg.cuisine ? 'Cocina: ' + f.tg.cuisine.replace(/;/g, ', ') : (kind === 'pub' ? 'Bar' : f.tg.amenity === 'cafe' ? 'Café' : 'Restaurante'), f.tg.opening_hours ? 'Horario (OSM): ' + f.tg.opening_hours : ''].filter(Boolean).join('. ') + '.' };
+        return { k: kind, n: f.n, pl: placeOf(f.tg, town), p: '', t: [f.tg.cuisine ? (EN0 ? 'Cuisine: ' : 'Cocina: ') + f.tg.cuisine.replace(/;/g, ', ') : (kind === 'pub' ? 'Bar' : f.tg.amenity === 'cafe' ? (EN0 ? 'Café' : 'Café') : (EN0 ? 'Restaurant' : 'Restaurante')), f.tg.opening_hours ? (EN0 ? 'Hours (OSM): ' : 'Horario (OSM): ') + f.tg.opening_hours : ''].filter(Boolean).join('. ') + '.' };
       });
       var top = d.stops.slice().sort(function (a, b) { return (b.fame || 0) - (a.fame || 0); });
       var topPh = top.filter(function (p) { return p.img; })[0];
       var day = {
-        id: did, title: town, sub: top.slice(0, 3).map(function (p) { return p.n; }).join(', ') || 'Día libre',
+        id: did, title: town, sub: top.slice(0, 3).map(function (p) { return p.n; }).join(', ') || tr('Día libre'),
         ph: topPh ? Object.keys(photos).filter(function (kk) { return photos[kk] === topPh.img; })[0] : undefined,
         start: fmt(d.start), ref: { name: town, lat: c.lat, lon: c.lon }, icon: (top[0] && KINDS[top[0].kind] && KINDS[top[0].kind].icon) || 'pin',
         tips: [], items: items, guide: guide, extras: extras
       };
       if (sp.mode !== 'car') day.mode = sp.mode;
       days.push(day);
-      route.push({ n: town, k: k + 1, day: 'Día ' + (k + 1), ph: day.ph, go: (k + 1) + ':' + ((items.filter(function (i) { return i.src; })[0] || items[0] || {}).id || ''),
+      route.push({ n: town, k: k + 1, day: tr('Día ' + (k + 1)), ph: day.ph, go: (k + 1) + ':' + ((items.filter(function (i) { return i.src; })[0] || items[0] || {}).id || ''),
         t: (top[0] && top[0].lead) || day.sub, facts: top.slice(0, 3).map(function (p) { return p.n; }), must: top[0] ? top[0].n : '' });
     });
     var wxDays = plan.map(function (d) { return { n: d.city.name, lat: d.city.lat, lon: d.city.lon, hi: null, lo: null, pass: 0 }; });
     var c0 = sp.stops[0], cur = CURRENCY[c0.cc] || ['€', 'c'], towns = sp.stops.map(function (x) { return x.name; });
     var countries = sp.stops.map(function (x) { return x.country; }).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
-    var destName = towns.length === 1 ? towns[0] : towns.length === 2 ? towns.join(' y ') : (countries.length === 1 ? countries[0] : towns[0] + ' y más');
+    var destName = towns.length === 1 ? towns[0] : towns.length === 2 ? towns.join(lg() === 'en' ? ' and ' : ' y ') : (countries.length === 1 ? countries[0] : towns[0] + ' y más');
     var nDays = plan.length;
     var meta = {
-      id: meta0.id, storage: meta0.id, title: { es: meta0.title, en: meta0.title }, dest: { es: destName, en: destName }, home: { es: 'España', en: 'Spain' },
+      id: meta0.id, storage: meta0.id, title: { es: meta0.title, en: meta0.title }, dest: { es: destName, en: destName }, home: { es: 'España', en: 'Spain' }, lang: lg(),
       region: countries.join(', ') || destName, roads: '', tz: meta0.tz, tzBase: meta0.tzOff, homeTz: 'Europe/Madrid', currency: cur[0], minor: cur[1],
       flights: { out: sp.fin && sp.fin.t ? { date: sp.start, time: sp.fin.t } : {}, back: sp.fout && sp.fout.t ? { date: addDays(sp.start, nDays - 1), time: sp.fout.t } : {}, hours: 24 },
       strings: {
@@ -634,7 +651,7 @@ window.Motor = (function () {
   function generate(sp, step) {
     step = step || function () { return { ok: function () {}, warn: function () {} }; };
     var c0 = sp.stops[0], title = sp.title, nDays = sp.stops.reduce(function (s, c) { return s + c.days; }, 0), tz = 'UTC', tzOff = 0;
-    if (!title) title = (sp.stops.length === 1 ? c0.name : sp.stops.length === 2 ? sp.stops[0].name + ' y ' + sp.stops[1].name : c0.country || c0.name) + ' en ' + nDays + (nDays === 1 ? ' día' : ' días');
+    if (!title) title = tr((sp.stops.length === 1 ? c0.name : sp.stops.length === 2 ? sp.stops[0].name + (lg() === 'en' ? ' and ' : ' y ') + sp.stops[1].name : c0.country || c0.name) + ' en ' + nDays + (nDays === 1 ? ' día' : ' días'));
     var id = 'u-' + slug(c0.name).slice(0, 24) + '-' + Math.random().toString(36).slice(2, 6);
     function geo(q, near) {
       return q ? nominatim('limit=1&' + (near && near.cc ? 'countrycodes=' + near.cc.toLowerCase() + '&' : '') + 'q=' + encodeURIComponent(q)).then(function (r) { return r[0] ? { lat: +r[0].lat, lon: +r[0].lon, name: q } : null; }).catch(function () { return null; }) : Promise.resolve(null);
@@ -716,5 +733,5 @@ window.Motor = (function () {
     });
   }
 
-  return { discover: discover, generate: generate, classify: classify, searchCountry: searchCountry, searchCity: searchCity, suggestCities: suggestCities, placeInfo: placeInfo, km: km, addDays: addDays, KINDS: KINDS, _buildPlan: buildPlan, _dwell: dwell };
+  return { discover: discover, generate: generate, classify: classify, searchCountry: searchCountry, searchCity: searchCity, suggestCities: suggestCities, placeInfo: placeInfo, photoOf: photoOf, km: km, addDays: addDays, KINDS: KINDS, _buildPlan: buildPlan, _dwell: dwell };
 })();

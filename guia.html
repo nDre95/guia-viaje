@@ -156,7 +156,7 @@
 <script>
 /* ===== Versión web: carga el viaje elegido y después el motor (app.js) ===== */
 window.GUIA_WEB = true;
-window.GUIDE_VER = 'v11 · 31 oct 2026';
+window.GUIDE_VER = 'v12 · 31 oct 2026';
 (function () {
   'use strict';
   var id = null, m = /[?&]trip=([\w-]+)/.exec(location.search);
@@ -173,7 +173,7 @@ window.GUIDE_VER = 'v11 · 31 oct 2026';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
     if (b.meta && b.meta.title) document.title = (b.meta.title.es || b.meta.title.en || document.title) + ' · Guía de viaje';
     window.TRIP_PHOTOS = ph;
-    ['mapa.js', 'app.js'].forEach(function (f) { var sc = document.createElement('script'); sc.src = f; sc.async = false; document.body.appendChild(sc); });
+    ['lang.js', 'mapa.js', 'app.js'].forEach(function (f) { var sc = document.createElement('script'); sc.src = f; sc.async = false; document.body.appendChild(sc); });
     // todas las fotos del viaje a la caché, para verlas sin cobertura (el service worker las sirve desde ahí)
     if (window.caches && /^https?:$/.test(location.protocol)) setTimeout(function () {
       caches.open('guia-img').then(function (c) {

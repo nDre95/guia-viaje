@@ -25,11 +25,13 @@ window.Album = (function () {
   function albumSet(a) { try { localStorage.setItem('guia-album', JSON.stringify(a)); } catch (e) {} }
   function isCromo(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole && !/aeropuerto|airport/i.test(it.ti); }
   function trips() { return TRIPS ? Promise.resolve(TRIPS) : cfg.trips().then(function (t) { TRIPS = t || []; return TRIPS; }); }
-  function tripTitle(t) { return (t.b.meta.title || {}).es || t.id; }
+  function lg() { return window.Lang ? Lang.get() : 'es'; }
+  function tr(s) { return window.Lang ? Lang.t(s) : s; }
+  function tripTitle(t) { var m = t.b.meta.title || {}; return m[lg()] || m.es || t.id; }
   // cromos de un viaje: sus sitios, por días; ★ = imprescindible (o, si el viaje no marca ninguno, el 20 % más famoso)
   function cromosOf(t, alb) {
     var b = t.b, ph = b.photos || {}, list = [];
-    b.trip.days.forEach(function (d, k) { d.items.forEach(function (it) { if (isCromo(it)) list.push({ id: it.id, ti: it.ti, day: k + 1, ph: it.ph || '', img: it.ph ? ph[it.ph] || '' : '', must: !!it.must, links: (it.src || {}).links || 0 }); }); });
+    b.trip.days.forEach(function (d, k) { d.items.forEach(function (it) { if (isCromo(it)) list.push({ id: it.id, ti: lg() === 'en' && ((t.b.trip_en || {}).items || {})[it.id] && t.b.trip_en.items[it.id].ti || it.ti, day: k + 1, ph: it.ph || '', img: it.ph ? ph[it.ph] || '' : '', must: !!it.must, links: (it.src || {}).links || 0 }); }); });
     if (!list.some(function (c) { return c.must; })) {
       var cut = list.map(function (c) { return c.links; }).sort(function (x, y) { return y - x; })[Math.max(0, Math.ceil(list.length * 0.2) - 1)] || 1e9;
       list.forEach(function (c) { c.must = c.links > 0 && c.links >= cut; });
@@ -184,19 +186,19 @@ window.Album = (function () {
       // línea central de postal
       g.strokeStyle = '#cfc6b6'; g.lineWidth = 2; g.beginPath(); g.moveTo(1060, 90); g.lineTo(1060, Ht - 90); g.stroke();
       // texto
-      var title = tripTitle(t), dest = (t.b.meta.dest || {}).es || '';
-      g.textAlign = 'left'; g.fillStyle = '#e2782f'; g.font = 'italic 34px ' + serif; g.fillText('Recuerdos de', 1095, 330);
+      var title = tripTitle(t), dest = (t.b.meta.dest || {})[lg()] || (t.b.meta.dest || {}).es || '';
+      g.textAlign = 'left'; g.fillStyle = '#e2782f'; g.font = 'italic 34px ' + serif; g.fillText(tr('Recuerdos de'), 1095, 330);
       g.fillStyle = '#1c1d21'; g.font = '700 52px ' + serif; wrap(g, title, 1095, 392, 360, 58);
       g.fillStyle = '#5a5d66'; g.font = '500 24px ' + sans;
       var lines = got.slice(0, 7).map(function (c) { return '✓ ' + c.ti; });
       lines.forEach(function (l, n) { g.fillText(fit(g, l, 360), 1095, 540 + n * 40); });
       g.strokeStyle = '#d9d1c2'; g.lineWidth = 1.5; for (var y = 552; y < 840; y += 40) { g.beginPath(); g.moveTo(1095, y); g.lineTo(1450, y); g.stroke(); }
-      g.fillStyle = '#8b9099'; g.font = '600 20px ' + sans; g.fillText(got.length + ' de ' + cs.length + ' cromos · Guía de viaje', 1095, 900);
+      g.fillStyle = '#8b9099'; g.font = '600 20px ' + sans; g.fillText(lg() === 'en' ? got.length + ' of ' + cs.length + ' cards · Travel guide' : got.length + ' de ' + cs.length + ' cromos · Guía de viaje', 1095, 900);
       // sello
       g.save(); g.translate(1300, 80); g.fillStyle = '#fff'; g.fillRect(0, 0, 140, 170);
       g.strokeStyle = '#e2782f'; g.setLineDash([6, 6]); g.lineWidth = 4; g.strokeRect(8, 8, 124, 154); g.setLineDash([]);
       g.fillStyle = '#e2782f'; g.font = '900 54px ' + sans; g.textAlign = 'center'; g.fillText(String(got.length), 70, 92);
-      g.font = '800 15px ' + sans; g.fillText(fit(g, dest.toUpperCase(), 116), 70, 128); g.fillText('CROMOS', 70, 150); g.restore();
+      g.font = '800 15px ' + sans; g.fillText(fit(g, dest.toUpperCase(), 116), 70, 128); g.fillText(lg() === 'en' ? 'CARDS' : 'CROMOS', 70, 150); g.restore();
       // matasellos
       g.save(); g.translate(1200, 175); g.rotate(-.2); g.strokeStyle = 'rgba(59,62,70,.55)'; g.lineWidth = 3;
       g.beginPath(); g.arc(0, 0, 62, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(0, 0, 48, 0, Math.PI * 2); g.stroke();

@@ -2595,7 +2595,7 @@ var View = (function () {
     set: function (k, v) { try { localStorage.setItem(NS + k, JSON.stringify(v)); } catch (e) { /* modo privado */ } }
   };
   function fl0() { return JSON.parse(JSON.stringify(META.flights || { out: {}, back: {}, hours: 24 })); }
-  if (!PRE) { var lang0 = store.get('lang', 'es'); if (lang0 !== 'es') I18N.apply(lang0); }
+  if (!PRE) { var lang0 = window.Lang ? Lang.get() : store.get('lang', 'es'); if (lang0 !== 'es') I18N.apply(lang0); }
   var state = {
     start: PRE ? T.defaultStart : ((/[?&]start=(\d{4}-\d{2}-\d{2})/.exec(location.search) || [])[1] || T.defaultStart),
     checked: PRE ? {} : store.get('checked', {}),
@@ -3643,7 +3643,7 @@ var View = (function () {
   }
   if (window.Album && !window.GUIA_WEB) Album.init({
     single: true,
-    trips: function () { return Promise.resolve([{ id: (META.id || 'guia'), b: { meta: META, trip: window.TRIP || T, photos: {} } }]); },
+    trips: function () { return Promise.resolve([{ id: (META.id || 'guia'), b: { meta: META, trip: window.TRIP || T, trip_en: window.TRIP_EN, photos: {} } }]); },
     // pegado o quitado desde el visor 3D: botones de la guía y losa al día
     onChange: function () {
       album = albumGet(); V.setAlbum(album);
@@ -4348,7 +4348,7 @@ var View = (function () {
   /* ---------- Idioma ---------- */
   function setLang(l) {
     if (l === I18N.lang) return;
-    I18N.apply(l); store.set('lang', l);
+    I18N.apply(l); store.set('lang', l); if (window.Lang) Lang.set(l);
     applyStatic(); rerender();
     notify({ ico: 'flag', title: L('nLang'), body: L('nLangBody'), ms: 3000 });
     haptic();

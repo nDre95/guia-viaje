@@ -1,0 +1,129 @@
+/* ===== Idioma de toda la app (es / en): uno solo, compartido entre Home, álbum, asistente y guías =====
+   Home, álbum y asistente están escritos en español. En inglés, este módulo traduce lo que aparece en pantalla:
+   texto exacto (EN) o con cifras y nombres (PAT). Texto nuevo en esas pantallas = añadirlo aquí.
+   La guía (app.js) sigue con sus propios textos en I18N; solo toma de aquí qué idioma toca. */
+window.Lang = (function () {
+  'use strict';
+  var KEY = 'guia-lang', code = 'es';
+  try { code = localStorage.getItem(KEY) || (/^en/i.test(navigator.language || '') && !/^es/i.test(navigator.language || '') ? 'en' : 'es'); } catch (e) {}
+  var EN = {
+    // Home y pestañas
+    'Hola': 'Hello', 'viajero': 'traveller', 'Lo más importante, de un vistazo.': 'What matters most, at a glance.', 'Home': 'Home', 'Viajes': 'Trips', 'Álbum': 'Album', 'Perfil': 'Profile',
+    'Mis viajes · Guía de viaje': 'My trips · Travel guide', 'Tu próximo viaje': 'Your next trip', 'Abrir la guía': 'Open the guide', '¡Es hoy!': "It's today!", 'Mañana': 'Tomorrow', 'Sin viajes a la vista': 'No trips on the horizon', '¿A dónde vamos?': 'Where shall we go?',
+    'Crea una guía nueva en un par de minutos, con datos reales.': 'Create a new guide in a couple of minutes, with real data.', 'Crear un viaje': 'Create a trip', 'insignias': 'badges', 'Imprescindibles': 'Must-sees', 'imprescindibles': 'must-sees',
+    'Preparativos': 'Preparation', 'Tiempo': 'Weather', 'Siguiente insignia': 'Next badge', 'Nuevo viaje': 'New trip',
+    // Viajes
+    'Mis': 'My', 'viajes': 'trips', 'Abre una guía o crea una nueva con datos reales y gratuitos.': 'Open a guide or create a new one with real, free data.', 'Importar viaje': 'Import trip', 'Abrir': 'Open', 'Exportar': 'Export', 'Borrar': 'Delete',
+    'Creado con el asistente': 'Created with the assistant', 'Importado': 'Imported', 'Aún no hay viajes.': 'No trips yet.', 'Cargando…': 'Loading…',
+    // Álbum
+    'Mi': 'My', 'álbum': 'album', 'perfil': 'profile', 'Cada sitio que visitas es un cromo. Pégalo desde la guía («Pegar cromo») o tocándolo aquí. Los que tienen ★ son los imprescindibles.': 'Every place you visit is a card. Collect it from the guide or by tapping it here. Those with a ★ are the must-sees.',
+    'Tu postal': 'Your postcard', 'Guardar o compartir': 'Save or share', 'Cerrar': 'Close', 'Crear postal': 'Create postcard', 'Abrir guía': 'Open guide', '★ Imprescindible': '★ Must-see', 'Aún no lo tienes': "You don't have it yet",
+    'Arrastra para girarlo · dale la vuelta para ver el reverso': 'Drag to turn it · flip it to see the back', 'Quitar del álbum': 'Remove from album', 'Pegar cromo': 'Collect', 'Mover con el móvil': 'Move with the phone', 'Inclina el móvil': 'Tilt the phone',
+    'Por': 'To', 'pegar': 'collect', 'Visto': 'Seen',
+    // Perfil
+    'viaje': 'trip', 'días de viaje': 'days of travel', 'cromos': 'cards', 'Mis viajes': 'My trips', 'Hecho': 'Done', 'En curso': 'Under way', 'Próximo': 'Upcoming', 'Ajustes': 'Settings', 'Tema': 'Theme', 'Automático': 'Automatic', 'Claro': 'Light', 'Oscuro': 'Dark', 'Idioma': 'Language',
+    'Copia del álbum': 'Album backup', 'Guardar copia': 'Save backup', 'Cargar copia': 'Load backup', 'Primer cromo': 'First card', '10 cromos': '10 cards', '50 cromos': '50 cards', '5 castillos': '5 castles', 'Todos los imprescindibles de un viaje': 'All the must-sees of a trip', 'Álbum completo': 'Full album', 'Cromos en 2 viajes': 'Cards on 2 trips', 'Primer viaje creado': 'First trip created', '3 destinos': '3 destinations',
+    'Guarda tus cromos en un archivo para pasarlos a otro móvil o a la app web.': 'Save your cards to a file to move them to another phone or to the web app.',
+    'Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.': 'Data: © OpenStreetMap contributors (ODbL) · Wikipedia and Wikidata (CC BY-SA) · OSRM routes · Open-Meteo weather and climate. Times and prices: always check the official website.',
+    // Asistente: páginas
+    'Destino': 'Destination', 'Fechas': 'Dates', 'Cómo os movéis': 'Getting around', 'Vuestro ritmo': 'Your pace', 'Vuestros gustos': 'Your tastes', 'Alojamiento': 'Accommodation', 'Billetes': 'Tickets', 'Todo listo': 'All set',
+    '¿A qué país vais?': 'Which country are you going to?', 'Elige uno. Si el viaje cruza fronteras, añade todos los que quieras.': 'Pick one. If the trip crosses borders, add as many as you like.',
+    '¿Qué ciudades o zonas?': 'Which cities or areas?', 'Toca las que quieras, en el orden en que las vais a visitar.': 'Tap the ones you want, in the order you will visit them.',
+    '¿Cuándo y cuántos días?': 'When and for how many days?', 'Elige el primer día y reparte los días entre tus destinos.': 'Choose the first day and share the days between your destinations.',
+    '¿Cómo vais a moveros?': 'How will you get around?', 'Cambia los tiempos de cada trayecto y qué sitios quedan a mano.': 'It changes the time of each journey and which places are within reach.',
+    '¿A qué ritmo?': 'At what pace?', 'Lo más importante entra siempre. El ritmo decide cuánto más y con cuánta calma.': 'The most important always goes in. The pace decides how much more, and how calmly.',
+    '¿Cómo repartís el día?': 'How do you split the day?', 'Las visitas se colocan según lo que elijas, sin dejar medio día vacío por error.': 'Visits are placed according to your choice, without leaving half a day empty by mistake.',
+    '¿Qué os apetece?': 'What do you feel like?', 'Opcional. Empieza por lo general y afina si quieres. Lo imprescindible de cada sitio entra igualmente.': 'Optional. Start broad and refine if you like. The must-sees of each place go in anyway.',
+    '¿Dónde os alojáis?': 'Where are you staying?', 'Opcional. Si lo sabes, las rutas de cada día salen y vuelven de allí.': 'Optional. If you know, each day starts and ends there.',
+    '¿Tenéis algo ya comprado?': 'Have you already bought anything?', 'Opcional. Vuelos y entradas con hora: el plan se organiza a su alrededor.': 'Optional. Flights and timed tickets: the plan is built around them.', 'Tu viaje': 'Your trip',
+    'Siguiente': 'Next', 'Atrás': 'Back', 'Crear la guía': 'Create the guide', 'Creando…': 'Creating…', 'Elige al menos un país': 'Choose at least one country', 'Elige al menos una ciudad': 'Choose at least one city', 'Pon la fecha del primer día': 'Set the date of the first day',
+    'Buscar': 'Search', 'Buscando…': 'Searching…', 'Añadir otro país': 'Add another country', 'Otro país…': 'Another country…', 'Escribe un país (Italia, Japón…)': 'Type a country (Italy, Japan…)',
+    'No encuentro ese país. Prueba a escribirlo de otra forma.': "I can't find that country. Try spelling it differently.", 'Sin conexión con el buscador. Inténtalo de nuevo.': 'No connection to the search service. Try again.', 'No lo encuentro. Prueba con otro nombre.': "I can't find it. Try another name.",
+    'Listo, ver lo elegido': 'Done, show my choices', 'Lo más visitado': 'Most visited', 'Mirando lo más visitado…': 'Checking what is most visited…', 'Aún no tengo datos de esta zona: se buscará al crear la guía.': 'No data for this area yet: it will be searched when the guide is created.',
+    'Primer día': 'First day', 'Los días de cada destino se han sugerido según lo que hay que ver allí.': 'The days for each destination are suggested according to what there is to see.',
+    'A pie y transporte público': 'On foot and public transport', 'Lo mejor en ciudad. Lo cercano andando; lo lejano, en metro o autobús.': 'Best in cities. Walk to what is near; take the metro or bus to what is far.', 'Solo a pie': 'On foot only', 'Para centros históricos compactos. Lo muy lejano se hará igualmente en transporte.': 'For compact historic centres. Anything very far will still be by transport.', 'En coche': 'By car', 'Para rutas por carretera, con tiempos reales de conducción y más alcance alrededor de cada destino.': 'For road trips, with real driving times and more reach around each destination.',
+    'Tranquilo': 'Relaxed', 'Pocas visitas y sin prisa: tiempo de sobra para bares, comer bien y sentarse a mirar. Unas 3 al día.': 'Few visits, no rush: plenty of time for bars, good food and sitting back. About 3 a day.', 'Normal': 'Normal', 'Lo esencial y algo más, con tiempo para comer y descansar. Unas 5 al día.': 'The essentials and a bit more, with time to eat and rest. About 5 a day.', 'Intenso': 'Intense', 'Aprovechar al máximo: comidas rápidas y muchas paradas. Hasta 8 al día.': 'Make the most of it: quick meals and many stops. Up to 8 a day.',
+    'Madrugar y tarde libre': 'Early start, free afternoon', 'Las visitas por la mañana. Después de comer, la tarde es vuestra.': 'Visits in the morning. After lunch the afternoon is yours.', 'Dormir más y visitar por la tarde': 'Sleep in and visit in the afternoon', 'Salís sin prisa a media mañana y aprovecháis la tarde hasta la cena.': 'Leave unhurried mid-morning and use the afternoon until dinner.', 'Repartido por todo el día': 'Spread across the day',
+    'Visitas mañana y tarde con descansos largos, y tiempo para bares antes de cenar.': 'Morning and afternoon visits with long breaks, and time for bars before dinner.', 'Visitas mañana y tarde, con tiempo para comer, descansar y tomar algo.': 'Morning and afternoon visits, with time to eat, rest and have a drink.', 'Visitas': 'Visits', 'Comer': 'Eating', 'Bares': 'Bars', 'Libre': 'Free',
+    'Historia y cultura': 'History and culture', 'Castillos y palacios': 'Castles and palaces', 'Ruinas y arqueología': 'Ruins and archaeology', 'Monumentos y torres': 'Monuments and towers', 'Templos, iglesias y mezquitas': 'Temples, churches and mosques', 'Arte y espectáculos': 'Art and shows', 'Museos y galerías': 'Museums and galleries', 'Ópera y teatro': 'Opera and theatre', 'Estadios y deporte': 'Stadiums and sport', 'Vida de ciudad': 'City life', 'Barrios, plazas y calles': 'Neighbourhoods, squares and streets', 'Mercados': 'Markets', 'Naturaleza': 'Nature', 'Parques y jardines': 'Parks and gardens', 'Paisajes, miradores y playas': 'Landscapes, viewpoints and beaches', 'Comer y beber': 'Food and drink', 'Tiempo para bares y buena mesa': 'Time for bars and good food', 'En familia': 'With family', 'Zoos, acuarios y parques de atracciones': 'Zoos, aquariums and theme parks',
+    'Nombre del hotel o dirección': 'Hotel name or address', 'Si aún no lo sabéis, dejadlo en blanco: se usa el centro y podréis ponerlo después en la guía.': "If you don't know yet, leave it blank: the centre is used and you can add it later in the guide.",
+    'Vuelo de llegada (primer día)': 'Arrival flight (first day)', 'Vuelo de vuelta (último día)': 'Return flight (last day)', 'Aeropuerto (p. ej. MXP)': 'Airport (e.g. MXP)', 'Aeropuerto': 'Airport', 'Entradas con hora': 'Timed tickets', 'Añadir entrada': 'Add ticket', 'Sitio': 'Place', 'Quitar': 'Remove',
+    'Nombre del viaje': 'Trip name', 'Destinos': 'Destinations', 'Moverse': 'Getting around', 'Ritmo': 'Pace', 'A pie y transporte': 'On foot and transport', 'A pie': 'On foot', 'Dormir más, visitas por la tarde': 'Sleep in, visits in the afternoon',
+    'Datos reales y gratis: Wikidata, Wikipedia, OpenStreetMap, OSRM y Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.': 'Real, free data: Wikidata, Wikipedia, OpenStreetMap, OSRM and Open-Meteo. Times and prices: always check the official website.',
+    'Tu viaje en un mapa': 'Your trip on a map', 'Guía guardada en este móvil': 'Guide saved on this phone', 'Copiar mensaje': 'Copy message', 'Copiado ✓': 'Copied ✓', 'Respuesta del chat': "Chat's reply", 'Pega aquí el JSON que te devuelva': 'Paste the JSON it returns here', 'Aplicar textos': 'Apply texts', 'Opcional · mejorar los textos con tu ChatGPT o Claude': 'Optional · improve the texts with your ChatGPT or Claude',
+    'La guía ya está hecha con datos reales. Copia este mensaje en tu chat (la versión gratis vale) y pega aquí su respuesta. Solo puede escribir sobre los sitios de la lista: lo demás se descarta.': 'The guide is already made with real data. Copy this message into your chat (the free version will do) and paste its reply here. It can only write about the places on the list: anything else is discarded.',
+    'Escribe el nombre de la ciudad o zona.': 'Type the name of the city or area.',
+    // Motor: pasos
+    'Buscando alojamientos, aeropuertos y entradas': 'Finding accommodation, airports and tickets', 'Alojamientos y horarios listos': 'Accommodation and times ready', 'Zona horaria': 'Time zone', 'Sin zona horaria: uso la de tu móvil': "No time zone: using your phone's", 'Buscando lo más importante (Wikidata y Wikipedia)': 'Finding what matters most (Wikidata and Wikipedia)', 'Repartiendo por días, según tu ritmo': 'Sharing out by days, at your pace', 'Restaurantes y bares cerca (OpenStreetMap)': 'Nearby restaurants and bars (OpenStreetMap)', 'OpenStreetMap no responde ahora: las comidas llevan un enlace para buscar sitio cerca': 'OpenStreetMap is not responding: meals carry a link to search nearby', 'Descripciones y fotos (Wikipedia)': 'Descriptions and photos (Wikipedia)', 'Tiempos reales de cada trayecto (OSRM)': 'Real times for each journey (OSRM)', 'Sin rutas reales: la guía estimará los tiempos por distancia': 'No real routes: the guide will estimate times by distance', 'Temperaturas típicas de esas fechas (Open-Meteo)': 'Typical temperatures for those dates (Open-Meteo)', 'Temperaturas listas': 'Temperatures ready', 'Sin datos de clima: se verá la previsión cuando falten pocos días': 'No climate data: the forecast will show when the trip is close', 'Dibujando el mapa del viaje': 'Drawing the trip map', 'Mapa del viaje listo': 'Trip map ready', 'Mapa sin todos los dibujos': 'Map without all the drawings',
+    // Motor: contenido de la guía
+    'Comida': 'Lunch', 'Cena': 'Dinner', 'Desayuno': 'Breakfast', 'Desayuno y check-out': 'Breakfast and check-out', 'Café y descanso': 'Coffee break', 'Aperitivo': 'Drinks', 'Tarde de bares y aperitivo': 'An evening of bars and drinks', 'Llegada': 'Arrival', 'Recoger el coche de alquiler': 'Pick up the rental car', 'Devolver el coche': 'Return the car', 'Día libre': 'Free day', 'Vuelta al alojamiento': 'Back to the accommodation',
+    'El botón de Maps abre los sitios cercanos.': 'The Maps button opens nearby places.', 'Entrada con hora: llega 15 min antes.': 'Timed ticket: arrive 15 min early.', 'Comprueba horario y precio en la web oficial antes de ir.': 'Check hours and price on the official website before going.', 'Cuenta con el control de pasaportes y las maletas.': 'Allow for passport control and luggage.', 'Revisa el coche y haz fotos antes de salir.': 'Check the car and take photos before leaving.', 'Llega 2 h antes del vuelo.': 'Arrive 2 h before the flight.',
+    'No he encontrado más sitios conocidos para este día: es un buen momento para perderse por la zona. En «Más ideas» tienes alternativas.': 'No more well-known places for this day: a good time to wander around. There are alternatives in “More ideas”.',
+    'Documentos': 'Documents', 'DNI o pasaporte en vigor': 'Valid ID or passport', 'Seguro de viaje o tarjeta sanitaria': 'Travel insurance or health card', 'Reservas guardadas en «Reservas y billetes»': 'Bookings saved in “Bookings and tickets”', 'Dinero y móvil': 'Money and phone', 'Tarjeta sin comisiones en el extranjero': 'Card with no foreign fees', 'Roaming o eSIM': 'Roaming or eSIM', 'Mapas sin conexión descargados': 'Offline maps downloaded', 'En Google Maps, con wifi: tu foto → «Mapas sin conexión» → «Selecciona tu propio mapa».': 'In Google Maps, on wifi: your photo → “Offline maps” → “Select your own map”.', 'Electrónica': 'Electronics', 'Cargadores y batería externa': 'Chargers and power bank', 'Adaptador de enchufe si hace falta': 'Plug adapter if needed', 'Ropa': 'Clothes', 'Calzado cómodo para andar': 'Comfortable walking shoes', 'Ropa según el tiempo de esos días': 'Clothes for the weather on those days', 'Vuelta': 'Return', 'Check-in online del vuelo de vuelta': 'Online check-in for the return flight', 'Maleta revisada (líquidos, peso)': 'Luggage checked (liquids, weight)', 'Coche': 'Car', 'Carné de conducir': 'Driving licence', 'Algunos países piden el permiso internacional.': 'Some countries require the international permit.', 'Reserva del coche de alquiler': 'Rental car booking',
+    // Avisos
+    '¿Salir sin crear el viaje?': 'Leave without creating the trip?', 'Se está creando la guía. ¿Cerrar de todos modos?': 'The guide is being created. Close anyway?', '¿Borrar este viaje del móvil? Lo apuntado en él también se pierde.': 'Delete this trip from the phone? What you noted in it is lost too.', 'Ese archivo no es un viaje de la guía.': 'That file is not a guide trip.', '¿Quitar este cromo del álbum?': 'Remove this card from the album?', 'Ese archivo no es una copia del álbum.': 'That file is not an album backup.', 'Álbum cargado.': 'Album loaded.', 'Copia el texto del cuadro y pégalo en el chat.': 'Copy the text from the box and paste it into the chat.',
+    // Postal
+    'Recuerdos de': 'Memories of', 'Postal del viaje': 'Trip postcard'
+  };
+  var MON = { ene: 'Jan', feb: 'Feb', mar: 'Mar', abr: 'Apr', may: 'May', jun: 'Jun', jul: 'Jul', ago: 'Aug', sep: 'Sep', oct: 'Oct', nov: 'Nov', dic: 'Dec' };
+  var DAY = { domingo: 'Sunday', lunes: 'Monday', martes: 'Tuesday', 'miércoles': 'Wednesday', jueves: 'Thursday', viernes: 'Friday', 'sábado': 'Saturday', dom: 'Sun', lun: 'Mon', mar: 'Tue', 'mié': 'Wed', jue: 'Thu', vie: 'Fri', 'sáb': 'Sat' };
+  function dates(s) {
+    return s.replace(/\b(domingo|lunes|martes|miércoles|jueves|viernes|sábado|dom|lun|mar|mié|jue|vie|sáb)(?= \d{1,2} (?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b)/g, function (d) { return DAY[d]; })
+      .replace(/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/g, function (_, n, m) { return n + ' ' + MON[m]; });
+  }
+  var PAT = [
+    [/^(Tranquilo|Normal|Intenso) · (.+)$/, function (_, x, y) { return EN[x] + ' · ' + (EN[y] || y); }],
+    [/^Faltan (\d+) días$/, '$1 days to go'], [/^En curso · día (\d+) de (\d+)$/, 'Under way · day $1 of $2'], [/^(\d+) (viajes?) · (\d+) días$/, function (_, a, v, d) { return a + (a === '1' ? ' trip' : ' trips') + ' · ' + d + ' days'; }],
+    [/^(\d+) de (\d+) cromos$/, '$1 of $2 cards'], [/^(\d+) de (\d+)$/, '$1 of $2'], [/^(\d+) de (\d+) tareas$/, '$1 of $2 tasks'], [/^(\d+) de (\d+) cromos · (\d+) de (\d+) imprescindibles$/, '$1 of $2 cards · $3 of $4 must-sees'],
+    [/^Visto · (.+)$/, function (_, d) { return 'Seen · ' + dates(d); }], [/^Cromo #(\d+) de (\d+) · Día (\d+)$/, 'Card #$1 of $2 · Day $3'], [/^Insignias · (\d+) de (\d+)$/, 'Badges · $1 of $2'],
+    [/^(.+) · típico (.+)$/, '$1 · typically $2'], [/^(.+) · mín\. (.+)$/, '$1 · min. $2'], [/^Guía (v\d+.*)$/, function (_, v) { return 'Guide ' + dates(v); }],
+    [/^(Destino|Fechas|Cómo os movéis|Vuestro ritmo|Vuestros gustos|Alojamiento|Billetes|Todo listo) · (\d+) de (\d+)$/, function (_, p, a, b) { return EN[p] + ' · ' + a + ' of ' + b; }],
+    [/^Buscando las ciudades más conocidas de (.+)…$/, 'Finding the best-known cities in $1…'], [/^Otra ciudad o zona de (.+)$/, 'Another city or area in $1'], [/^Añadir otra ciudad(?: en (.+))?$/, function (_, c) { return 'Add another city' + (c ? ' in ' + c : ''); }], [/^Añadir una ciudad(?: en (.+))?$/, function (_, c) { return 'Add a city' + (c ? ' in ' + c : ''); }],
+    [/^(\d+) días? en total · de momento, (\d+) como máximo$/, '$1 days in total · for now, $2 at most'], [/^(\d+) días? en total$/, function (_, n) { return n + (n === '1' ? ' day' : ' days') + ' in total'; }], [/^(.+) · (\d+) días?$/, function (_, c, n) { return c + ' · ' + n + (n === '1' ? ' day' : ' days'); }],
+    [/^Entre vuestros destinos hay hasta (\d+) km en línea recta\. .+$/, 'There are up to $1 km in a straight line between your destinations. Unless you go by car, the guide includes the journey with an approximate time; you book the ticket yourself.'],
+    [/^(.+) en (\d+) días?$/, function (_, c, n) { return c + ' in ' + n + (n === '1' ? ' day' : ' days'); }], [/^(.+) \((\d+)\)$/, null],
+    [/^Lo más importante: (\d+) de (\d+) destinos?$/, 'What matters most: $1 of $2'], [/^(\d+) sitios valorados por interés real(.*)$/, '$1 places rated by real interest$2'], [/^Día (\d+): (.+) paradas$/, function (_, d, r) { return 'Day ' + d + ': ' + r.replace(/Día /g, 'Day ') + ' stops'; }], [/^(\d+) sitios para comer$/, '$1 places to eat'], [/^(\d+) fotos y (\d+) descripciones$/, '$1 photos and $2 descriptions'], [/^Rutas calculadas entre (\d+) puntos$/, 'Routes calculated between $1 points'], [/^Zona horaria: (.+)$/, 'Time zone: $1'], [/^Listo \(no encontré: (.+); uso el centro\)$/, "Ready (couldn't find: $1; using the centre)"],
+    [/^Algo falló: (.+)\. Comprueba la conexión y vuelve a intentarlo\.$/, 'Something went wrong: $1. Check your connection and try again.'],
+    [/^Dejar las maletas en (.+)$/, function (_, h) { return 'Drop the bags at ' + (h === 'el alojamiento' ? 'the accommodation' : h); }], [/^Check-in en (.+)$/, function (_, h) { return 'Check in at ' + (h === 'el alojamiento' ? 'the accommodation' : h); }], [/^Vuelta a (.+)$/, 'Back to $1'], [/^Viaje a (.+)$/, 'Journey to $1'], [/^Paseo libre por (.+)$/, 'A free walk around $1'], [/^Llegada a (.+)$/, 'Arrival at $1'], [/^Aeropuerto · vuelo a las (.+)$/, 'Airport · flight at $1'], [/^Día (\d+)$/, 'Day $1'],
+    [/^(Comida|Cena|Aperitivo|Café y descanso|Tarde de bares y aperitivo) en (.+)$/, function (_, m, f) { return EN[m] + ' at ' + f; }],
+    [/^Comprueba qué documento pide (.+) y si hace falta visado o autorización\.$/, 'Check which document $1 requires and whether you need a visa or authorisation.'], [/^Mira si tu tarifa incluye (.+)\.$/, 'Check whether your plan covers $1.'], [/^Aquí se conserva: (.+)\.$/, 'Kept here: $1.'], [/^Web oficial: (.+)$/, 'Official website: $1'], [/^Más en Wikipedia: (.+)$/, 'More on Wikipedia: $1'], [/^Cocina: (.+)\.$/, 'Cuisine: $1.'], [/^Horario en OpenStreetMap: (.+) \(compruébalo antes de ir\)\.$/, 'Hours on OpenStreetMap: $1 (check before going).'],
+    [/^restaurantes cerca de (.+)$/, 'restaurants near $1'], [/^bares cerca de (.+)$/, 'bars near $1'], [/^cafeterías cerca de (.+)$/, 'cafés near $1'],
+    [/^Tiempo aproximado en (tren o autobús|avión) \((\d+) km en línea recta\), con esperas\. .+$/, function (_, h, k) { return 'Approximate time by ' + (h === 'avión' ? 'plane' : 'train or coach') + ' (' + k + ' km in a straight line), with waits. You book the ticket yourself: check times beforehand and adjust the plan.'; }]
+  ];
+  function translate(raw) {
+    if (code !== 'en' || !raw) return raw;
+    var s = String(raw), m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s), core = m[2];
+    if (!core) return s;
+    if (Object.prototype.hasOwnProperty.call(EN, core)) return m[1] + EN[core] + m[3];
+    for (var i = 0; i < PAT.length; i++) {
+      if (PAT[i][1] && PAT[i][0].test(core)) return m[1] + core.replace(PAT[i][0], PAT[i][1]) + m[3];
+    }
+    var d = dates(core);
+    return d !== core ? m[1] + d + m[3] : s;
+  }
+  // t('…', a, b): traduce y sustituye {0}, {1}…
+  function t(s) { var a = arguments, r = translate(s); return r.replace(/\{(\d+)\}/g, function (_, n) { return a[+n + 1]; }); }
+  // pantallas escritas en español: se traducen según aparecen
+  function walk(root) {
+    if (root.nodeType === 3) { var v = translate(root.nodeValue); if (v !== root.nodeValue) root.nodeValue = v; return; }
+    if (root.nodeType !== 1 || /^(SCRIPT|STYLE|TEXTAREA)$/.test(root.tagName)) return;
+    ['placeholder', 'aria-label', 'alt', 'title'].forEach(function (k) { var a = root.getAttribute(k); if (a) { var v = translate(a); if (v !== a) root.setAttribute(k, v); } });
+    for (var c = root.firstChild; c; c = c.nextSibling) walk(c);
+  }
+  function watch(root) {
+    if (code !== 'en') return;
+    walk(root);
+    new MutationObserver(function (list) {
+      list.forEach(function (m) {
+        if (m.type === 'characterData') walk(m.target);
+        else Array.prototype.forEach.call(m.addedNodes, walk);
+      });
+    }).observe(root, { childList: true, subtree: true, characterData: true });
+    var a0 = window.alert, c0 = window.confirm;
+    window.alert = function (x) { return a0.call(window, translate(x)); };
+    window.confirm = function (x) { return c0.call(window, translate(x)); };
+  }
+  function set(l) { code = l === 'en' ? 'en' : 'es'; try { localStorage.setItem(KEY, code); } catch (e) {} document.documentElement.setAttribute('lang', code); }
+  document.documentElement.setAttribute('lang', code);
+  return { get: function () { return code; }, set: set, t: t, translate: translate, watch: watch };
+})();

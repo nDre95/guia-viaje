@@ -74,6 +74,22 @@ window.Asistente = (function () {
   function back() { if (page > 0 && !busy) { page--; show(-1); } }
 
   /* ---------- 1. Países ---------- */
+  var POPULAR = [['Italia', 'Italy', 'IT', 'Q38', 'Colosseum'], ['España', 'Spain', 'ES', 'Q29', 'Sagrada Família'], ['Francia', 'France', 'FR', 'Q142', 'Eiffel Tower'], ['Portugal', 'Portugal', 'PT', 'Q45', 'Belém Tower'],
+    ['Reino Unido', 'United Kingdom', 'GB', 'Q145', 'Edinburgh Castle'], ['Grecia', 'Greece', 'GR', 'Q41', 'Parthenon'], ['Japón', 'Japan', 'JP', 'Q17', 'Fushimi Inari-taisha'], ['Marruecos', 'Morocco', 'MA', 'Q1028', 'Koutoubia Mosque'],
+    ['Estados Unidos', 'United States', 'US', 'Q30', 'Statue of Liberty'], ['México', 'Mexico', 'MX', 'Q96', 'Chichen Itza'], ['Tailandia', 'Thailand', 'TH', 'Q869', 'Wat Arun'], ['Alemania', 'Germany', 'DE', 'Q183', 'Neuschwanstein Castle']];
+  function popName(p) { return Lang.get() === 'en' ? p[1] : p[0]; }
+  function popularHTML() {
+    var free = POPULAR.filter(function (p) { return !A.countries.some(function (k) { return k.cc === p[2]; }); });
+    return '<div class="wz-popt">' + esc(Lang.get() === 'en' ? 'Popular destinations' : 'Destinos populares') + '</div><div class="wz-grid">' + free.map(function (p) {
+      return '<button type="button" class="wz-city" data-pop="' + p[2] + '"><span>' + flag(p[2]) + ' ' + esc(popName(p)) + '</span></button>';
+    }).join('') + '</div>';
+  }
+  function popularPhotos(c) {
+    $$('[data-pop]', c).forEach(function (b) {
+      var p = POPULAR.filter(function (x) { return x[2] === b.getAttribute('data-pop'); })[0];
+      Motor.photoOf(p[4]).then(function (u) { if (u) b.style.backgroundImage = 'url("' + u + '")'; }).catch(function () {});
+    });
+  }
   function drawCountries(c) {
     function chosen() {
       return A.countries.map(function (k, i) {
@@ -85,7 +101,8 @@ window.Asistente = (function () {
       var has = A.countries.length;
       c.innerHTML = '<div id="wzPicked">' + chosen() + '</div>' +
         (has && !A.adding ? '<button type="button" class="wz-add" id="wzAddC">' + ic('plus') + 'Añadir otro país</button>' :
-          '<div class="wz-search"><input type="text" id="wzQ" placeholder="' + (has ? 'Otro país…' : 'Escribe un país (Italia, Japón…)') + '" autocomplete="off" enterkeyhint="search"><button type="button" class="btn navy sq" id="wzGo">Buscar</button></div><div class="wz-hits" id="wzHits"></div>');
+          '<div class="wz-search"><input type="text" id="wzQ" placeholder="' + (has ? 'Otro país…' : 'Escribe un país (Italia, Japón…)') + '" autocomplete="off" enterkeyhint="search"><button type="button" class="btn navy sq" id="wzGo">Buscar</button></div><div class="wz-hits" id="wzHits"></div>' + popularHTML());
+      popularPhotos(c);
       var add = $('#wzAddC', c); if (add) add.onclick = function () { A.adding = true; paint(); $('#wzQ', c).focus(); };
       var q = $('#wzQ', c); if (!q) return;
       function go() {
@@ -101,9 +118,10 @@ window.Asistente = (function () {
       $('#wzGo', c).onclick = go;
     }
     c.onclick = function (e) {
-      var p = e.target.closest('[data-pick]'), d = e.target.closest('[data-delc]');
-      if (p) {
-        var h = A.hits[+p.getAttribute('data-pick')];
+      var p = e.target.closest('[data-pick]'), d = e.target.closest('[data-delc]'), pop = e.target.closest('[data-pop]');
+      if (p || pop) {
+        var P0 = pop && POPULAR.filter(function (x) { return x[2] === pop.getAttribute('data-pop'); })[0];
+        var h = pop ? { name: popName(P0), cc: P0[2], wd: P0[3] } : A.hits[+p.getAttribute('data-pick')];
         if (!A.countries.some(function (k) { return k.cc === h.cc; })) {
           var k = { name: h.name, cc: h.cc, wd: h.wd, lat: h.lat, lon: h.lon, bb: h.bb };
           A.countries.push(k);
@@ -128,7 +146,7 @@ window.Asistente = (function () {
     function isOn(n) { return A.cities.some(function (x) { return x.name === n; }); }
     function grid() {
       var k = country();
-      if (!k.sug) return '<p class="wz-note">Buscando las ciudades más conocidas de ' + esc(k.name) + '…</p>';
+      if (!k.sug) { var sk = ''; for (var n0 = 0; n0 < 9; n0++) sk += '<i class="wz-city wz-skel"></i>'; return '<div class="wz-grid">' + sk + '</div>'; }
       return k.sug.length ? '<div class="wz-grid">' + k.sug.map(function (s, i) {
         return '<button type="button" class="wz-city' + (isOn(s.name) ? ' on' : '') + '" data-sug="' + i + '"' + (s.img ? ' style="background-image:url(&quot;' + esc(s.img) + '&quot;)"' : '') + '><i>' + ic('check') + '</i><span>' + esc(s.name) + '</span></button>';
       }).join('') + '</div>' : '';
@@ -142,7 +160,7 @@ window.Asistente = (function () {
         '<div class="wz-search"><input type="text" id="wzQ" placeholder="Otra ciudad o zona de ' + esc(country().name) + '" autocomplete="off" enterkeyhint="search"><button type="button" class="btn navy sq" id="wzGo">Buscar</button></div><div class="wz-hits" id="wzHits"></div>' +
         '<div id="wzGrid">' + grid() + '</div>' + (A.cities.length ? '<button type="button" class="wz-add" data-done>' + ic('check') + 'Listo, ver lo elegido</button>' : '');
       var k = country();
-      if (!k.sug) Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; if (PAGES[page].id === 'ciudades' && A.tab === k.cc) { var g = $('#wzGrid', c); if (g) g.innerHTML = grid(); } });
+      if (!k.sug) Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; if (PAGES[page].id === 'ciudades' && A.tab === k.cc) { var g = $('#wzGrid', c); if (g) g.innerHTML = grid() || '<p class="wz-note">' + esc(Lang.t('Escribe el nombre de la ciudad o zona.')) + '</p>'; } });
       var q = $('#wzQ', c);
       function go() {
         var v = q.value.trim(); if (v.length < 2) return;
@@ -358,7 +376,7 @@ window.Asistente = (function () {
 
   /* ---------- Resumen y creación ---------- */
   var L_MODE = { transit: 'A pie y transporte', walk: 'A pie', car: 'En coche' }, L_PACE = { slow: 'Tranquilo', normal: 'Normal', fast: 'Intenso' }, L_STYLE = { morning: 'Madrugar y tarde libre', afternoon: 'Dormir más, visitas por la tarde', spread: 'Repartido por todo el día' };
-  function defTitle() { var n = totalDays(), c = A.cities; return (c.length === 1 ? c[0].name : c.length === 2 ? c[0].name + ' y ' + c[1].name : A.countries.length === 1 ? A.countries[0].name : c[0].name + ' y más') + ' en ' + n + (n === 1 ? ' día' : ' días'); }
+  function defTitle() { var n = totalDays(), c = A.cities; return Lang.translate((c.length === 1 ? c[0].name : c.length === 2 ? c[0].name + (Lang.get() === 'en' ? ' and ' : ' y ') + c[1].name : A.countries.length === 1 ? A.countries[0].name : c[0].name + (Lang.get() === 'en' ? ' and more' : ' y más')) + ' en ' + n + (n === 1 ? ' día' : ' días')); }
   function drawSummary(c) {
     var n = totalDays();
     c.innerHTML = '<div class="wz-sum card">' + (A.cities[0].img ? '<div class="wz-sumph" style="background-image:url(&quot;' + esc(A.cities[0].img) + '&quot;)"></div>' : '') +
@@ -384,7 +402,7 @@ window.Asistente = (function () {
         done = b; busy = false; step('Guía guardada en este móvil').ok(); foot();
         $('#wzAfter').innerHTML = '<div id="wzMapa"></div>' + (cfg.aiBox ? cfg.aiBox(b) : '');
         if (window.Mapa) {
-          Mapa.mount($('#wzMapa'), { id: b.meta.id, title: b.meta.title.es, heading: 'Tu viaje en un mapa', dayLabel: 'Día', mode: b.meta.mode, land: b.trip.mapLand || null, photos: b.photos, days: Mapa.fromTrip(b.trip) });
+          Mapa.mount($('#wzMapa'), { id: b.meta.id, title: b.meta.title.es, heading: 'Tu viaje en un mapa', dayLabel: Lang.t('Día 1').replace(' 1', ''), lang: Lang.get(), mode: b.meta.mode, land: b.trip.mapLand || null, photos: b.photos, days: Mapa.fromTrip(b.trip) });
           $('#wzMapa').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });

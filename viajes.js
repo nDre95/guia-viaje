@@ -9,6 +9,15 @@
   function ic(n) { return '<svg class="ic"><use href="#i-' + n + '"></use></svg>'; }
   function addDays(iso, n) { var d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
   var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'], MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  document.documentElement.setAttribute('lang', Lang.get());
+  Lang.watch(document.body);
+  document.title = Lang.translate(document.title);
+  // idioma: uno solo para toda la app; al cambiarlo se vuelve a pintar todo
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-l]'); if (!b || b.getAttribute('data-l') === Lang.get()) return;
+    Lang.set(b.getAttribute('data-l')); location.reload();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-l]'), function (b) { b.classList.toggle('on', b.getAttribute('data-l') === Lang.get()); });
   function dateLbl(iso) { var d = new Date(iso + 'T12:00:00Z'); return DIAS[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MES[d.getUTCMonth()]; }
 
   /* ---------- Almacén de viajes del móvil (IndexedDB, el mismo que lee la guía) ---------- */
@@ -39,7 +48,7 @@
   /* ---------- Lista de viajes ---------- */
   var builtIn = [];
   function tripCard(t, user) {
-    var title = (t.title && (t.title.es || t.title.en)) || t.id, days = t.days || 0;
+    var title = (t.title && (t.title[Lang.get()] || t.title.es || t.title.en)) || t.id, days = t.days || 0;
     var dates = t.start ? dateLbl(t.start) + ' – ' + dateLbl(addDays(t.start, Math.max(0, days - 1))) : '';
     return '<div class="card trip"><div class="trip-ph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '></div>' +
       '<div class="trip-m">' + (user ? '<span class="tag-gen">' + (t.gen ? 'Creado con el asistente' : 'Importado') + '</span>' : '') +
