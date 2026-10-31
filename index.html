@@ -136,6 +136,7 @@
   <button type="button" class="sh-x" id="shX" data-shclose="" aria-label="Cerrar"><svg class="ic"><use href="#i-x"></use></svg></button><button type="button" class="sh-bk" id="shBk" data-shback="" hidden><svg class="ic"><use href="#i-chev"></use></svg><span>Atrás</span></button>
   <div class="sh-body" id="shBody"></div>
 </div>
+<div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
 <div class="edge edge-t" aria-hidden="true"></div><div class="edge edge-b" aria-hidden="true"></div>
 
 <main class="app" id="pages">
@@ -155,7 +156,7 @@
 <script>
 /* ===== Versión web: carga el viaje elegido y después el motor (app.js) ===== */
 window.GUIA_WEB = true;
-window.GUIDE_VER = 'v6 · 28 oct 2026';
+window.GUIDE_VER = 'v7 · 28 oct 2026';
 (function () {
   'use strict';
   var id = null, m = /[?&]trip=([\w-]+)/.exec(location.search);

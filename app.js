@@ -4,7 +4,7 @@ var I18N = (function () {
   var S = {
     es: {
       app: 'Guía {dest}', now: 'ahora', pinned: 'Fijada', day: 'Día', tabPrep: 'Inicio',
-      islCount: 'Faltan {0} días', islDone: 'Viaje terminado', islPre: 'Día {0} · empieza a las {1}', payMe: 'Viajero 1', payYou: 'Viajero 2', payBy: 'Pagó {0} (toca para cambiar)', payName: 'Nombre {0}', payPaid: 'Pagado por {0}', splitT: 'Cuentas a medias', splitEven: 'Estáis en paz.', splitOwes: '{0} debe a {1}', splitHow: 'Toca la inicial de cada gasto para cambiar quién lo pagó. Todo se reparte a medias.', gDocs: 'Reservas y billetes', docsN: '{0} archivos guardados', docsN1: '1 archivo guardado', docsSub: 'Entradas, embarques, coche', docsT: 'Tus reservas', docsNote: 'PDF o capturas de entradas, tarjetas de embarque, el alquiler del coche… Se guardan en este móvil y se abren sin conexión. No van en la copia de seguridad.', docAdd: 'Añadir archivo', docsEmpty: 'Aún no has guardado nada.', docDel: 'Borrar', docDelQ: '¿Borrar este archivo del móvil?', docBig: '«{0}» pesa más de 25 MB', docAdded: 'Guardado ({0})', docFail: 'No se pudo guardar el archivo', gData: 'Copia, calendario y mapas', gDataSub: 'Copia de seguridad', gDataSub2: 'Calendario · mapas sin conexión', bkT: 'Copia de seguridad', bkNote: 'Guarda en un archivo lo que has marcado y apuntado (tareas, hoteles, gastos, cambios del plan). Sirve para no perderlo o para pasárselo a tu acompañante por WhatsApp.', bkExp: 'Guardar copia', bkImp: 'Cargar copia', bkBad: 'Ese archivo no es una copia de la guía', bkOther: 'La copia es de otro viaje ({0}). ¿Cargarla igualmente?', bkSure: 'Se sustituirá lo apuntado en este móvil por la copia del {0}. ¿Seguir?', calT: 'Todo el viaje en tu calendario', calNote: 'Crea un archivo de calendario con cada actividad, su sitio y un aviso 15 min antes. Al abrirlo en el iPhone se añade al Calendario. Si cambias el plan, vuelve a crearlo.', calBtn: 'Añadir al calendario', calDone: '{0} actividades en el archivo', calDoneB: 'Ábrelo para añadirlas al Calendario.', omT: 'Mapas sin conexión', omNote: 'En las Highlands falla la cobertura. Antes de salir, con wifi: abre cada día en Google Maps, toca tu foto → «Mapas sin conexión» → «Selecciona tu propio mapa» y descarga la zona.', cromoAdd: 'Pegar cromo', cromoGot: 'Cromo pegado', cromoDone: '¡Cromo de {0}!', cromoDoneB: '{0} de {1} cromos de este viaje. Míralos en Viajes → Álbum.', cromoAsk: '¿Has visto {0}?', cromoAskB: 'Toca para pegar el cromo en tu álbum.', viewT: 'Vista del itinerario', viewFull: 'Fotos', viewList: 'Lista', nowBtn: 'Ahora', myTrips: 'Viajes', themeT: 'Tema', theme_auto: 'Automático (como el iPhone)', theme_dark: 'Oscuro', theme_light: 'Claro', islDefault: '{title}', loading: 'Cargando…', live: 'Hora real', manual: 'Manual', scotTime: 'Hora de {dest}',
+      islCount: 'Faltan {0} días', islDone: 'Viaje terminado', islPre: 'Día {0} · empieza a las {1}', payMe: 'Viajero 1', payYou: 'Viajero 2', payBy: 'Pagó {0} (toca para cambiar)', payName: 'Nombre {0}', payPaid: 'Pagado por {0}', splitT: 'Cuentas a medias', splitEven: 'Estáis en paz.', splitOwes: '{0} debe a {1}', splitHow: 'Toca la inicial de cada gasto para cambiar quién lo pagó. Todo se reparte a medias.', gDocs: 'Reservas y billetes', docsN: '{0} archivos guardados', docsN1: '1 archivo guardado', docsSub: 'Entradas, embarques, coche', docsT: 'Tus reservas', docsNote: 'PDF o capturas de entradas, tarjetas de embarque, el alquiler del coche… Se guardan en este móvil y se abren sin conexión. No van en la copia de seguridad.', docAdd: 'Añadir archivo', docsEmpty: 'Aún no has guardado nada.', docDel: 'Borrar', docDelQ: '¿Borrar este archivo del móvil?', docBig: '«{0}» pesa más de 25 MB', docAdded: 'Guardado ({0})', docFail: 'No se pudo guardar el archivo', gData: 'Copia, calendario y mapas', gDataSub: 'Copia de seguridad', gDataSub2: 'Calendario · mapas sin conexión', bkT: 'Copia de seguridad', bkNote: 'Guarda en un archivo lo que has marcado y apuntado (tareas, hoteles, gastos, cambios del plan). Sirve para no perderlo o para pasárselo a tu acompañante por WhatsApp.', bkExp: 'Guardar copia', bkImp: 'Cargar copia', bkBad: 'Ese archivo no es una copia de la guía', bkOther: 'La copia es de otro viaje ({0}). ¿Cargarla igualmente?', bkSure: 'Se sustituirá lo apuntado en este móvil por la copia del {0}. ¿Seguir?', calT: 'Todo el viaje en tu calendario', calNote: 'Crea un archivo de calendario con cada actividad, su sitio y un aviso 15 min antes. Al abrirlo en el iPhone se añade al Calendario. Si cambias el plan, vuelve a crearlo.', calBtn: 'Añadir al calendario', calDone: '{0} actividades en el archivo', calDoneB: 'Ábrelo para añadirlas al Calendario.', omT: 'Mapas sin conexión', omNote: 'En las Highlands falla la cobertura. Antes de salir, con wifi: abre cada día en Google Maps, toca tu foto → «Mapas sin conexión» → «Selecciona tu propio mapa» y descarga la zona.', cromoAdd: 'Pegar cromo', cromoGot: 'Cromo pegado', cromoDone: '¡Cromo de {0}!', cromoDoneB: '{0} de {1} cromos de este viaje. Toca para ver tu álbum.', albT: 'Mi álbum', albSub: '{0} de {1} cromos', albSub2: 'Visor 3D, postal y perfil', albTabA: 'Álbum', albTabP: 'Perfil', albHint: 'Cada sitio que visitas es un cromo. Toca uno para verlo en 3D y pegarlo. ★ = imprescindible.', albCopyNote: 'Guarda tus cromos en un archivo para pasarlos a otro móvil o a la app web.', cromoAsk: '¿Has visto {0}?', cromoAskB: 'Toca para pegar el cromo en tu álbum.', viewT: 'Vista del itinerario', viewFull: 'Fotos', viewList: 'Lista', nowBtn: 'Ahora', myTrips: 'Viajes', themeT: 'Tema', theme_auto: 'Automático (como el iPhone)', theme_dark: 'Oscuro', theme_light: 'Claro', islDefault: '{title}', loading: 'Cargando…', live: 'Hora real', manual: 'Manual', scotTime: 'Hora de {dest}',
       left: 'quedan {0}', nextAt: 'Siguiente · {0}', dayDone: 'Día {0} terminado', rest: 'Descansa, mañana más', from: 'desde {0}',
       freeTime: 'Tiempo libre', endOfDay: 'Fin del día', upNext: 'Lo siguiente: {0}', tomorrow: 'Mañana más.', next: 'Siguiente', nothingMore: 'Nada más hoy',
       setTime: 'Hora', seeInGuide: 'Ver en la guía', sync: 'Sincronizar', close: 'Cerrar',
@@ -138,7 +138,7 @@ var I18N = (function () {
     },
     en: {
       app: '{dest} guide', now: 'now', pinned: 'Pinned', day: 'Day', tabPrep: 'Home',
-      islCount: '{0} days to go', islDone: 'Trip finished', islPre: 'Day {0} · starts at {1}', payMe: 'Traveller 1', payYou: 'Traveller 2', payBy: 'Paid by {0} (tap to change)', payName: 'Name {0}', payPaid: 'Paid by {0}', splitT: 'Split costs', splitEven: 'You are even.', splitOwes: '{0} owes {1}', splitHow: 'Tap the initial on each expense to change who paid. Everything is split in half.', gDocs: 'Bookings and tickets', docsN: '{0} files saved', docsN1: '1 file saved', docsSub: 'Tickets, boarding passes, car', docsT: 'Your bookings', docsNote: 'PDFs or screenshots of tickets, boarding passes, the car hire… They are stored on this phone and open offline. They are not included in the backup.', docAdd: 'Add file', docsEmpty: 'Nothing saved yet.', docDel: 'Delete', docDelQ: 'Delete this file from the phone?', docBig: '“{0}” is larger than 25 MB', docAdded: 'Saved ({0})', docFail: 'The file could not be saved', gData: 'Backup, calendar and maps', gDataSub: 'Backup', gDataSub2: 'Calendar · offline maps', bkT: 'Backup', bkNote: 'Save what you have ticked and noted (tasks, hotels, expenses, plan changes) to a file, so you do not lose it or can send it to your travel partner.', bkExp: 'Save backup', bkImp: 'Load backup', bkBad: 'That file is not a guide backup', bkOther: 'This backup is from another trip ({0}). Load it anyway?', bkSure: 'What is saved on this phone will be replaced by the backup from {0}. Continue?', calT: 'The whole trip in your calendar', calNote: 'Creates a calendar file with every activity, its place and an alert 15 min before. Open it on the iPhone to add it to Calendar. If you change the plan, create it again.', calBtn: 'Add to calendar', calDone: '{0} activities in the file', calDoneB: 'Open it to add them to Calendar.', omT: 'Offline maps', omNote: 'Coverage is patchy in the Highlands. Before you go, on wifi: open each day in Google Maps, tap your photo → “Offline maps” → “Select your own map” and download the area.', cromoAdd: 'Collect', cromoGot: 'Collected', cromoDone: '{0} collected!', cromoDoneB: '{0} of {1} cards on this trip. See them in Trips → Album.', cromoAsk: 'Did you see {0}?', cromoAskB: 'Tap to stick the card in your album.', viewT: 'Itinerary view', viewFull: 'Photos', viewList: 'List', nowBtn: 'Now', myTrips: 'Trips', themeT: 'Theme', theme_auto: 'Automatic (follows your iPhone)', theme_dark: 'Dark', theme_light: 'Light', islDefault: '{title}', loading: 'Loading…', live: 'Live time', manual: 'Manual', scotTime: '{dest} time',
+      islCount: '{0} days to go', islDone: 'Trip finished', islPre: 'Day {0} · starts at {1}', payMe: 'Traveller 1', payYou: 'Traveller 2', payBy: 'Paid by {0} (tap to change)', payName: 'Name {0}', payPaid: 'Paid by {0}', splitT: 'Split costs', splitEven: 'You are even.', splitOwes: '{0} owes {1}', splitHow: 'Tap the initial on each expense to change who paid. Everything is split in half.', gDocs: 'Bookings and tickets', docsN: '{0} files saved', docsN1: '1 file saved', docsSub: 'Tickets, boarding passes, car', docsT: 'Your bookings', docsNote: 'PDFs or screenshots of tickets, boarding passes, the car hire… They are stored on this phone and open offline. They are not included in the backup.', docAdd: 'Add file', docsEmpty: 'Nothing saved yet.', docDel: 'Delete', docDelQ: 'Delete this file from the phone?', docBig: '“{0}” is larger than 25 MB', docAdded: 'Saved ({0})', docFail: 'The file could not be saved', gData: 'Backup, calendar and maps', gDataSub: 'Backup', gDataSub2: 'Calendar · offline maps', bkT: 'Backup', bkNote: 'Save what you have ticked and noted (tasks, hotels, expenses, plan changes) to a file, so you do not lose it or can send it to your travel partner.', bkExp: 'Save backup', bkImp: 'Load backup', bkBad: 'That file is not a guide backup', bkOther: 'This backup is from another trip ({0}). Load it anyway?', bkSure: 'What is saved on this phone will be replaced by the backup from {0}. Continue?', calT: 'The whole trip in your calendar', calNote: 'Creates a calendar file with every activity, its place and an alert 15 min before. Open it on the iPhone to add it to Calendar. If you change the plan, create it again.', calBtn: 'Add to calendar', calDone: '{0} activities in the file', calDoneB: 'Open it to add them to Calendar.', omT: 'Offline maps', omNote: 'Coverage is patchy in the Highlands. Before you go, on wifi: open each day in Google Maps, tap your photo → “Offline maps” → “Select your own map” and download the area.', cromoAdd: 'Collect', cromoGot: 'Collected', cromoDone: '{0} collected!', cromoDoneB: '{0} of {1} cards on this trip. Tap to see your album.', albT: 'My album', albSub: '{0} of {1} cards', albSub2: '3D viewer, postcard and profile', albTabA: 'Album', albTabP: 'Profile', albHint: 'Every place you visit is a card. Tap one to see it in 3D and collect it. ★ = must-see.', albCopyNote: 'Save your cards to a file to move them to another phone or to the web app.', cromoAsk: 'Did you see {0}?', cromoAskB: 'Tap to stick the card in your album.', viewT: 'Itinerary view', viewFull: 'Photos', viewList: 'List', nowBtn: 'Now', myTrips: 'Trips', themeT: 'Theme', theme_auto: 'Automatic (follows your iPhone)', theme_dark: 'Dark', theme_light: 'Light', islDefault: '{title}', loading: 'Loading…', live: 'Live time', manual: 'Manual', scotTime: '{dest} time',
       left: '{0} left', nextAt: 'Next · {0}', dayDone: 'Day {0} done', rest: 'Rest, more tomorrow', from: 'from {0}',
       freeTime: 'Free time', endOfDay: 'End of the day', upNext: 'Up next: {0}', tomorrow: 'More tomorrow.', next: 'Next', nothingMore: 'Nothing else today',
       setTime: 'Time', seeInGuide: 'Show in guide', sync: 'Sync', close: 'Close',
@@ -1594,9 +1594,10 @@ var View = (function () {
   }
 
   /* ---------- Presupuesto ---------- */
-  var BUD = { list: [], payers: null }, DOCS = [], ALB = {};
+  // el álbum se lee ya aquí: la guía se pinta antes de que la app lo pase con setAlbum
+  var BUD = { list: [], payers: null }, DOCS = [], ALB = (function () { try { return JSON.parse(localStorage.getItem('guia-album') || '{}') || {}; } catch (_) { return {}; } })();
   // álbum de cromos: los sitios que se visitan (no comidas, hoteles ni trayectos)
-  function isCromo(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole; }
+  function isCromo(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole && !/aeropuerto|airport/i.test(it.ti); }
   function cromoKey(id) { return ((window.TRIP_META || {}).id || 'guia') + '|' + id; }
   function cromoBtn(it) {
     var got = ALB[cromoKey(it.id)];
@@ -1733,7 +1734,14 @@ var View = (function () {
       tile(G.wx, o.snow && o.snow.length ? '<span class="snow-t">' + ic('snow') + L('gSnow', esc(o.snow.join(', '))) + '</span>' : L('gWxSub', esc(w0.n), w0.hi, w0.lo), L('hubWx2')) +
       tile(G.sug, L('gSugSub', S.length, nG), '', '<span class="hub-ph">' + S.slice(0, 3).map(function (x) { return x.ph ? '<i class="ph ph-' + x.ph + '"></i>' : ''; }).join('') + '</span>') +
       tile(G.docs, DOCS.length === 1 ? L('docsN1') : L('docsN', DOCS.length), L('docsSub')) +
-      tile(G.data, L('gDataSub'), L('gDataSub2'));
+      tile(G.data, L('gDataSub'), L('gDataSub2')) + albumTile();
+  }
+  // «Mi álbum»: cromos pegados de este viaje (la hoja con el álbum y el perfil la pinta album.js)
+  function albumTile() {
+    var n = 0, got = 0;
+    T.days.forEach(function (d) { d.items.forEach(function (it) { if (isCromo(it)) { n++; if (ALB[cromoKey(it.id)]) got++; } }); });
+    return '<button type="button" class="card hub-t sq" data-album><span class="hub-top"><span class="sq-ico hub-i o">' + ic('camera') + '</span><span class="hub-pill' + (n && got === n ? ' ok' : '') + '">' + got + '/' + n + '</span>' + ic('chev') + '</span>' +
+      '<b>' + L('albT') + '</b><small>' + L('albSub', got, n) + '</small><small>' + L('albSub2') + '</small></button>';
   }
   // alojamiento por noches: nombre, dirección (o enlace de Google Maps), hora de llegada (fija en el plan), check-out, desayuno
   function stays(hs) {
@@ -2216,6 +2224,14 @@ var View = (function () {
               (function () { var lk = routeLinks(acts.filter(function (e) { return e.it.lat != null; }), 'walking', false); return lk.length ? '<div class="pr-maps">' + lk.map(function (u, n1) { return '<a class="btn ghost sq" href="' + u + '" target="_blank" rel="noopener">' + ic('map') + L('openGmaps') + (lk.length > 1 ? ' · ' + L('rtPart', n1 + 1, lk.length) : '') + '</a>'; }).join('') + '</div>' : ''; })() : '') +
             (o.id === cur ? '' : '<button type="button" class="btn navy sq" data-preset="' + a + ':' + o.id + '">' + ic('route') + L('presetApply') + '</button>') + '</div>';
         }).join('') + '</div></div>';
+    }
+    if (kind === 'album') {
+      return '<div class="sh-in"><div class="eyebrow o">' + esc(((window.TRIP_META || {}).title || {})[I18N.lang] || ((window.TRIP_META || {}).title || {}).es || '') + '</div><h2>' + L('albT') + '</h2>' +
+        '<div class="pr-seg" role="group"><button type="button" class="pr-sb sq on" data-albtab="album" aria-pressed="true">' + ic('camera') + L('albTabA') + '</button><button type="button" class="pr-sb sq" data-albtab="profile" aria-pressed="false">' + ic('check') + L('albTabP') + '</button></div>' +
+        '<section data-albsec="album"><p class="sh-lead">' + L('albHint') + '</p><div id="albumBox"></div>' +
+          '<div class="card" id="postBox" hidden><div class="eyebrow">Tu postal</div><img id="postImg" alt="Postal del viaje"><div class="btn-row"><button type="button" class="btn navy sq" id="postSave">Guardar o compartir</button><button type="button" class="btn ghost sq" id="postClose">Cerrar</button></div></div></section>' +
+        '<section data-albsec="profile" hidden><div id="profBox"></div><div class="card"><div class="eyebrow">Copia del álbum</div><p class="wx-note" style="margin-top:0">' + L('albCopyNote') + '</p>' +
+          '<div class="btn-row"><button type="button" class="btn ghost sq" id="albExp">Guardar copia</button><label class="btn ghost sq">Cargar copia<input type="file" accept="application/json,.json" id="albImp" hidden></label></div></div></section></div>';
     }
     if (kind === 'castles') {
       var cl = [];
@@ -3125,6 +3141,9 @@ var View = (function () {
       var bLast = state.blist[state.blist.length - 1];
       store.set('blist', state.blist); closeSheet(); refreshBudget(); notify({ ico: bLast.c === 'fuel' ? 'fuel' : 'card', tone: 'o', title: L('nBAdded'), body: bLast.n + ' · ' + V.cur() + bLast.a.toFixed(2), ms: 2600 }); haptic(); return;
     }
+    if (t.closest('[data-album]')) { openAlbum(); return; }
+    var abt = t.closest('[data-albtab]');
+    if (abt) { albumTab(abt.getAttribute('data-albtab')); haptic(); return; }
     var crb = t.closest('[data-cromo]');
     if (crb) { toggleCromo(crb.getAttribute('data-cromo')); return; }
     var bpy = t.closest('[data-bpay]');
@@ -3251,7 +3270,7 @@ var View = (function () {
     setTimeout(function () { openSheet(prev, true); }, 0);
   }
   function refreshSheet() {
-    if (!sheetEl.classList.contains('on') || !sheetSpec) return;
+    if (!sheetEl.classList.contains('on') || !sheetSpec || sheetSpec === 'album') return;
     var p = sheetSpec.split(':'), y = shBody.scrollTop, html = V.sheet(p[0], p[1], p[2], plans, state.custom, p[3], p[4]);
     if (html) { shBody.innerHTML = html; shBody.scrollTop = y; sheetEl.classList.toggle('tall', !!shBody.querySelector('.af-row')); } else closeSheet();
   }
@@ -3586,7 +3605,8 @@ var View = (function () {
   function albumGet() { try { return JSON.parse(localStorage.getItem('guia-album') || '{}') || {}; } catch (_) { return {}; } }
   var album = albumGet(); V.setAlbum(album);
   function cromoItem(id) { var f = null; plans.forEach(function (p, di) { p.ev.forEach(function (e) { if (e.it.id === id) f = { it: e.it, di: di }; }); }); return f; }
-  function cromoCount() { var n = 0, all = 0; plans.forEach(function (p) { p.ev.forEach(function (e) { if (!e.skip && V.isCromo(e.it)) { all++; if (album[V.cromoKey(e.it.id)]) n++; } }); }); return [n, all]; }
+  // como el álbum: todos los sitios del viaje, también los que hoy no van en el plan
+  function cromoCount() { var n = 0, all = 0; (window.TRIP || T).days.forEach(function (d) { d.items.forEach(function (it) { if (V.isCromo(it)) { all++; if (album[V.cromoKey(it.id)]) n++; } }); }); return [n, all]; }
   function toggleCromo(id, force) {
     var f = cromoItem(id); if (!f) return;
     album = albumGet(); var k = V.cromoKey(id), had = !!album[k];
@@ -3595,9 +3615,29 @@ var View = (function () {
     try { localStorage.setItem('guia-album', JSON.stringify(album)); } catch (_) {}
     V.setAlbum(album);
     $$('[data-cromo="' + id + '"]').forEach(function (b) { b.outerHTML = V.cromoBtn(f.it); });
-    if (!had) { var c = cromoCount(); notify({ ico: 'camera', tone: 'o', title: L('cromoDone', f.it.ti), body: L('cromoDoneB', c[0], c[1]), ms: 3200 }); }
-    haptic();
+    if (!had) { var c = cromoCount(); notify({ ico: 'camera', tone: 'o', title: L('cromoDone', f.it.ti), body: L('cromoDoneB', c[0], c[1]), ms: 3200, onTap: openAlbum }); }
+    hubRefresh(); haptic();
   }
+  // álbum: en la web está en «Mis viajes»; en el HTML único, en una hoja (album.js)
+  function openAlbum() {
+    if (window.GUIA_WEB || !window.Album) { location.href = 'viajes.html#album'; return; }
+    openSheet('album'); sheetEl.classList.add('tall'); albumTab('album');
+  }
+  function albumTab(t) {
+    $$('[data-albtab]').forEach(function (b) { var on = b.getAttribute('data-albtab') === t; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    $$('[data-albsec]').forEach(function (s) { s.hidden = s.getAttribute('data-albsec') !== t; });
+    if (t === 'profile') Album.renderProfile(); else Album.renderAlbum();
+  }
+  if (window.Album && !window.GUIA_WEB) Album.init({
+    single: true,
+    trips: function () { return Promise.resolve([{ id: (META.id || 'guia'), b: { meta: META, trip: window.TRIP || T, photos: {} } }]); },
+    // pegado o quitado desde el visor 3D: botones de la guía y losa al día
+    onChange: function () {
+      album = albumGet(); V.setAlbum(album);
+      $$('[data-cromo]').forEach(function (b) { var f = cromoItem(b.getAttribute('data-cromo')); if (f) b.outerHTML = V.cromoBtn(f.it); });
+      hubRefresh();
+    }
+  });
 
   /* ---------- Todo el itinerario al calendario del iPhone (.ics) ---------- */
   function downloadIcsAll() {
