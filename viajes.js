@@ -70,7 +70,23 @@
         '<p class="note">Aún no hay viajes.</p>';
     });
   }
-  function openTrip(id) { try { localStorage.setItem('guia-trip', id); } catch (e) {} location.href = 'guia.html'; }
+  function openTrip(id) {
+    try { localStorage.setItem('guia-trip', id); } catch (e) {}
+    function go() { location.href = 'guia.html'; }
+    if (!enWork[id]) go();
+    else Promise.race([enWork[id], new Promise(function (r) { setTimeout(r, 12000); })]).then(go, go);
+  }
+  // viajes creados antes de guardar los dos idiomas: se completan en segundo plano, con conexión
+  var enWork = {};
+  function completeEnglish() {
+    DB.all().then(function (l) {
+      (l || []).forEach(function (x) {
+        var b = x.bundle;
+        if (!b.meta.generated || b.meta.enReady || b.meta.lang === 'en') return;
+        enWork[x.id] = Motor.addEnglish(b).then(function () { return DB.put({ id: x.id, at: x.at, bundle: b }); }).then(function () { delete enWork[x.id]; Album.reset(); }, function () { delete enWork[x.id]; });
+      });
+    }).catch(function () {});
+  }
   function download(obj, name) {
     var blob = new Blob([JSON.stringify(obj)], { type: 'application/json' }), f = null;
     try { f = new File([blob], name, { type: 'application/json' }); } catch (e) {}
@@ -256,6 +272,7 @@
   }
 
   renderList();
+  completeEnglish();
   var t0 = location.hash.slice(1);
   setTab(['trips', 'album', 'profile'].indexOf(t0) >= 0 ? t0 : 'home');
   if (t0 === 'nuevo') newTrip();

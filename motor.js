@@ -5,8 +5,11 @@
    Referencia para medirlo: tests/motor-benchmark.html */
 window.Motor = (function () {
   'use strict';
-  function lg() { return window.Lang ? Lang.get() : 'es'; }
-  function tr(x) { return window.Lang ? Lang.translate(x) : x; }
+  function ui() { return window.Lang ? Lang.get() : 'es'; }
+  // cada viaje se guarda en español (la base) con una capa en inglés (trip_en), igual que Escocia
+  function lg() { return 'es'; }
+  function tr(x) { return x; }
+  function toEn(x) { return window.Lang ? Lang.translate(x, true) : x; }
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function p2(n) { return (n < 10 ? '0' : '') + n; }
@@ -36,7 +39,7 @@ window.Motor = (function () {
   function nominatim(params) {
     var wait = Math.max(0, nomLast + 1100 - Date.now()); nomLast = Date.now() + wait;
     return sleep(wait).then(function () {
-      return getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&accept-language=' + lg() + '&' + params);
+      return getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&accept-language=' + ui() + '&' + params);
     });
   }
   var OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
@@ -48,11 +51,13 @@ window.Motor = (function () {
   }
   function sparql(q, tries) {
     tries = tries || 0;
-    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), { headers: { Accept: 'application/sparql-results+json' } }, 50000)
+    // Wikidata a veces corta la respuesta a medias y el navegador la guarda así: al reintentar, sin caché
+    var opt = { headers: { Accept: 'application/sparql-results+json' } }; if (tries) opt.cache = 'reload';
+    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), opt, 50000)
       .then(function (r) {
         if ((r.status === 429 || r.status >= 500) && tries < 2) return sleep(4000).then(function () { return sparql(q, tries + 1); });
         if (!r.ok) throw new Error('Wikidata ' + r.status); return r.json();
-      }, function (e) { if (tries < 2) return sleep(3000).then(function () { return sparql(q, tries + 1); }); throw e; });
+      }).catch(function (e) { if (tries < 2) return sleep(3000).then(function () { return sparql(q, tries + 1); }); throw e; });
   }
   // varias tareas a la vez, sin saturar
   function pool(list, n, fn) {
@@ -146,9 +151,11 @@ window.Motor = (function () {
     var key = city.lat.toFixed(3) + ',' + city.lon.toFixed(3) + ',' + (city.r || '');
     if (FOUND[key]) return FOUND[key];
     var r = radiusOf(city);
-    var pr = sparql(sightsQuery(city, r, 8)).then(rowsToSights).then(function (a) {
+    // si la lista completa no llega entera, una más corta: la ordena por fama, así que lo importante sigue dentro
+    function ask(minL) { var q = sightsQuery(city, r, minL); return sparql(q).catch(function () { return sparql(q.replace('LIMIT 600', 'LIMIT 250')); }); }
+    var pr = ask(8).then(rowsToSights).then(function (a) {
       // ciudad pequeña: se baja el listón
-      return a.length >= 18 ? a : sparql(sightsQuery(city, r, 3)).then(rowsToSights);
+      return a.length >= 18 ? a : ask(3).then(rowsToSights);
     }).then(function (all) {
       var cityName = slug(city.name), arts = all.filter(function (x) { return x.kind === 'art'; });
       var list = all.filter(function (x) { return x.kind !== 'art' && slug(x.n) !== cityName && !(x.kind === 'ruins' && PLACE.test(x.types.toLowerCase()) && km(city, x) < 4); });
@@ -233,7 +240,7 @@ window.Motor = (function () {
     return sparql(q).then(function (j) {
       return (j.results.bindings || []).map(function (b) {
         var m = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(b.p.value);
-        return { name: ((lg() === 'en' ? b.en || b.es : b.es || b.en) || {}).value, lat: m ? +m[2] : null, lon: m ? +m[1] : null, img: b.image ? b.image.value.replace(/^http:/, 'https:') + '?width=480' : '', links: +b.n.value };
+        return { name: ((ui() === 'en' ? b.en || b.es : b.es || b.en) || {}).value, lat: m ? +m[2] : null, lon: m ? +m[1] : null, img: b.image ? b.image.value.replace(/^http:/, 'https:') + '?width=480' : '', links: +b.n.value };
       }).filter(function (x) { return x.name && x.lat != null && !/^Q\d+$/.test(x.name); });
     });
   }
@@ -246,7 +253,7 @@ window.Motor = (function () {
     return wikiSummary('en', title).then(function (s) { return s && s.thumbnail ? s.thumbnail.source : ''; });
   }
   function placeInfo(name) {
-    var L0 = lg() === 'en' ? ['en', 'es'] : ['es', 'en'];
+    var L0 = ui() === 'en' ? ['en', 'es'] : ['es', 'en'];
     return wikiSummary(L0[0], name).then(function (s) { return s && s.extract && s.type !== 'disambiguation' ? s : wikiSummary(L0[1], name); }).then(function (s) {
       return s ? { text: firstSentences(s.extract || '', 2), img: s.originalimage ? (s.thumbnail || s.originalimage).source.replace(/\/\d+px-/, '/800px-') : '' } : null;
     });
@@ -563,7 +570,7 @@ window.Motor = (function () {
       }
       if (!d.last) stays.push({ id: did, town: town, lat: +stayPt.lat.toFixed(5), lon: +stayPt.lon.toFixed(5) });
       var extras = (d.extras || []).map(function (p, j) {
-        var K = KINDS[p.kind], x = { id: 'x-' + did + '-' + (j + 1), t: K.t, ti: p.n, pl: town, d: dwell(p), lat: +p.lat.toFixed(5), lon: +p.lon.toFixed(5) };
+        var K = KINDS[p.kind], x = { id: 'x-' + did + '-' + (j + 1), t: K.t, wd: p.wd || null, ti: p.n, pl: town, d: dwell(p), lat: +p.lat.toFixed(5), lon: +p.lon.toFixed(5) };
         if (p.lead) x.lead = p.lead; var ph = photo(p); if (ph) x.ph = ph;
         var tags = []; if (K.rain) tags.push('rain'); if (K.photo) tags.push('photo'); if (tags.length) x.tags = tags;
         return x;
@@ -646,6 +653,79 @@ window.Motor = (function () {
     }, Promise.resolve());
   }
 
+  /* ---------- Capa en inglés: nombres y descripciones de Wikipedia; el resto, con las tablas de lang.js ---------- */
+  function addEnglish(b) {
+    var T = b.trip, all = [], cityEn = {}, E = { items: {}, days: {}, checklist: {}, guide: {}, route: [], wx: [], types: {} };
+    function cityOf(n) { return cityEn[n] || n; }
+    function swapCities(x) { Object.keys(cityEn).forEach(function (n) { x = String(x).split(n).join(cityEn[n]); }); return x; }
+    T.days.forEach(function (d) { d.items.concat(d.extras || []).forEach(function (it) { all.push(it); }); });
+    function wdOf(it) { return it.wd || (it.src && it.src.wd) || null; }
+    var ids = all.map(wdOf).filter(function (q, i, a) { return q && a.indexOf(q) === i; }), info = {}, batches = [];
+    for (var i = 0; i < ids.length; i += 50) batches.push(ids.slice(i, i + 50));
+    return pool(batches, 2, function (bt) {
+      return getJSON('https://www.wikidata.org/w/api.php?action=wbgetentities&props=labels|sitelinks&languages=en&format=json&origin=*&ids=' + bt.join('|')).then(function (j) {
+        Object.keys(j.entities || {}).forEach(function (q) { var e = j.entities[q] || {}; info[q] = { n: e.labels && e.labels.en && e.labels.en.value, title: e.sitelinks && e.sitelinks.enwiki && e.sitelinks.enwiki.title }; });
+      });
+    }).then(function () {
+      return pool(ids.filter(function (q) { return info[q] && info[q].title; }), 4, function (q) {
+        return wikiSummary('en', info[q].title).then(function (sm) { if (sm) { info[q].lead = firstSentences(sm.extract || '', 2); info[q].page = sm.content_urls && sm.content_urls.desktop && sm.content_urls.desktop.page; } });
+      });
+    }).then(function () {
+      // los nombres de las ciudades (Praga → Prague), con los enlaces entre idiomas de Wikipedia
+      var towns = T.days.map(function (d) { return d.title; }).filter(function (v, k, a) { return v && a.indexOf(v) === k; });
+      return pool(towns, 3, function (n) {
+        return getJSON('https://es.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=langlinks&lllang=en&titles=' + encodeURIComponent(n)).then(function (j) {
+          var pg = j.query.pages, ll = pg[Object.keys(pg)[0]].langlinks;
+          if (ll && ll[0]) cityEn[n] = ll[0]['*'].replace(/,.*$/, '');
+        });
+      });
+    }).then(function () {
+      var names = {};
+      all.forEach(function (it) {
+        var w = info[wdOf(it)] || {}, o = {}, ti = w.n || toEn(it.ti);
+        if (ti !== it.ti) { o.ti = ti; names[it.ti] = ti; }
+        if (w.lead) o.lead = w.lead;
+        if (it.tips) o.tips = it.tips.map(toEn);
+        if (it.q && !wdOf(it)) o.q = toEn(it.q);
+        if (it.pl) o.pl = cityOf(it.pl);
+        o.see = w.page ? ['More on Wikipedia: ' + w.page] : it.see ? it.see.map(toEn) : undefined;
+        if (!o.see) delete o.see;
+        if (it.pl && /→/.test(it.pl)) o.pl = swapCities(it.pl);
+        E.items[it.id] = o;
+      });
+      function nameEn(n) { return names[n] || n; }
+      T.days.forEach(function (d) {
+        E.days[d.id] = { title: cityOf(d.title), ref: cityOf(d.ref && d.ref.name), sub: String(d.sub || '').split(', ').map(nameEn).join(', ') };
+        if (d.sub === 'Día libre') E.days[d.id].sub = toEn(d.sub);
+        if (d.guide && d.guide.length) E.guide[d.id] = d.guide.map(function (g) { return { t: toEn(g.t) }; });
+      });
+      (T.checklist || []).forEach(function (c) {
+        var o = { title: toEn(c.title), items: {} };
+        c.items.forEach(function (it) { o.items[it.id] = { t: toEn(it.t) }; if (it.n) o.items[it.id].n = toEn(it.n); });
+        E.checklist[c.id] = o;
+      });
+      (T.route || []).forEach(function (r, k) {
+        var d = T.days[k], first = d && d.items.filter(function (x) { return E.items[x.id] && E.items[x.id].lead; })[0];
+        E.route.push({ n: cityOf(r.n), day: toEn(r.day), t: first ? E.items[first.id].lead : E.days[d ? d.id : ''] ? E.days[d.id].sub : r.t, facts: (r.facts || []).map(nameEn), must: nameEn(r.must) });
+      });
+      Object.keys(T.types || {}).forEach(function (k) { E.types[k] = toEn(T.types[k].label); });
+      b.trip_en = E;
+      (T.wx || []).forEach(function (w) { E.wx.push({ n: cityOf(w.n) }); });
+      b.meta.title.en = swapCities(toEn(b.meta.title.es));
+      if (b.meta.dest) b.meta.dest.en = swapCities(b.meta.dest.es).replace(/ y /g, ' and ');
+      var st = b.meta.strings && b.meta.strings.en; if (st) { st.coverTitle = swapCities(st.coverTitle).replace(/ y /g, ' and '); st.coverAria = swapCities(st.coverAria).replace(/ y /g, ' and '); }
+      b.meta.enReady = 1;
+      return b;
+    });
+  }
+  // el viaje tal como se ve en inglés (para el mapa del final del asistente)
+  function localized(b) {
+    var t = JSON.parse(JSON.stringify(b.trip));
+    if (ui() !== 'en' || !(b.trip_en || {}).items) return t;
+    t.days.forEach(function (d) { var dd = b.trip_en.days[d.id]; if (dd) Object.assign(d, dd); d.items.concat(d.extras || []).forEach(function (it) { Object.assign(it, b.trip_en.items[it.id] || {}); }); });
+    return t;
+  }
+
   /* ---------- Todo junto ---------- */
   // spec: { title, start, mode, pace, style, ints, stops:[{name,lat,lon,bb,cc,country,days,stay}], fin:{t,p}, fout:{t,p}, fixed:[{n,day,at}] }
   function generate(sp, step) {
@@ -717,6 +797,9 @@ window.Motor = (function () {
       return travelTable(bundle).then(function (tv) { bundle.travel = tv; s8.ok('Rutas calculadas entre ' + tv.k.length + ' puntos'); return bundle; })
         .catch(function () { s8.warn('Sin rutas reales: la guía estimará los tiempos por distancia'); return bundle; });
     }).then(function (bundle) {
+      var s8b = step('Textos en inglés (Wikipedia)');
+      return addEnglish(bundle).then(function () { s8b.ok('Guía en español e inglés'); return bundle; }, function () { s8b.warn('Textos en inglés pendientes: se completarán al volver a Home'); return bundle; });
+    }).then(function (bundle) {
       var s9 = step('Temperaturas típicas de esas fechas (Open-Meteo)');
       return climate(bundle).then(function () { s9.ok('Temperaturas listas'); }, function () { s9.warn('Sin datos de clima: se verá la previsión cuando falten pocos días'); }).then(function () { return bundle; });
     }).then(function (bundle) {
@@ -733,5 +816,5 @@ window.Motor = (function () {
     });
   }
 
-  return { discover: discover, generate: generate, classify: classify, searchCountry: searchCountry, searchCity: searchCity, suggestCities: suggestCities, placeInfo: placeInfo, photoOf: photoOf, km: km, addDays: addDays, KINDS: KINDS, _buildPlan: buildPlan, _dwell: dwell };
+  return { discover: discover, generate: generate, classify: classify, searchCountry: searchCountry, addEnglish: addEnglish, localized: localized, searchCity: searchCity, suggestCities: suggestCities, placeInfo: placeInfo, photoOf: photoOf, km: km, addDays: addDays, KINDS: KINDS, _buildPlan: buildPlan, _dwell: dwell };
 })();
