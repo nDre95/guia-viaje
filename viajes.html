@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe9de">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Viajes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script>
+  // tema antes de pintar, igual que en la guía
+  (function () { var t; try { t = localStorage.getItem('guia-theme'); } catch (e) {}
+    var d = t === 'dark' || (t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light'); })();
+</script>
+<title>Mis viajes · Guía de viaje</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  body{background:linear-gradient(180deg,var(--bone2),var(--bone) 60%);min-height:100vh}
+  .vj{max-width:var(--w);margin:0 auto;padding:calc(var(--safe-t) + 28px) 16px calc(var(--safe-b) + 40px)}
+  .vj h1{font-family:var(--serif);font-size:34px;letter-spacing:-.02em;margin:0 4px 4px}
+  .vj h1 em{color:var(--orange);font-style:italic}
+  .vj .lead{color:var(--txt2);margin:0 4px 18px;font-size:15px}
+  .vj h2{font-family:var(--serif);font-size:22px;margin:26px 4px 10px}
+  .trip{display:flex;gap:12px;align-items:stretch;padding:10px;border-radius:22px;margin-bottom:12px}
+  .trip-ph{flex:0 0 92px;border-radius:15px;background:var(--fill2) center/cover no-repeat;min-height:92px}
+  .trip-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .trip-m b{font-size:17px;line-height:1.2}
+  .trip-m small{color:var(--txt3);font-size:13px}
+  .trip-m .btn-row{margin-top:auto;padding-top:6px;flex-wrap:wrap;gap:6px}
+  .trip-m .btn{padding:7px 11px;font-size:13px}
+  .tag-gen{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--orange-t)}
+  .fld{display:flex;flex-direction:column;gap:5px;margin:10px 0}
+  .fld > span{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--txt3)}
+  .fld input,.fld select,.fld textarea{-webkit-appearance:none;appearance:none;width:100%;border:0;border-radius:12px;background:var(--fill2);color:var(--txt);font:500 16px -apple-system,system-ui,sans-serif;padding:11px 12px}
+  .fld textarea{min-height:120px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+  .row2{display:flex;gap:8px}.row2 > *{flex:1;min-width:0}
+  .opts{display:flex;flex-wrap:wrap;gap:7px}
+  .opt{-webkit-appearance:none;appearance:none;border:0;border-radius:999px;padding:9px 13px;font:650 14px -apple-system,system-ui,sans-serif;color:var(--txt2);background:var(--fill2);cursor:pointer}
+  .opt.on{background:var(--navy);color:#fff}
+  .hits{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .hit{-webkit-appearance:none;appearance:none;text-align:left;border:0;border-radius:12px;padding:9px 11px;background:var(--fill);color:var(--txt);font:500 14px -apple-system,system-ui,sans-serif;cursor:pointer}
+  .hit.on{box-shadow:inset 0 0 0 2px var(--orange)}
+  .hit small{display:block;color:var(--txt3);font-size:12px}
+  .night{display:flex;gap:8px;align-items:center;margin:6px 0}
+  .night > span{flex:0 0 74px;font-size:13px;font-weight:700;color:var(--txt2)}
+  .night input{flex:1;min-width:0;-webkit-appearance:none;appearance:none;border:0;border-radius:12px;background:var(--fill2);color:var(--txt);font:500 16px -apple-system,system-ui,sans-serif;padding:9px 11px}
+  .fx{display:flex;gap:6px;align-items:center;margin:6px 0}
+  .fx input,.fx select{-webkit-appearance:none;appearance:none;border:0;border-radius:12px;background:var(--fill2);color:var(--txt);font:500 16px -apple-system,system-ui,sans-serif;padding:9px 10px;min-width:0}
+  .fx input[type=text]{flex:1}
+  .note{font-size:13px;color:var(--txt3);margin:6px 2px}
+  .log{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+  .log li{display:flex;gap:8px;align-items:flex-start}
+  .log li::before{content:"";flex:0 0 9px;height:9px;margin-top:6px;border-radius:50%;background:var(--gray)}
+  .log li.ok::before{background:var(--green)}
+  .log li.run::before{background:var(--orange);animation:livePulse 1.4s infinite}
+  .log li.warn::before{background:#d6453b}
+  .big-btn{width:100%;justify-content:center;padding:14px;font-size:16px}
+  [hidden]{display:none!important}
+  .src{font-size:12px;color:var(--txt3);margin:18px 4px 0;line-height:1.5}
+  .vj{padding-bottom:calc(var(--safe-b) + 110px)}
+  /* barra de pestañas */
+  .vnav{position:fixed;z-index:40;left:50%;bottom:calc(var(--safe-b) + 10px);transform:translateX(-50%);width:min(380px,calc(100vw - 20px));display:flex;gap:4px;padding:6px;border-radius:30px;
+    background:var(--g-bg);-webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);box-shadow:var(--g-sh)}
+  .vn{flex:1;-webkit-appearance:none;appearance:none;border:0;background:none;border-radius:24px;padding:7px 0 6px;display:flex;flex-direction:column;align-items:center;gap:2px;
+    font:700 11px -apple-system,system-ui,sans-serif;color:var(--txt2);cursor:pointer;transition:background .3s var(--spring),color .2s}
+  .vn[aria-selected=true]{background:rgba(255,255,255,.62);color:var(--orange-t)}
+  html[data-theme=dark] .vn[aria-selected=true]{background:rgba(255,255,255,.12)}
+  .vtab{animation:pageIn .45s var(--smooth) both}
+  /* álbum */
+  .alb{margin-bottom:22px}
+  .alb-h{display:flex;align-items:flex-end;gap:10px;margin:0 4px 8px}
+  .alb-h b{font-family:var(--serif);font-size:21px;flex:1;min-width:0}
+  .alb-h small{color:var(--txt3);font-weight:700;font-size:13px;white-space:nowrap}
+  .alb-bar{height:6px;border-radius:3px;background:var(--fill2);margin:0 4px 10px;overflow:hidden}
+  .alb-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--orange2),var(--orange));transition:width .6s var(--spring)}
+  .crs{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .cr{-webkit-appearance:none;appearance:none;border:0;padding:0;position:relative;aspect-ratio:3/4;border-radius:14px;overflow:hidden;cursor:pointer;background:var(--fill2) center/cover no-repeat;
+    box-shadow:0 6px 14px -8px rgba(0,0,0,.45);transition:transform .35s var(--spring),filter .3s,opacity .3s}
+  .cr:active{transform:scale(.95)}
+  .cr::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.72))}
+  .cr span{position:absolute;z-index:1;left:7px;right:7px;bottom:6px;color:#fff;font:700 11.5px/1.2 -apple-system,system-ui,sans-serif;text-align:left;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+  .cr .no{position:absolute;z-index:1;top:6px;left:7px;color:#fff;font:800 10px -apple-system,system-ui,sans-serif;opacity:.8}
+  .cr .st{position:absolute;z-index:1;top:5px;right:6px;color:#ffd166;font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .cr:not(.got){filter:grayscale(1) contrast(.9);opacity:.5;outline:2px dashed var(--line);outline-offset:-4px}
+  .cr.got .stamp{position:absolute;z-index:1;top:38%;left:50%;transform:translate(-50%,-50%) rotate(-14deg);padding:3px 7px;border:2px solid rgba(255,255,255,.9);border-radius:6px;
+    color:#fff;font:900 10px/1.1 -apple-system,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;background:rgba(226,120,47,.55);white-space:nowrap;animation:stampIn .5s var(--spring) both}
+  @keyframes stampIn{from{transform:translate(-50%,-50%) rotate(-14deg) scale(1.8);opacity:0}}
+  #postImg{display:block;width:100%;border-radius:12px;margin:8px 0;box-shadow:0 10px 24px -12px rgba(0,0,0,.5)}
+  /* perfil */
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:14px}
+  .stat2{padding:14px;border-radius:18px}
+  .stat2 b{display:block;font-family:var(--serif);font-size:30px;line-height:1}
+  .stat2 small{color:var(--txt3);font-weight:700;font-size:12.5px}
+  .badges{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+  .bdg{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;font-size:11.5px;font-weight:700;color:var(--txt2)}
+  .bdg i{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:26px;background:radial-gradient(circle at 35% 30%,#ffe2b8,var(--orange2) 55%,var(--orange));box-shadow:0 8px 18px -8px rgba(226,120,47,.8)}
+  .bdg.off i{background:var(--fill2);box-shadow:none;filter:grayscale(1);opacity:.45}
+  .bdg.off{color:var(--txt3)}
+  /* brillo holográfico en los cromos conseguidos (cuadrícula) */
+  .cr .sheen{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:color-dodge;opacity:.32;
+    background:linear-gradient(115deg,transparent 20%,#ff4fa3 32%,#ffd34f 40%,#4fffb0 48%,#4fc8ff 56%,#b44fff 64%,transparent 76%);background-size:250% 250%;animation:sheen 4.5s ease-in-out infinite}
+  .cr.must.got{box-shadow:0 0 0 2px #f2c14e,0 8px 18px -8px rgba(242,193,78,.8)}
+  .cr.must.got .sheen{background:linear-gradient(115deg,transparent 20%,#fff1b8 34%,#e6b04a 44%,#fff6d6 52%,#c98a2b 62%,transparent 76%);background-size:250% 250%;opacity:.45}
+  @keyframes sheen{0%{background-position:100% 100%}50%{background-position:0% 0%}100%{background-position:100% 100%}}
+
+  /* visor 3D del cromo */
+  #crView{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:calc(var(--safe-t) + 20px) 20px calc(var(--safe-b) + 20px);
+    background:rgba(12,12,16,.62);-webkit-backdrop-filter:blur(16px) saturate(140%);backdrop-filter:blur(16px) saturate(140%);opacity:0;pointer-events:none;transition:opacity .35s var(--ease)}
+  #crView.on{opacity:1;pointer-events:auto}
+  .hv-wrap{position:relative;perspective:1100px;touch-action:none;cursor:grab}
+  .hv-wrap:active{cursor:grabbing}
+  .hv-halo{position:absolute;inset:-34px;border-radius:50%;filter:blur(38px);opacity:.6;pointer-events:none;
+    background:conic-gradient(#ff4fa3,#ffd34f,#4fffb0,#4fc8ff,#b44fff,#ff4fa3);animation:haloSpin 7s linear infinite}
+  .hv-halo.gold{background:conic-gradient(#fff1b8,#e6b04a,#fff6d6,#c98a2b,#fff1b8);opacity:.7}
+  .hv-halo.miss{background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%);animation:none}
+  @keyframes haloSpin{to{transform:rotate(360deg)}}
+  .holo{--rx:0deg;--ry:0deg;--mx:50%;--my:50%;--o:0;position:relative;width:min(74vw,320px);aspect-ratio:3/4;transform-style:preserve-3d;
+    transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .7s var(--spring)}
+  .holo.drag{transition:none}
+  .holo.pop{animation:pop .7s var(--spring)}
+  @keyframes pop{0%{transform:rotateX(var(--rx)) rotateY(var(--ry)) scale(1)}35%{transform:rotateX(var(--rx)) rotateY(var(--ry)) scale(1.12)}100%{transform:rotateX(var(--rx)) rotateY(var(--ry)) scale(1)}}
+  .hf,.hb{position:absolute;inset:0;border-radius:22px;overflow:hidden;-webkit-backface-visibility:hidden;backface-visibility:hidden;
+    box-shadow:0 34px 70px -22px rgba(0,0,0,.75),inset 0 0 0 1px rgba(255,255,255,.5)}
+  .hf{background:linear-gradient(160deg,#fff,#f1ece3);isolation:isolate}
+  .hb{transform:rotateY(180deg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:28px;text-align:center;color:#fff;
+    background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.25),transparent 45%),linear-gradient(150deg,var(--orange2),var(--orange) 45%,#a8481a)}
+  .hb::before{content:"";position:absolute;inset:12px;border-radius:14px;border:2px dashed rgba(255,255,255,.55)}
+  .hb b{font-family:var(--serif);font-size:26px;line-height:1.1}
+  .hb small{font-weight:700;opacity:.9}
+  .hb .seal{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;border:3px solid rgba(255,255,255,.85);font:900 13px/1.15 -apple-system,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;transform:rotate(-12deg)}
+  .hf .hp{position:absolute;inset:11px 11px 64px;border-radius:13px;background:#ccc center/cover no-repeat}
+  .hf .foil{position:absolute;inset:11px 11px 64px;border-radius:13px;mix-blend-mode:color-dodge;opacity:calc(.1 + var(--o) * .42);pointer-events:none;
+    background:repeating-linear-gradient(115deg,#ff4fa3 0%,#ffd34f 6%,#4fffb0 12%,#4fc8ff 18%,#b44fff 24%,#ff4fa3 30%);background-size:400% 400%;background-position:var(--mx) var(--my);filter:saturate(1.3)}
+  .hf .glit{position:absolute;inset:11px 11px 64px;border-radius:13px;mix-blend-mode:color-dodge;opacity:calc(var(--o) * .28);pointer-events:none;
+    background-image:radial-gradient(circle,rgba(255,255,255,.9) .6px,transparent 1.4px),radial-gradient(circle,rgba(255,255,255,.7) .5px,transparent 1.2px);background-size:9px 9px,13px 13px;background-position:0 0,4px 6px}
+  .hf .glare{position:absolute;inset:0;border-radius:22px;pointer-events:none;mix-blend-mode:overlay;opacity:calc(.3 + var(--o) * .7);
+    background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.9),rgba(255,255,255,.2) 22%,transparent 52%)}
+  .holo.gold .foil{opacity:calc(.08 + var(--o) * .3);background:repeating-linear-gradient(115deg,#fff1b8 0%,#e6b04a 8%,#fff6d6 14%,#c98a2b 22%,#fff1b8 30%);background-size:400% 400%;background-position:var(--mx) var(--my)}
+  .holo.gold .hf{background:linear-gradient(160deg,#fff6d6,#e9c675 55%,#fff1b8)}
+  .holo.miss .hp{filter:grayscale(1) brightness(.75) contrast(.9)}
+  .holo.miss .foil,.holo.miss .glit{display:none}
+  .hf .cap{position:absolute;left:16px;right:16px;bottom:12px;height:44px;display:flex;align-items:center;gap:10px;color:#1c1d21}
+  .hf .cap b{flex:1;min-width:0;font-family:var(--serif);font-size:18px;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .hf .cap i{font-style:normal;font:800 12px -apple-system,system-ui,sans-serif;color:#8b9099}
+  .hf .star{position:absolute;top:18px;right:18px;z-index:2;padding:4px 9px;border-radius:999px;font:800 11px -apple-system,system-ui,sans-serif;color:#5a3a00;background:linear-gradient(135deg,#fff1b8,#e6b04a);box-shadow:0 4px 10px -4px rgba(0,0,0,.5)}
+  .hf .stamp2{position:absolute;z-index:2;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-14deg);padding:5px 11px;border:3px solid rgba(255,255,255,.95);border-radius:8px;
+    color:#fff;font:900 14px -apple-system,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;background:rgba(226,120,47,.6);white-space:nowrap}
+  .hf .lock{position:absolute;z-index:2;top:40%;left:50%;transform:translate(-50%,-50%);padding:6px 12px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font:800 13px -apple-system,system-ui,sans-serif}
+  .hv-hint{color:rgba(255,255,255,.75);font-size:13px;font-weight:600;text-align:center}
+  .hv-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .hv-btns .btn{min-height:42px;padding:10px 16px;font-size:14.5px}
+  .hv-btns .btn.ghost{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+  .hv-btns .btn.go{background:var(--orange);color:#fff}
+  @media (prefers-reduced-motion:reduce){.cr .sheen,.hv-halo{animation:none}}
+</style>
+</head>
+<body>
+<main class="vj">
+<section id="tab-trips" class="vtab">
+  <h1>Mis <em>viajes</em></h1>
+  <p class="lead">Abre una guía o crea una nueva con datos reales y gratuitos (OpenStreetMap, Wikipedia, OSRM, Open-Meteo).</p>
+  <div id="list"></div>
+  <div class="btn-row">
+    <button type="button" class="btn navy sq" id="newBtn"><svg class="ic"><use href="#i-plus"></use></svg>Nuevo viaje</button>
+    <label class="btn ghost sq"><svg class="ic"><use href="#i-doc"></use></svg>Importar viaje<input type="file" accept="application/json,.json" id="impFile" hidden></label>
+  </div>
+
+  <section id="wiz" hidden>
+    <h2>Nuevo viaje</h2>
+    <div class="card">
+      <label class="fld"><span>1 · Destino</span>
+        <div class="row2"><input type="text" id="wDest" placeholder="Ciudad, región o país (p. ej. Toscana)" autocomplete="off"><button type="button" class="btn ghost sq" id="wDestGo" style="flex:0 0 auto">Buscar</button></div>
+      </label>
+      <div class="hits" id="wHits"></div>
+    </div>
+    <div class="card">
+      <div class="row2">
+        <label class="fld"><span>2 · Primer día</span><input type="date" id="wStart"></label>
+        <label class="fld"><span>Días</span><select id="wDays"></select></label>
+      </div>
+      <div class="fld"><span>3 · Cómo os movéis</span><div class="opts" data-one="mode">
+        <button type="button" class="opt on" data-v="car">En coche</button><button type="button" class="opt" data-v="walk">A pie</button><button type="button" class="opt" data-v="transit">A pie y transporte público</button></div></div>
+      <div class="fld"><span>4 · Ritmo</span><div class="opts" data-one="pace">
+        <button type="button" class="opt" data-v="3">Tranquilo</button><button type="button" class="opt on" data-v="5">Normal</button><button type="button" class="opt" data-v="7">Intenso</button></div></div>
+      <div class="fld"><span>5 · Qué os gusta</span><div class="opts" data-many="ints">
+        <button type="button" class="opt on" data-v="castles">Castillos y palacios</button><button type="button" class="opt on" data-v="history">Historia y ruinas</button>
+        <button type="button" class="opt on" data-v="museums">Museos</button><button type="button" class="opt on" data-v="nature">Naturaleza y miradores</button>
+        <button type="button" class="opt on" data-v="towns">Monumentos y casco antiguo</button><button type="button" class="opt" data-v="parks">Parques y jardines</button>
+        <button type="button" class="opt" data-v="family">Zoos y parques de ocio</button></div></div>
+    </div>
+    <div class="card">
+      <div class="fld"><span>6 · Dónde dormís (anclas)</span></div>
+      <p class="note">Nombre del hotel o dirección. Si lo dejas vacío, se usa la noche anterior; la primera, el centro del destino.</p>
+      <div id="wNights"></div>
+    </div>
+    <div class="card">
+      <div class="fld"><span>7 · Vuelos (opcional)</span></div>
+      <div class="fx"><span style="flex:0 0 58px;font-size:13px;font-weight:700">Llegada</span><input type="time" id="wInT"><input type="text" id="wInP" placeholder="Aeropuerto (p. ej. FLR)"></div>
+      <div class="fx"><span style="flex:0 0 58px;font-size:13px;font-weight:700">Salida</span><input type="time" id="wOutT"><input type="text" id="wOutP" placeholder="Aeropuerto"></div>
+      <p class="note">Llegada el primer día y salida el último.</p>
+    </div>
+    <div class="card">
+      <div class="fld"><span>8 · Entradas con hora (opcional)</span></div>
+      <div id="wFixed"></div>
+      <button type="button" class="btn ghost sq" id="wFixAdd"><svg class="ic"><use href="#i-plus"></use></svg>Añadir entrada</button>
+    </div>
+    <div class="card">
+      <label class="fld"><span>9 · Nombre del viaje</span><input type="text" id="wName" placeholder="Se rellena solo"></label>
+      <button type="button" class="btn navy sq big-btn" id="wGo"><svg class="ic"><use href="#i-route"></use></svg>Crear la guía</button>
+      <ul class="log" id="wLog"></ul>
+      <div class="btn-row" id="wDone" hidden><button type="button" class="btn navy sq" id="wOpen">Abrir la guía</button></div>
+    </div>
+
+    <div class="card" id="aiBox" hidden>
+      <div class="eyebrow">Opcional · Mejorar los textos con tu ChatGPT o Claude</div>
+      <p class="note">La guía ya está hecha con datos reales. Si quieres textos más bonitos, copia este mensaje en tu chat (la versión gratis vale), y pega aquí su respuesta. Solo puede escribir sobre los sitios de la lista: lo que no esté en ella se descarta.</p>
+      <div class="btn-row"><button type="button" class="btn navy sq" id="aiCopy">Copiar mensaje</button>
+        <a class="btn ghost sq" href="https://chatgpt.com/" target="_blank" rel="noopener">ChatGPT</a><a class="btn ghost sq" href="https://claude.ai/new" target="_blank" rel="noopener">Claude</a></div>
+      <label class="fld"><span>Respuesta del chat</span><textarea id="aiIn" placeholder="Pega aquí el JSON que te devuelva"></textarea></label>
+      <button type="button" class="btn ghost sq" id="aiApply">Aplicar textos</button>
+      <ul class="log" id="aiLog"></ul>
+    </div>
+  </section>
+
+</section>
+
+<section id="tab-album" class="vtab" hidden>
+  <h1>Mi <em>álbum</em></h1>
+  <p class="lead">Cada sitio que visitas es un cromo. Pégalo desde la guía («Pegar cromo») o tocándolo aquí. Los que tienen ★ son los imprescindibles.</p>
+  <div id="albumBox"></div>
+  <div class="card" id="postBox" hidden><div class="eyebrow">Tu postal</div><img id="postImg" alt="Postal del viaje">
+    <div class="btn-row"><button type="button" class="btn navy sq" id="postSave">Guardar o compartir</button><button type="button" class="btn ghost sq" id="postClose">Cerrar</button></div></div>
+</section>
+
+<section id="tab-profile" class="vtab" hidden>
+  <h1>Mi <em>perfil</em></h1>
+  <div id="profBox"></div>
+  <div class="card"><div class="eyebrow">Ajustes</div>
+    <div class="fld"><span>Tema</span><div class="opts" id="themeOpts"><button type="button" class="opt" data-th="auto">Automático</button><button type="button" class="opt" data-th="light">Claro</button><button type="button" class="opt" data-th="dark">Oscuro</button></div></div>
+    <div class="fld"><span>Copia del álbum</span><div class="btn-row"><button type="button" class="btn ghost sq" id="albExp">Guardar copia</button><label class="btn ghost sq">Cargar copia<input type="file" accept="application/json,.json" id="albImp" hidden></label></div></div>
+  </div>
+</section>
+
+  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía v6 · 28 oct 2026</p>
+</main>
+<div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
+<nav class="vnav" role="tablist" aria-label="Secciones">
+  <button type="button" role="tab" class="vn" data-vt="trips" aria-selected="true"><svg class="ic"><use href="#i-route"></use></svg><span>Viajes</span></button>
+  <button type="button" role="tab" class="vn" data-vt="album" aria-selected="false"><svg class="ic"><use href="#i-star"></use></svg><span>Álbum</span></button>
+  <button type="button" role="tab" class="vn" data-vt="profile" aria-selected="false"><svg class="ic"><use href="#i-user"></use></svg><span>Perfil</span></button>
+</nav>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0"></path></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"></path></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><path d="M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h6.5a3.5 3.5 0 0 0 0-7h-5a3.5 3.5 0 0 1 0-7H16"></path></symbol>
+</defs></svg>
+<script src="viajes.js"></script>
+<script>
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body></html>

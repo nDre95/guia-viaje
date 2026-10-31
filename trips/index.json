@@ -1,0 +1,16 @@
+[
+ {
+  "id": "escocia-2026",
+  "title": {
+   "es": "Escocia en 4 días",
+   "en": "Scotland in 4 days"
+  },
+  "dest": {
+   "es": "Escocia",
+   "en": "Scotland"
+  },
+  "start": "2026-11-30",
+  "days": 4,
+  "cover": "photos/escocia-2026/glenshiel.jpg"
+ }
+]
