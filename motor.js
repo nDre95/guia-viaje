@@ -484,7 +484,7 @@ window.Motor = (function () {
         items.push(x);
       }
       function stopItem(p) {
-        var K = KINDS[p.kind], it = { id: id(), t: K.t, ti: p.n, pl: town, d: p.dd || dwell(p), lat: +p.lat.toFixed(5), lon: +p.lon.toFixed(5), q: p.n + ', ' + town };
+        var K = KINDS[p.kind], it = { id: id(), t: K.t, k: p.kind, ti: p.n, pl: town, d: p.dd || dwell(p), lat: +p.lat.toFixed(5), lon: +p.lon.toFixed(5), q: p.n + ', ' + town };
         if (p.must) it.must = 1;
         if (p.fixedAt) { it.at = p.fixedAt; it.tips = ['Entrada con hora: llega 15 min antes.']; }
         if (p.soft) { it.at = p.soft; it.soft = 1; }
@@ -702,6 +702,17 @@ window.Motor = (function () {
     }).then(function (bundle) {
       var s9 = step('Temperaturas típicas de esas fechas (Open-Meteo)');
       return climate(bundle).then(function () { s9.ok('Temperaturas listas'); }, function () { s9.warn('Sin datos de clima: se verá la previsión cuando falten pocos días'); }).then(function () { return bundle; });
+    }).then(function (bundle) {
+      if (!window.Mapa) return bundle;
+      // el mapa ilustrado: se prepara ahora, con conexión, para verlo después sin ella
+      var s10 = step('Dibujando el mapa del viaje'), days = Mapa.fromTrip(bundle.trip);
+      return Mapa.landFor(days).catch(function () { return null; }).then(function (land) {
+        if (land && land.length) bundle.trip.mapLand = land;
+        return pool(Mapa.pickPins(days), 3, function (q) {
+          var src = Mapa.photoOf(q.s, bundle.photos); if (!src) return;
+          return Mapa.sketch(src).then(function (u) { q.s.sk = u; });
+        });
+      }).then(function () { s10.ok('Mapa del viaje listo'); return bundle; }, function () { s10.warn('Mapa sin todos los dibujos'); return bundle; });
     });
   }
 

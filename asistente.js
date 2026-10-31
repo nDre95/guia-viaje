@@ -11,7 +11,7 @@ window.Asistente = (function () {
   function flag(cc) { return /^[A-Z]{2}$/.test(cc || '') ? String.fromCodePoint(127397 + cc.charCodeAt(0), 127397 + cc.charCodeAt(1)) : '🌍'; }
   var MAX_DAYS = 10, COLORS = ['#e2782f', '#3b3e46', '#2f8f5b', '#b4551a', '#6b7fb3', '#a8481a', '#8b9099'];
 
-  var A, page = 0, cfg = {}, debounce = 0, busy = false, done = null;
+  var A, page = 0, cfg = {}, debounce = 0, busy = false, done = null, repaintDays = null;
   function fresh() {
     var t = new Date(); t.setDate(t.getDate() + 30);
     return { countries: [], cities: [], start: t.toISOString().slice(0, 10), mode: 'transit', pace: 'normal', style: 'spread', ints: {}, open: {}, fin: { t: '', p: '' }, fout: { t: '', p: '' }, fixed: [], title: '' };
@@ -45,6 +45,7 @@ window.Asistente = (function () {
     setTimeout(function () { w.hidden = true; $('#wzBody').innerHTML = ''; }, 420);
   }
   function show(dir) {
+    repaintDays = null;
     var P = PAGES[page], body = $('#wzBody'), old = $('.wz-page', body);
     $('#wzBar i').style.width = ((page + 1) / PAGES.length * 100) + '%';
     $('#wzStep').textContent = P.eyebrow + ' · ' + (page + 1) + ' de ' + PAGES.length;
@@ -177,8 +178,11 @@ window.Asistente = (function () {
       if (!x.img) Motor.placeInfo(x.name).then(function (i) { if (i && i.img) { x.img = i.img; if (PAGES[page].id === 'ciudades') chosen(); } });
       Motor.discover(x).then(function (l) {
         x.top = l;
-        // días sugeridos: según cuánto importante tenga
-        x.days = Math.max(1, Math.min(4, Math.round(l.filter(function (s) { return s.fame > 0.72; }).length / 4) || 1));
+        // días sugeridos: según cuánto importante tenga. Llega tarde: nunca pisa lo que ya haya elegido el usuario
+        if (!x.touched) {
+          var sug = Math.max(1, Math.min(4, Math.round(l.filter(function (s) { return s.fame > 0.72; }).length / 4) || 1));
+          if (totalDays() - x.days + sug <= MAX_DAYS) { x.days = sug; if (repaintDays) repaintDays(); }
+        }
         var b = $('#wzTop' + A.cities.indexOf(x), c); if (b) b.innerHTML = topHTML(x);
       }, function () { x.top = []; var b = $('#wzTop' + A.cities.indexOf(x), c); if (b) b.innerHTML = topHTML(x); });
     }
@@ -245,9 +249,10 @@ window.Asistente = (function () {
     }
     c.onclick = function (e) {
       var m = e.target.closest('[data-m]'), p = e.target.closest('[data-p]');
-      if (m) { var x = A.cities[+m.getAttribute('data-m')]; if (x.days > 1) { x.days--; paint(); } }
-      if (p && totalDays() < MAX_DAYS) { A.cities[+p.getAttribute('data-p')].days++; paint(); }
+      if (m) { var x = A.cities[+m.getAttribute('data-m')]; x.touched = true; if (x.days > 1) { x.days--; paint(); } }
+      if (p && totalDays() < MAX_DAYS) { var y = A.cities[+p.getAttribute('data-p')]; y.touched = true; y.days++; paint(); }
     };
+    repaintDays = paint;
     // al volver atrás y quitar ciudades, que no se pase del máximo
     while (totalDays() > MAX_DAYS) { var big = A.cities.slice().sort(function (a, b) { return b.days - a.days; })[0]; big.days--; }
     paint();
@@ -377,7 +382,11 @@ window.Asistente = (function () {
     Motor.generate(sp, step).then(function (b) {
       return cfg.onSave(b).then(function () {
         done = b; busy = false; step('Guía guardada en este móvil').ok(); foot();
-        $('#wzAfter').innerHTML = cfg.aiBox ? cfg.aiBox(b) : '';
+        $('#wzAfter').innerHTML = '<div id="wzMapa"></div>' + (cfg.aiBox ? cfg.aiBox(b) : '');
+        if (window.Mapa) {
+          Mapa.mount($('#wzMapa'), { id: b.meta.id, title: b.meta.title.es, heading: 'Tu viaje en un mapa', dayLabel: 'Día', mode: b.meta.mode, land: b.trip.mapLand || null, photos: b.photos, days: Mapa.fromTrip(b.trip) });
+          $('#wzMapa').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       });
     }).catch(function (err) {
       busy = false; step('Algo falló: ' + (err && err.message || err) + '. Comprueba la conexión y vuelve a intentarlo.').warn(); foot();

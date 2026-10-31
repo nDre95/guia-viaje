@@ -155,7 +155,8 @@ window.Album = (function () {
       if (!src) return res(null);
       var im = new Image(); im.crossOrigin = 'anonymous';
       im.onload = function () { res(im); }; im.onerror = function () { res(null); };   // sin permiso CORS: se deja el hueco
-      im.src = /^data:/.test(src) ? src : new URL(src, location.href).href;
+      var abs = /^data:/.test(src) ? src : new URL(src, location.href).href;
+      (window.Mapa ? Mapa.corsUrl(abs).catch(function () { return abs; }) : Promise.resolve(abs)).then(function (u) { im.src = u; });
     });
   }
   function makePostcard(id) {
