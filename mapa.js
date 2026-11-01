@@ -130,9 +130,10 @@ window.Mapa = (function () {
     if (mode === 'car') return d > 1.5 ? 'car' : 'walk';
     return d > 3.5 ? 'bus' : 'walk';
   }
-  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje', all: 'Ver todo el viaje', start: 'Arrastra la bolita o dale a reproducir para recorrer el viaje' },
-    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', hint: 'Slide the ball along the route', play: 'Play the trip', all: 'See the whole trip', start: 'Drag the ball or press play to travel the trip' } };
+  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje', all: 'Ver todo el viaje', start: 'Arrastra la bolita o dale a reproducir para recorrer el viaje', end: 'Este es el viaje completo. Arrastra la bolita hacia atrás para volver a cualquier sitio' },
+    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', hint: 'Slide the ball along the route', play: 'Play the trip', all: 'See the whole trip', start: 'Drag the ball or press play to travel the trip', end: 'This is the whole trip. Drag the ball back to return to any place' } };
 
+  var LEG_KM = 3.5, ZONE_KM = 6, ZONE_MAX = 5;
   function model(o) {
     var seq = [], legs = [], scenes = [];
     o.days.forEach(function (d, di) { d.stops.forEach(function (st, si) { seq.push({ s: st, di: di, si: si, x: wx(st.lon), y: wy(st.lat), jump: !si && d.jump, sight: isSight(st), a: 0 }); }); });
@@ -143,12 +144,24 @@ window.Mapa = (function () {
       var bulge = len * (m === 'plane' ? 0.26 : 0.07), px = dy / len, py = -dx / len; if (py > 0) { px = -px; py = -py; }
       legs.push({ m: m, km: km, di: q.di, soft: a.di !== q.di && km < 15 && m !== 'train' && m !== 'plane', ax: a.x, ay: a.y, cx: (a.x + q.x) / 2 + px * bulge, cy: (a.y + q.y) / 2 + py * bulge, bx: q.x, by: q.y });
     });
-    // escenas: lo que se ve de una vez. Una ciudad en un día; cambia al viajar lejos, al cambiar de día o en un aeropuerto
+    // escenas: cada zona con su zoom. Puntos seguidos y cercanos, a escala de paseo; cambia al alejarse, al cambiar de día o en un aeropuerto
+    var run = [];
+    function zones(pts) {
+      var km = 0;
+      pts.forEach(function (a) { pts.forEach(function (b) { km = Math.max(km, kmBetween(a.s, b.s)); }); });
+      if (pts.length < 2 || (km <= ZONE_KM && pts.length <= ZONE_MAX)) { scenes.push({ pts: pts }); return; }
+      // zona demasiado grande o llena: se parte por el tramo más largo, y así hasta que se vea bien
+      var cut = 1, big = -1;
+      pts.slice(1).forEach(function (q, k) { var d = kmBetween(pts[k].s, q.s); if (d > big) { big = d; cut = k + 1; } });
+      zones(pts.slice(0, cut)); zones(pts.slice(cut));
+    }
     seq.forEach(function (q, i) {
-      var p = seq[i - 1], neu = !p || p.di !== q.di || legs[i - 1].km > 25 || p.sight !== q.sight;
-      if (neu) scenes.push({ pts: [] });
-      q.sc = scenes.length - 1; scenes[q.sc].pts.push(q);
+      var p = seq[i - 1];
+      if (p && (p.di !== q.di || legs[i - 1].km > LEG_KM || p.sight !== q.sight)) { zones(run); run = []; }
+      run.push(q);
     });
+    zones(run);
+    scenes.forEach(function (sc, n) { sc.pts.forEach(function (q) { q.sc = n; }); });
     // nombres de ciudades: los del viaje, o el lugar de cada parada
     var cities = [];
     if (o.cities && o.cities.length) {
@@ -228,17 +241,17 @@ window.Mapa = (function () {
     if (el._mapOff) el._mapOff();
     var H0 = HOW[o.lang === 'en' ? 'en' : 'es'], M = model(o); if (!M) { el.innerHTML = ''; return; }
     var key0 = o.id || 'x', mem = MEM[key0] || (MEM[key0] = { v: -1, ovr: 0 }), last = M.seq.length - 1;
-    if (mem.v > last) mem.v = last;
+    if (mem.v > last + 1) mem.v = last + 1;
     var W = 0, H = 0, dpr = 1, over = null, cams = [], mids = [], ovrT = mem.ovr, trFrom = null, tr = 1, raf = 0, moved = 0, tm = 0, playing = false, gl = 0, lastT = 0, lastInfo = '', drawn = [], dead = false, landPath = null, lastChip = '';
     var usedDays = [];
     M.seq.forEach(function (q, i) { if (!usedDays.some(function (u) { return u.di === q.di; })) usedDays.push({ di: q.di, i: i, title: o.days[q.di].title }); });
-    var track = M.seq.map(function (q, i) { return COLORS[q.di % COLORS.length] + ' ' + ((i + 1) / (last + 1) * 100).toFixed(1) + '%'; });
+    var track = M.seq.map(function (q, i) { return COLORS[q.di % COLORS.length] + ' ' + ((i + 1) / (last + 2) * 100).toFixed(1) + '%'; });
     el.innerHTML = '<div class="card map-card">' + (o.heading ? '<div class="eyebrow">' + esc(o.heading) + '</div>' : '') +
       '<div class="map-wrap"><canvas class="map-cv" role="img" aria-label="' + esc(o.title || 'Mapa del viaje') + '"></canvas><span class="map-where"></span>' +
       '<button type="button" class="map-all sq" aria-label="' + esc(H0.all) + '" title="' + esc(H0.all) + '"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
       '<small class="map-attr">Esri, HERE, Garmin, © OpenStreetMap</small></div>' +
       '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="' + esc(H0.play) + '"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>' +
-      '<input class="map-range" type="range" min="-1" max="' + last + '" step="0.005" value="' + mem.v + '" aria-label="' + esc(H0.hint) + '" style="--track:linear-gradient(90deg,' + COLORS[0] + ' 0%,' + track.join(',') + ')"></div>' +
+      '<input class="map-range" type="range" min="-1" max="' + (last + 1) + '" step="0.005" value="' + mem.v + '" aria-label="' + esc(H0.hint) + '" style="--track:linear-gradient(90deg,' + COLORS[0] + ' 0%,' + track.join(',') + ')"></div>' +
       '<div class="map-info"></div>' +
       '<div class="map-leg">' + usedDays.map(function (x) { return '<button type="button" class="map-day" data-mapgo="' + x.i + '" data-di="' + x.di + '"><i style="background:' + COLORS[x.di % COLORS.length] + '"></i>' + esc((o.dayLabel || 'Día') + ' ' + (x.di + 1)) + (x.title ? ' · ' + esc(x.title) : '') + '</button>'; }).join('') + '</div></div>';
     var wrap = el.querySelector('.map-wrap'), cv = el.querySelector('.map-cv'), g = cv.getContext('2d'), rg = el.querySelector('.map-range'), allBtn = el.querySelector('.map-all'), chip = el.querySelector('.map-where'), box = el.querySelector('.map-info'), playBtn = el.querySelector('.map-play');
@@ -251,8 +264,11 @@ window.Mapa = (function () {
       var world = M.seq.slice();
       M.legs.forEach(function (l) { if (l.m === 'plane') world.push({ x: l.cx, y: l.cy }); });
       over = fit(world, W, H, 100, 42, 46, 0.6);
-      var tripKm = Math.max(kmBetween({ lat: M.seq[0].s.lat, lon: M.seq[0].s.lon }, M.seq[last].s), M.legs.reduce(function (a, l) { return Math.max(a, l.km); }, 0));
-      cams = M.scenes.map(function (sc) { return fit(sc.pts, W, H, 104, 48, 50, sc.pts.length > 1 ? 1.4 : tripKm < 40 ? 3 : 14); });
+      // un sitio solo: de cerca si está en plena ciudad; en el campo, con lo que tiene alrededor
+      cams = M.scenes.map(function (sc) {
+        var i = M.seq.indexOf(sc.pts[0]), near = Math.min((M.legs[i - 1] || { km: 1e4 }).km, (M.legs[i] || { km: 1e4 }).km);
+        return fit(sc.pts, W, H, 104, 48, 50, sc.pts.length > 1 || near < 6 ? 1.2 : 5);
+      });
       mids = M.legs.map(function (l, i) {
         var a = M.seq[i], b = M.seq[i + 1]; if (a.sc === b.sc) return null;
         return fit([a, b, { x: l.cx, y: l.cy }], W, H, 112, 50, 56, 0.1);
@@ -261,6 +277,8 @@ window.Mapa = (function () {
     }
     function camAt(v) {
       if (v <= -1) return over;
+      // pasada la última parada, se aleja: otra vez el viaje entero
+      if (v > last) return mix(cams[M.seq[last].sc], over, ease(Math.min(1, v - last)));
       if (v < 0) return mix(over, cams[0], ease(v + 1));
       var i = Math.min(last - 1, Math.floor(v)), f = v - i;
       if (i < 0) return cams[M.seq[0].sc];
@@ -272,6 +290,7 @@ window.Mapa = (function () {
       return mix(a, b, ease(f));
     }
     function posAt(v) {
+      v = Math.min(v, last);
       if (v <= 0) return { x: M.seq[0].x, y: M.seq[0].y, a: 0, m: 'walk', right: true };
       var i = Math.min(M.legs.length - 1, Math.floor(v)), f = v - i, l = M.legs[i];
       if (!l) return { x: M.seq[0].x, y: M.seq[0].y, a: 0, m: 'walk', right: true };
@@ -329,8 +348,8 @@ window.Mapa = (function () {
       // un tono cálido, el de la app, sobre el gris del mapa
       if (!dark) { g.globalCompositeOperation = 'multiply'; g.fillStyle = '#f7efe0'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over'; }
       // la ruta: lo recorrido, con fuerza; lo que falta, suave
-      var iNow = v < 0 ? -1 : Math.min(M.legs.length - 1, Math.floor(v)), fNow = v < 0 ? 0 : v - iNow;
-      var fut = v < 0 ? 0.92 : 0.38;
+      var iNow = v < 0 ? -1 : Math.min(M.legs.length - 1, Math.floor(v)), fNow = v < 0 ? 0 : Math.min(1, v - iNow);
+      var fut = v < 0 || v > last ? 0.92 : 0.38;
       M.legs.forEach(function (l, i) { if (i >= iNow) drawLeg(l, 1, fut, sx, sy); });
       M.legs.forEach(function (l, i) { if (i < iNow) drawLeg(l, 1, 1, sx, sy); else if (i === iNow) drawLeg(l, fNow, 1, sx, sy); });
       // paradas
@@ -339,7 +358,7 @@ window.Mapa = (function () {
         g.beginPath(); g.arc(x, y, 4.2, 0, 7); g.fillStyle = v < 0 || i <= v + 0.5 ? COLORS[q.di % COLORS.length] : dark ? '#70737c' : '#a9a69c'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#fff'; g.stroke();
       });
       // burbujas con la foto de cada sitio: las que caben, sin pisarse; el resto se suma a la de al lado (+3)
-      var R = clamp(W * 0.065, 20, 27), curI = v >= -0.07 && Math.abs(v - Math.round(v)) < 0.5 ? clamp(Math.round(v), 0, last) : -1, placed = [];
+      var R = clamp(W * 0.065, 20, 27), curI = v >= -0.07 && v <= last + 0.07 ? clamp(Math.round(v), 0, last) : -1, placed = [];
       var cand = M.seq.filter(function (q) { return q.sight; }).sort(function (a, b) {
         var ca = M.seq[curI] === a ? 1 : 0, cb = M.seq[curI] === b ? 1 : 0;
         return cb - ca || (b.a > 0.5) - (a.a > 0.5) || (b.s.must ? 1 : 0) - (a.s.must ? 1 : 0) || (((b.s.src || {}).views || 0) - ((a.s.src || {}).views || 0)) || M.seq.indexOf(a) - M.seq.indexOf(b);
@@ -419,9 +438,9 @@ window.Mapa = (function () {
 
     /* ----- ficha y etiqueta ----- */
     function info(v) {
-      var near = Math.round(v), at = v > -0.07 && Math.abs(v - near) < 0.07, q = M.seq[clamp(near, 0, last)], key = v <= -0.07 ? 'start' : at ? 's' + near : 'l' + Math.floor(v);
+      var near = Math.round(v), at = v > -0.07 && Math.abs(v - near) < 0.07, q = M.seq[clamp(near, 0, last)], key = v <= -0.07 ? 'start' : v > last + 0.07 ? 'end' : at ? 's' + near : 'l' + Math.floor(v);
       if (key === lastInfo) return; lastInfo = key;
-      if (key === 'start') { box.className = 'map-info hint'; box.innerHTML = '<span>' + esc(H0.start) + '</span>'; return; }
+      if (key === 'start' || key === 'end') { box.className = 'map-info hint'; box.innerHTML = '<span>' + esc(H0[key]) + '</span>'; return; }
       if (at) {
         var s0 = q.s, src = s0.ph && o.photos && o.photos[s0.ph] ? ' style="background-image:url(&quot;' + esc(o.photos[s0.ph]) + '&quot;)"' : '', cls = s0.ph && !src ? ' ph ph-' + s0.ph : '';
         box.className = 'map-info on';
@@ -434,13 +453,13 @@ window.Mapa = (function () {
       }
     }
     function top(v) {
-      var overview = v <= -0.5 || ovrT === 1, q = M.seq[clamp(Math.round(v), 0, last)], where = q.city || (q.sight ? '' : q.s.ti) || '', txt = overview ? (o.title || '') : (o.dayLabel || 'Día') + ' ' + (q.di + 1) + (where ? ' · ' + where : '');
+      var overview = v <= -0.5 || v >= last + 0.5 || ovrT === 1, q = M.seq[clamp(Math.round(v), 0, last)], where = q.city || (q.sight ? '' : q.s.ti) || '', txt = overview ? (o.title || '') : (o.dayLabel || 'Día') + ' ' + (q.di + 1) + (where ? ' · ' + where : '');
       if (txt !== lastChip) { lastChip = txt; chip.textContent = txt; chip.hidden = !txt; }
       allBtn.classList.toggle('on', !overview);
       Array.prototype.forEach.call(el.querySelectorAll('.map-day'), function (b) { b.classList.toggle('on', !overview && +b.getAttribute('data-di') === q.di); });
     }
     function set(v, skipSlider) {
-      mem.v = v = clamp(v, -1, last); moved = performance.now();
+      mem.v = v = clamp(v, -1, last + 1); moved = performance.now();
       if (!skipSlider) rg.value = v;
       info(v); top(v); invalidate();
     }
@@ -465,21 +484,21 @@ window.Mapa = (function () {
     }
     function stop() { playing = false; playBtn.classList.remove('on'); clearTimeout(el._pt); cancelAnimationFrame(gl); }
     function legMs(n) {
-      if (n <= 0) return 1700;
-      var a = M.seq[n - 1], b = M.seq[n]; return a.sc === b.sc ? 1100 : 2600;
+      if (n <= 0 || n > last) return 1700;
+      return M.seq[n - 1].sc === M.seq[n].sc ? 1100 : M.legs[n - 1].km < 6 ? 1500 : 2600;
     }
     function play() {
-      ovrT = 0; var n = Math.round(mem.v); if (n >= last) { mem.ovr = 0; set(-1); n = -1; }
+      ovrT = 0; var n = Math.round(mem.v); if (n > last) { mem.ovr = 0; set(-1); n = -1; }
       playing = true; playBtn.classList.add('on');
       (function next() {
         if (!playing) return;
-        if (n >= last) { el._pt = setTimeout(function () { stop(); ovrT = 1; top(mem.v); invalidate(); }, 1400); return; }
+        if (n > last) { stop(); return; }
         n++; glide(n, legMs(n), function () { el._pt = setTimeout(next, 1500); });
       })();
     }
     rg.addEventListener('input', function () { stop(); ovrT = 0; set(+rg.value, true); });
     // al soltar, se asienta en el sitio más cercano; al principio del todo, en la vista completa
-    rg.addEventListener('change', function () { var x = +rg.value; glide(x < -0.5 ? -1 : Math.round(x), 300); });
+    rg.addEventListener('change', function () { var x = +rg.value; glide(x < -0.5 ? -1 : x > last + 0.5 ? last + 1 : Math.min(last, Math.round(x)), 300); });
     playBtn.addEventListener('click', function () { if (playing) stop(); else play(); });
     allBtn.addEventListener('click', function () { stop(); ovrT = 1; top(mem.v); invalidate(); });
     cv.addEventListener('click', function (e) {

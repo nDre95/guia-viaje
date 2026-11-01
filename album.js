@@ -323,10 +323,7 @@ window.Album = (function () {
     return overview().then(function (O) {
       var B = O.badges, S = { past: 'Hecho', now: 'En curso', next: 'Próximo' };
       var sorted = O.trips.slice().sort(function (a, b) { return String(b.start).localeCompare(String(a.start)); });
-      box.innerHTML = '<div class="pstats">' +
-        [[O.trips.length, O.trips.length === 1 ? 'viaje' : 'viajes'], [O.totalDays, 'días de viaje'], [O.got + ' / ' + O.all, 'cromos'], [O.mustGot + ' / ' + O.must, 'imprescindibles']].map(function (s) {
-          return '<div class="card stat2"><b>' + s[0] + '</b><small>' + s[1] + '</small></div>';
-        }).join('') + '</div><div id="pfWorld"></div>' +
+      box.innerHTML = '<div id="pfWorld"></div>' +
         '<div class="pf-h">Mis viajes</div>' + (sorted.length ? sorted.slice(0, 3).map(function (t) {
           return '<div class="card pf-trip">' + (t.cover ? '<div class="pf-ph" style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"></div>' : '<div class="pf-ph"></div>') +
             '<div class="pf-m"><span class="pf-st ' + t.status + '">' + S[t.status] + '</span><b>' + esc(t.title) + '</b><small>' + esc(shortRange(t)) + ' · ' + t.days + (t.days === 1 ? ' día' : ' días') + '</small>' +
@@ -335,7 +332,7 @@ window.Album = (function () {
         }).join('') + (sorted.length > 3 ? '<button type="button" class="lst-more sq" data-go="trips">Ver todos (' + sorted.length + ')</button>' : '') : '<p class="note">Aún no hay viajes.</p>') +
         '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + B.length + '</div><div class="card"><div class="badges">' +
         B.map(function (b) { return '<div class="bdg' + (b[2] ? '' : ' off') + '"><i>' + b[0] + '</i>' + esc(b[1]) + '</div>'; }).join('') + '</div></div>';
-      if (window.Mundo && window.Mapa) Mundo.mount($('#pfWorld'), O.trips);
+      if (window.Mundo && window.Mapa) Mundo.mount($('#pfWorld'), O.trips, { base: O });
     });
   }
   function albImport(f) {
