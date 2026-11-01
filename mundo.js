@@ -185,7 +185,9 @@ window.Mundo = (function () {
         '<div class="mw-wrap"><div class="mw-map" id="mwMap"><p class="note">Cargando el mapa…</p></div><div class="mw-hero" id="mwHero" aria-hidden="true"></div>' +
         '<div class="mw-tools"><button type="button" class="sq" data-mt="in" aria-label="Acercar" title="Acercar">' + ic('M12 5v14M5 12h14') + '</button><button type="button" class="sq" data-mt="out" aria-label="Alejar" title="Alejar">' + ic('M5 12h14') + '</button>' +
         '<button type="button" class="sq' + (ST.names ? ' on' : '') + '" data-mt="names" aria-label="Nombres de países" title="Nombres de países" aria-pressed="' + ST.names + '"><b>Aa</b></button></div></div>' +
-        '<div class="mw-rec" id="mwRec" hidden><div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#f2b27c,#e2782f)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
+        '<div class="mw-rec" id="mwRec" hidden><div class="mw-rec-h">Resumen por año</div>' +
+        (yl.length ? '<div class="mw-chips mw-rec-y" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') +
+        '<button type="button" class="btn navy sq mw-rec-go" id="mwRecGo"></button><div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#f2b27c,#e2782f)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
         '<div class="mw-legend"><span><i class="c1"></i>1 vez</span><span><i class="c2"></i>2 veces</span><span><i class="c3"></i>3 o más</span><span><i class="cn"></i>Por visitar</span></div>' +
         '<div class="mw-info" id="mwInfo"></div></div>' +
         '<div id="mwList"></div>';
@@ -251,6 +253,7 @@ window.Mundo = (function () {
       var bar = el.querySelector('#mwRec'), g = el.querySelector('#mwRecG'); if (!bar) return;
       recBuild();
       bar.hidden = !R.seq.length;
+      var go = bar.querySelector('#mwRecGo'); if (go) go.textContent = ST.year ? 'Ver resumen de ' + ST.year : 'Ver resumen de todos mis viajes';
       if (g) g.innerHTML = '';
       if (!R.seq.length || !g) return;
       var rg = bar.querySelector('.map-range'); rg.max = R.seq.length; rg.value = -1;
@@ -308,10 +311,10 @@ window.Mundo = (function () {
         b.innerHTML = key === 'start' ? '<span>Dale a reproducir para recorrer tus viajes en el mapa.</span>' : '<b>' + (ST.year ? ST.year + ' · ' : '') + nt + (nt === 1 ? ' viaje' : ' viajes') + ' · ' + nc + (nc === 1 ? ' país' : ' países') + '</b>';
         return;
       }
-      var i = Math.max(0, Math.round(v)), q = R.seq[i], t = q.t, cs = (cached(t.ref) || []).map(function (c) { return (flag(c) ? flag(c) + ' ' : '') + name(c); }).join(', ');
+      // la foto, el mes y la ciudad van sobre el mapa (recHero): aquí, solo por dónde va y abrir la guía
+      var i = Math.max(0, Math.round(v)), t = R.seq[i].t;
       b.className = 'mw-rec-info on';
-      b.innerHTML = '<span class="mw-rec-ph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '></span><span class="mw-rec-tx"><small>' + esc(t.start.slice(0, 4)) + ' · ' + (i + 1) + ' de ' + R.seq.length + '</small><b>' + esc(t.title) + '</b><small class="c">' + esc(cs) + '</small></span>' +
-        (opt.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir</button>');
+      b.innerHTML = '<small>' + (i + 1) + ' de ' + R.seq.length + '</small>' + (opt.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir la guía</button>');
     }
     function recSet(v, keepSlider) {
       var L = R.seq.length - 1; R.v = v = Math.max(-1, Math.min(L + 1, v));
@@ -341,7 +344,7 @@ window.Mundo = (function () {
       (function next() {
         if (!R.playing) return;
         if (n > L) { recStop(); return; }
-        n++; recGlide(n, n <= 0 || n > L ? 1600 : 2300, function () { R.tm = setTimeout(next, n > L ? 0 : 1600); });
+        n++; recGlide(n, n <= 0 || n > L ? 1600 : 2300, function () { R.tm = setTimeout(next, n > L ? 0 : 2400); });
       })();
     }
     function counts() {
@@ -496,10 +499,16 @@ window.Mundo = (function () {
     el.onclick = function (e) {
       var t = e.target, yb = t.closest('[data-y]'), ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
       if (t.closest('#mwRec .map-play')) { if (R.playing) recStop(); else recPlay(); return; }
+      // el botón grande: siempre desde el principio y con el mapa a la vista
+      if (t.closest('#mwRecGo')) {
+        recStop(); R.v = -1; R.follow = true; recSet(-1);
+        var mp = el.querySelector('.mw-wrap'); if (mp) mp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        recPlay(); return;
+      }
       if (yb) {
         recStop(); R.limit = null; R.v = -1;
         ST.year = yb.getAttribute('data-y');
-        Array.prototype.forEach.call(el.querySelectorAll('[data-y]'), function (x) { x.classList.toggle('on', x === yb); });
+        Array.prototype.forEach.call(el.querySelectorAll('[data-y]'), function (x) { x.classList.toggle('on', x.getAttribute('data-y') === ST.year); });
         var S1 = statsOf(tf()), box = document.createElement('div'); box.innerHTML = statsHTML(S1);
         el.querySelector('.st-card').replaceWith(box.firstChild);
         paintList(S1); recSetup(); recolor();
