@@ -226,7 +226,8 @@ window.Mapa = (function () {
       var n = 144, cv = document.createElement('canvas'), g = cv.getContext('2d'), k = Math.max(n / im.width, n / im.height), w = im.width * k, h = im.height * k;
       cv.width = cv.height = n; g.drawImage(im, (n - w) / 2, (n - h) / 2, w, h); p.cv = cv; repaintAll();
     };
-    im.onerror = function () {};
+    // si falla (sin conexión, por ejemplo), se reintenta más tarde en vez de quedarse con el icono
+    im.onerror = function () { setTimeout(function () { delete PHOTOS[src]; repaintAll(); }, 4000); };
     im.src = src;
     return null;
   }

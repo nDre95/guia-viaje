@@ -182,7 +182,7 @@ window.Mundo = (function () {
         '<div class="pf-h">Mi mapa del mundo</div><div class="card mw">' +
         '<div class="mw-chips" data-mw="filter">' + [['all', 'Todos'], ['one', 'Visitados'], ['rep', 'Repetidos'], ['next', 'Por visitar']].map(function (f) { return '<button type="button" class="opt' + (ST.filter === f[0] ? ' on' : '') + '" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' +
         '<div class="mw-chips" data-mw="region"><button type="button" class="opt' + (ST.region === 'mine' ? ' on' : '') + '" data-v="mine">Mis países</button><button type="button" class="opt' + (ST.region === 'world' ? ' on' : '') + '" data-v="world">Mundo</button>' + Object.keys(REGION).map(function (r) { return '<button type="button" class="opt' + (ST.region === r ? ' on' : '') + '" data-v="' + r + '">' + REGION[r][0] + '</button>'; }).join('') + '</div>' +
-        '<div class="mw-wrap"><div class="mw-map" id="mwMap"><p class="note">Cargando el mapa…</p></div>' +
+        '<div class="mw-wrap"><div class="mw-map" id="mwMap"><p class="note">Cargando el mapa…</p></div><div class="mw-hero" id="mwHero" aria-hidden="true"></div>' +
         '<div class="mw-tools"><button type="button" class="sq" data-mt="in" aria-label="Acercar" title="Acercar">' + ic('M12 5v14M5 12h14') + '</button><button type="button" class="sq" data-mt="out" aria-label="Alejar" title="Alejar">' + ic('M5 12h14') + '</button>' +
         '<button type="button" class="sq' + (ST.names ? ' on' : '') + '" data-mt="names" aria-label="Nombres de países" title="Nombres de países" aria-pressed="' + ST.names + '"><b>Aa</b></button></div></div>' +
         '<div class="mw-rec" id="mwRec" hidden><div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#f2b27c,#e2782f)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
@@ -247,6 +247,7 @@ window.Mundo = (function () {
     }
     function recSetup() {
       recStop(); R.v = -1; R.limit = null; R.follow = false; R.key = '';
+      var h0 = el.querySelector('#mwHero'); if (h0) { h0.classList.remove('on'); h0._i = -1; }
       var bar = el.querySelector('#mwRec'), g = el.querySelector('#mwRecG'); if (!bar) return;
       recBuild();
       bar.hidden = !R.seq.length;
@@ -263,7 +264,7 @@ window.Mundo = (function () {
       var s = svgEl(), g = el.querySelector('#mwRecG'); if (!s || !g || !R.seq.length || !ST.view) return;
       var v = R.v, L = R.seq.length - 1, k = ST.view[2] / (el.querySelector('#mwMap').clientWidth || 340), show = v > -1, idx = v < 0 ? -1 : Math.min(L, Math.floor(v + 0.15));
       Array.prototype.forEach.call(g.querySelectorAll('.mw-pin'), function (p, i) {
-        var on = show && i <= idx, q = R.seq[i], big = i === idx && v <= L + 0.5 ? 1.2 : 0.9;
+        var on = show && i <= idx && !(i === Math.round(v) && Math.abs(v - i) < 0.13), q = R.seq[i], big = i === idx && v <= L + 0.5 ? 1.2 : 0.9;
         p.style.display = on ? '' : 'none';
         if (on) p.setAttribute('transform', 'translate(' + q.x.toFixed(2) + ' ' + q.y.toFixed(2) + ') scale(' + (k * big).toFixed(4) + ')');
       });
@@ -278,6 +279,23 @@ window.Mundo = (function () {
         if (f > 0) { var a = R.seq[n], b = R.seq[n + 1], c1x = a.x + (b.cx - a.x) * f, c1y = a.y + (b.cy - a.y) * f; d += 'Q' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' ' + B.x.toFixed(1) + ' ' + B.y.toFixed(1); }
       }
       g.querySelector('.mw-rt-done').setAttribute('d', d);
+      recHero(v);
+    }
+    // al llegar: una tarjeta sobre el sitio, con su foto, el mes y el año y el nombre de la ciudad
+    function recHero(v) {
+      var h = el.querySelector('#mwHero'), m = el.querySelector('#mwMap'); if (!h || !m) return;
+      var L = R.seq.length - 1, i = Math.round(v), at = v > -0.13 && v < L + 0.13 && Math.abs(v - i) < 0.13;
+      if (!at || i < 0 || i > L) { h.classList.remove('on'); h._i = -1; return; }
+      var q = R.seq[i], t = q.t, W = m.clientWidth, Hh = m.clientHeight, vw = ST.view;
+      if (h._i !== i) {
+        h._i = i;
+        var d = new Date(t.start + 'T12:00:00Z'), mon = d.toLocaleDateString(lg(), { month: 'long', timeZone: 'UTC' }), meta = t.ref.b.meta, names = ((meta.generated || {}).cities || []).slice(0, 2).join(' · ') || t.title, src = Mapa.photoOf({ ph: t.ref.b.trip.cover }, t.ref.b.photos) || t.cover;
+        h.innerHTML = '<span class="mw-h-ph"' + (src ? ' style="background-image:url(&quot;' + esc(src) + '&quot;)"' : '') + '></span><span class="mw-h-t"><small>' + esc(mon.charAt(0).toUpperCase() + mon.slice(1) + ' ' + d.getUTCFullYear()) + '</small><b>' + esc(names) + '</b></span>';
+        h.classList.remove('on'); void h.offsetWidth; h.classList.add('on');
+      }
+      var cw = h.offsetWidth, ch = h.offsetHeight, x = (q.x - vw[0]) / vw[2] * W, y = (q.y - vw[1]) / vw[3] * Hh;
+      h.style.left = Math.max(cw / 2 + 8, Math.min(W - cw / 2 - 50, x)) + 'px';
+      h.style.top = Math.max(ch + 8, Math.min(Hh - 6, y - 26)) + 'px';
     }
     function recInfo() {
       var b = el.querySelector('#mwRecInfo'); if (!b) return;
