@@ -154,6 +154,26 @@ html[data-theme="dark"] .mw-map path.c1{fill:#f2b27c}html[data-theme="dark"] .mw
 .mw-map .sel{stroke:#1c1d21;stroke-width:1.4}
 html[data-theme="dark"] .mw-map .sel{stroke:#fff}
 .mw-map circle{stroke:#fff;stroke-width:.8;vector-effect:non-scaling-stroke;cursor:pointer}
+.mw-rt{fill:none;stroke:#e2782f;stroke-opacity:.35;stroke-width:1.6;stroke-dasharray:5 5;vector-effect:non-scaling-stroke;pointer-events:none}
+.mw-rt-done{fill:none;stroke:#e2782f;stroke-width:2.6;stroke-linecap:round;vector-effect:non-scaling-stroke;pointer-events:none}
+.mw-map .mw-pin path,.mw-map .mw-pin circle,.mw-ball circle,.mw-ball path{vector-effect:none;stroke:none}
+.mw-map .mw-ball circle{stroke:#fff;stroke-width:2.4}
+.mw-map .mw-pin circle,.mw-map .mw-pin path{cursor:pointer}
+.mw-map .mw-pin path{fill:#e2782f}
+.mw-map .mw-pin circle{fill:#fff}
+.mw-map .mw-ball path{fill:#fff}
+.mw-map .mw-ball{pointer-events:none}
+.mw-rec .map-ctl{margin:10px 2px 4px}
+.mw-rec-info{min-height:76px;border-radius:14px;background:var(--fill);padding:9px}
+.mw-rec-info.tx{display:flex;align-items:center;justify-content:center;text-align:center;font-size:13.5px;color:var(--txt2);padding:9px 16px}
+.mw-rec-info.tx b{font-family:var(--serif);font-size:18px;color:var(--txt)}
+.mw-rec-info.on{display:flex;align-items:center;gap:10px;animation:rvH .4s var(--smooth,ease) both}
+.mw-rec-ph{flex:0 0 58px;height:58px;border-radius:11px;background:var(--fill2) center/cover no-repeat}
+.mw-rec-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mw-rec-tx b{font-family:var(--serif);font-size:17px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mw-rec-tx small{font-size:11.5px;font-weight:800;letter-spacing:.03em;color:var(--orange-t)}
+.mw-rec-tx small.c{font-weight:650;letter-spacing:0;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mw-rec-info .btn{flex:0 0 auto;padding:7px 11px;min-height:0;font-size:13px}
 .mw-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 2px 0;font-size:12.5px;font-weight:650;color:var(--txt2)}
 .mw-legend span{display:flex;align-items:center;gap:6px}
 .mw-legend i{width:13px;height:13px;border-radius:4px}

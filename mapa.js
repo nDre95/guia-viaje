@@ -525,5 +525,5 @@ window.Mapa = (function () {
       }).catch(function () {});
     }
   }
-  return { mount: mount, corsUrl: corsUrl, isStop: isStop, isSight: isSight, fromTrip: fromTrip, landFor: landFor, atlas: atlas, photoOf: photoOf, kmBetween: kmBetween };
+  return { plane: VEH.plane, mount: mount, corsUrl: corsUrl, isStop: isStop, isSight: isSight, fromTrip: fromTrip, landFor: landFor, atlas: atlas, photoOf: photoOf, kmBetween: kmBetween };
 })();

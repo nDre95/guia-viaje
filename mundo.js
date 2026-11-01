@@ -185,6 +185,7 @@ window.Mundo = (function () {
         '<div class="mw-wrap"><div class="mw-map" id="mwMap"><p class="note">Cargando el mapa…</p></div>' +
         '<div class="mw-tools"><button type="button" class="sq" data-mt="in" aria-label="Acercar" title="Acercar">' + ic('M12 5v14M5 12h14') + '</button><button type="button" class="sq" data-mt="out" aria-label="Alejar" title="Alejar">' + ic('M5 12h14') + '</button>' +
         '<button type="button" class="sq' + (ST.names ? ' on' : '') + '" data-mt="names" aria-label="Nombres de países" title="Nombres de países" aria-pressed="' + ST.names + '"><b>Aa</b></button></div></div>' +
+        '<div class="mw-rec" id="mwRec" hidden><div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#f2b27c,#e2782f)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
         '<div class="mw-legend"><span><i class="c1"></i>1 vez</span><span><i class="c2"></i>2 veces</span><span><i class="c3"></i>3 o más</span><span><i class="cn"></i>Por visitar</span></div>' +
         '<div class="mw-info" id="mwInfo"></div></div>' +
         '<div id="mwList"></div>';
@@ -194,10 +195,141 @@ window.Mundo = (function () {
       });
       if (unk) detect(trips.map(function (t) { return t.ref; })).then(function (ch) { if (ch) { ST.view = null; draw(); } }).catch(function () {});
     }
+    /* ----- el resumen animado: de viaje en viaje, como el mapa de cada viaje ----- */
+    var R = { seq: [], v: -1, limit: null, follow: false, playing: false, raf: 0, tm: 0, key: '', cams: [], mids: [], over: null };
+    function mixV(a, b, t) {
+      var wa = a[2], wb = b[2], w = Math.exp(Math.log(wa) + (Math.log(wb) - Math.log(wa)) * t), u = Math.abs(wa - wb) < wa * 0.01 ? t : (1 / w - 1 / wa) / (1 / wb - 1 / wa);
+      var ax = a[0] + wa / 2, ay = a[1] + a[3] / 2, bx = b[0] + wb / 2, by = b[1] + b[3] / 2;
+      return [ax + (bx - ax) * u - w / 2, ay + (by - ay) * u - w / A / 2, w, w / A];
+    }
+    function eased(f) { return f * f * (3 - 2 * f); }
+    function recCam(v) {
+      var L = R.seq.length - 1;
+      if (v <= -1) return R.over;
+      if (v < 0) return mixV(R.over, R.cams[0], eased(v + 1));
+      if (v >= L) return mixV(R.cams[L], R.over, eased(Math.min(1, v - L)));
+      var i = Math.floor(v), f = v - i, a = R.cams[i], b = R.cams[i + 1], m = R.mids[i];
+      if (m[2] > Math.max(a[2], b[2]) * 1.25) return f < 0.5 ? mixV(a, m, eased(f * 2)) : mixV(m, b, eased(f * 2 - 1));
+      return mixV(a, b, eased(f));
+    }
+    function recPos(v) {
+      var L = R.seq.length - 1;
+      if (v <= 0) return { x: R.seq[0].x, y: R.seq[0].y, a: 0 };
+      if (v >= L) { var e = R.seq[L]; return { x: e.x, y: e.y, a: 0 }; }
+      var i = Math.floor(v), f = v - i, u = 1 - f, a = R.seq[i], b = R.seq[i + 1];
+      return { x: u * u * a.x + 2 * u * f * b.cx + f * f * b.x, y: u * u * a.y + 2 * u * f * b.cy + f * f * b.y, a: Math.atan2(2 * u * (b.cy - a.y) + 2 * f * (b.y - b.cy), 2 * u * (b.cx - a.x) + 2 * f * (b.x - b.cx)) * 180 / Math.PI };
+    }
+    // qué viajes entran, sus puntos en el mapa y el encuadre de cada uno
+    function recBuild() {
+      var byCc = {}; (WORLD || []).forEach(function (c) { byCc[c.cc] = c; });
+      R.seq = tf().filter(function (t) { return t.start && cached(t.ref); }).sort(function (a, b) { return String(a.start).localeCompare(String(b.start)); }).map(function (t) {
+        var la = 0, lo = 0, n = 0;
+        t.ref.b.trip.days.forEach(function (d) { d.items.forEach(function (it) { if (Mapa.isSight(it)) { la += it.lat; lo += it.lon; n++; } }); });
+        var q = proj(n ? lo / n : 0, n ? la / n : 0), box = [1e4, -1e4, 1e4, -1e4];
+        cached(t.ref).forEach(function (c) { var C = byCc[c]; if (C) { box[0] = Math.min(box[0], C.x0); box[1] = Math.max(box[1], C.x1); box[2] = Math.min(box[2], C.y0); box[3] = Math.max(box[3], C.y1); } });
+        if (box[0] > 1e3) box = [q[0] - 5, q[0] + 5, q[1] - 5, q[1] + 5];
+        return { t: t, x: q[0], y: q[1], box: box };
+      });
+      if (!R.seq.length) return;
+      var all = [1e4, -1e4, 1e4, -1e4];
+      R.seq.forEach(function (q, i) {
+        var b = q.box, px = (b[1] - b[0]) * 0.4 + 4, py = (b[3] - b[2]) * 0.4 + 14;
+        all[0] = Math.min(all[0], b[0]); all[1] = Math.max(all[1], b[1]); all[2] = Math.min(all[2], b[2]); all[3] = Math.max(all[3], b[3]);
+        R.cams[i] = viewOfBox(b[0] - px, b[1] + px, b[2] - py, b[3] + py, 95);
+        var p = R.seq[i - 1]; if (!p) return;
+        var dx = q.x - p.x, dy = q.y - p.y, len = Math.sqrt(dx * dx + dy * dy) || 1e-6, nx = dy / len, ny = -dx / len; if (ny > 0) { nx = -nx; ny = -ny; }
+        q.cx = (p.x + q.x) / 2 + nx * len * 0.24; q.cy = (p.y + q.y) / 2 + ny * len * 0.24;
+        R.mids[i - 1] = viewOfBox(Math.min(p.x, q.x, q.cx) - 30, Math.max(p.x, q.x, q.cx) + 30, Math.min(p.y, q.y, q.cy) - 34, Math.max(p.y, q.y, q.cy) + 22, 95);
+      });
+      R.cams.length = R.seq.length; R.mids.length = Math.max(0, R.seq.length - 1);
+      var ax = Math.max(all[1] - all[0], 20) * 0.22, ay = Math.max(all[3] - all[2], 20) * 0.22;
+      R.over = viewOfBox(all[0] - ax, all[1] + ax, all[2] - ay - 16, all[3] + ay, 190);
+    }
+    function recSetup() {
+      recStop(); R.v = -1; R.limit = null; R.follow = false; R.key = '';
+      var bar = el.querySelector('#mwRec'), g = el.querySelector('#mwRecG'); if (!bar) return;
+      recBuild();
+      bar.hidden = !R.seq.length;
+      if (g) g.innerHTML = '';
+      if (!R.seq.length || !g) return;
+      var rg = bar.querySelector('.map-range'); rg.max = R.seq.length; rg.value = -1;
+      var route = R.seq.map(function (q, i) { return i ? 'Q' + q.cx.toFixed(1) + ' ' + q.cy.toFixed(1) + ' ' + q.x.toFixed(1) + ' ' + q.y.toFixed(1) : 'M' + q.x.toFixed(1) + ' ' + q.y.toFixed(1); }).join('');
+      g.innerHTML = '<defs><clipPath id="mwClip"><circle cy="-25" r="17"/></clipPath></defs><path class="mw-rt" d="' + route + '"/><path class="mw-rt-done" d=""/>' +
+        R.seq.map(function (q, i) { return '<g class="mw-pin" data-i="' + i + '" style="display:none"><path d="M0 0L-8 -13A19 19 0 1 1 8 -13Z" fill="#e2782f"/><circle cy="-25" r="17" fill="#fff"/>' + (q.t.cover ? '<image href="' + esc(q.t.cover) + '" x="-17" y="-42" width="34" height="34" preserveAspectRatio="xMidYMid slice" clip-path="url(#mwClip)"/>' : '') + '</g>'; }).join('') +
+        '<g class="mw-ball" style="display:none"><circle r="13" fill="#e2782f" stroke="#fff" stroke-width="2.4"/><path fill="#fff" fill-rule="evenodd" transform="scale(.72) translate(-12 -12)" d="' + Mapa.plane + '"/></g>';
+      recInfo();
+    }
+    function recPaint() {
+      var s = svgEl(), g = el.querySelector('#mwRecG'); if (!s || !g || !R.seq.length || !ST.view) return;
+      var v = R.v, L = R.seq.length - 1, k = ST.view[2] / (el.querySelector('#mwMap').clientWidth || 340), show = v > -1, idx = v < 0 ? -1 : Math.min(L, Math.floor(v + 0.15));
+      Array.prototype.forEach.call(g.querySelectorAll('.mw-pin'), function (p, i) {
+        var on = show && i <= idx, q = R.seq[i], big = i === idx && v <= L + 0.5 ? 1.2 : 0.9;
+        p.style.display = on ? '' : 'none';
+        if (on) p.setAttribute('transform', 'translate(' + q.x.toFixed(2) + ' ' + q.y.toFixed(2) + ') scale(' + (k * big).toFixed(4) + ')');
+      });
+      var ball = g.querySelector('.mw-ball'), B = recPos(v), hide = !show || v > L + 0.4;
+      ball.style.display = hide ? 'none' : '';
+      if (!hide) { ball.setAttribute('transform', 'translate(' + B.x.toFixed(2) + ' ' + B.y.toFixed(2) + ') scale(' + k.toFixed(4) + ')'); ball.lastChild.setAttribute('transform', 'rotate(' + B.a.toFixed(0) + ') scale(.72) translate(-12 -12)'); }
+      // lo ya recorrido, con fuerza
+      var d = '';
+      if (v > 0) {
+        var n = Math.min(L, Math.floor(v)), f = v >= L ? 0 : v - n;
+        for (var i = 0; i <= n; i++) { var q = R.seq[i]; d += i ? 'Q' + q.cx.toFixed(1) + ' ' + q.cy.toFixed(1) + ' ' + q.x.toFixed(1) + ' ' + q.y.toFixed(1) : 'M' + q.x.toFixed(1) + ' ' + q.y.toFixed(1); }
+        if (f > 0) { var a = R.seq[n], b = R.seq[n + 1], c1x = a.x + (b.cx - a.x) * f, c1y = a.y + (b.cy - a.y) * f; d += 'Q' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' ' + B.x.toFixed(1) + ' ' + B.y.toFixed(1); }
+      }
+      g.querySelector('.mw-rt-done').setAttribute('d', d);
+    }
+    function recInfo() {
+      var b = el.querySelector('#mwRecInfo'); if (!b) return;
+      var v = R.v, L = R.seq.length - 1, key = v <= -0.5 ? 'start' : v > L + 0.5 ? 'end' : 'i' + Math.max(0, Math.round(v));
+      if (key === R.key) return; R.key = key;
+      if (key === 'start' || key === 'end') {
+        var cc = {}; R.seq.forEach(function (q) { (cached(q.t.ref) || []).forEach(function (c) { cc[c] = 1; }); });
+        var nt = R.seq.length, nc = Object.keys(cc).length;
+        b.className = 'mw-rec-info tx';
+        b.innerHTML = key === 'start' ? '<span>Dale a reproducir para recorrer tus viajes en el mapa.</span>' : '<b>' + (ST.year ? ST.year + ' · ' : '') + nt + (nt === 1 ? ' viaje' : ' viajes') + ' · ' + nc + (nc === 1 ? ' país' : ' países') + '</b>';
+        return;
+      }
+      var i = Math.max(0, Math.round(v)), q = R.seq[i], t = q.t, cs = (cached(t.ref) || []).map(function (c) { return (flag(c) ? flag(c) + ' ' : '') + name(c); }).join(', ');
+      b.className = 'mw-rec-info on';
+      b.innerHTML = '<span class="mw-rec-ph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '></span><span class="mw-rec-tx"><small>' + esc(t.start.slice(0, 4)) + ' · ' + (i + 1) + ' de ' + R.seq.length + '</small><b>' + esc(t.title) + '</b><small class="c">' + esc(cs) + '</small></span>' +
+        (opt.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir</button>');
+    }
+    function recSet(v, keepSlider) {
+      var L = R.seq.length - 1; R.v = v = Math.max(-1, Math.min(L + 1, v));
+      if (!keepSlider) { var rg = el.querySelector('#mwRec .map-range'); if (rg) rg.value = v; }
+      // se va coloreando: cada país aparece al llegar a él
+      var lim = v <= -1 || v > L ? null : v < 0 ? -1 : Math.min(L, Math.floor(v + 0.15));
+      var changed = lim !== R.limit; R.limit = lim;
+      if (R.follow && R.over) setView(recCam(v));
+      if (changed) recolor();
+      recPaint(); recInfo();
+    }
+    function recStop() { R.playing = false; cancelAnimationFrame(R.raf); clearTimeout(R.tm); var b = el.querySelector('#mwRec .map-play'); if (b) b.classList.remove('on'); }
+    function recGlide(to, ms, done) {
+      cancelAnimationFrame(R.raf);
+      var from = R.v, t0 = performance.now();
+      if (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches) { recSet(to); if (done) done(); return; }
+      (function step(now) {
+        var f = Math.min(1, (now - t0) / ms), e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+        recSet(from + (to - from) * e);
+        if (f < 1) R.raf = requestAnimationFrame(step); else if (done) done();
+      })(t0);
+    }
+    function recPlay() {
+      var L = R.seq.length - 1, n = Math.round(R.v);
+      if (n > L) { R.v = -1; n = -1; }
+      R.playing = true; R.follow = true; unselectRegion(); el.querySelector('#mwRec .map-play').classList.add('on');
+      (function next() {
+        if (!R.playing) return;
+        if (n > L) { recStop(); return; }
+        n++; recGlide(n, n <= 0 || n > L ? 1600 : 2300, function () { R.tm = setTimeout(next, n > L ? 0 : 1600); });
+      })();
+    }
     function counts() {
       var V = {}, N = {};
-      trips.forEach(function (t) {
-        if (ST.year && (t.start || '').slice(0, 4) !== ST.year) return;
+      // durante el resumen, solo los viajes a los que ya se ha llegado
+      (R.limit === null ? tf() : R.seq.slice(0, R.limit + 1).map(function (q) { return q.t; })).forEach(function (t) {
         (cached(t.ref) || []).forEach(function (c) { var o = t.status === 'next' ? N : V; (o[c] = o[c] || []).push(t); });
       });
       return { V: V, N: N };
@@ -223,6 +355,7 @@ window.Mundo = (function () {
       ST.view = v;
       var s = svgEl(); if (!s) return;
       s.setAttribute('viewBox', v.map(function (x) { return x.toFixed(2); }).join(' '));
+      recPaint();
       if (Math.abs(v[2] - lastLabelW) > lastLabelW * 0.02) paintLabels();
     }
     function paintLabels() {
@@ -235,7 +368,7 @@ window.Mundo = (function () {
         l.t.style.display = show ? '' : 'none';
         if (show) l.t.setAttribute('class', on || ST.sel === l.c.cc ? 'on' : '');
       });
-      Array.prototype.forEach.call(s.querySelectorAll('circle'), function (c) { c.setAttribute('r', (w / 130).toFixed(2)); });
+      Array.prototype.forEach.call(s.querySelectorAll('circle[data-c]'), function (c) { c.setAttribute('r', (w / 130).toFixed(2)); });
     }
     function animateTo(v) {
       cancelAnimationFrame(anim);
@@ -270,13 +403,14 @@ window.Mundo = (function () {
       WORLD.forEach(function (c) { if (c.d) h += '<path data-c="' + esc(c.cc) + '" class="' + klass(c.cc, C) + (ST.sel === c.cc ? ' sel' : '') + '" d="' + c.d + '"/>'; });
       // los países diminutos no se verían: un punto
       WORLD.forEach(function (c) { var k = klass(c.cc, C); if (c.small && k) h += '<circle data-c="' + esc(c.cc) + '" class="' + k + '" cx="' + c.cx.toFixed(1) + '" cy="' + c.cy.toFixed(1) + '" r="4"/>'; });
-      h += '<g class="mw-labels" text-anchor="middle" dominant-baseline="middle">' + WORLD.map(function (c) { return '<text data-l="' + esc(c.cc) + '" x="' + c.cx.toFixed(1) + '" y="' + c.cy.toFixed(1) + '" style="display:none">' + esc(name(c.cc)) + '</text>'; }).join('') + '</g>';
+      h += '<g class="mw-labels" text-anchor="middle" dominant-baseline="middle">' + WORLD.map(function (c) { return '<text data-l="' + esc(c.cc) + '" x="' + c.cx.toFixed(1) + '" y="' + c.cy.toFixed(1) + '" style="display:none">' + esc(name(c.cc)) + '</text>'; }).join('') + '</g><g id="mwRecG"></g>';
       m.innerHTML = h + '</svg>';
       var byCc = {}; WORLD.forEach(function (c) { byCc[c.cc] = c; });
       labels = Array.prototype.map.call(m.querySelectorAll('text'), function (t) { return { t: t, c: byCc[t.getAttribute('data-l')] }; });
       gestures(m);
       paintLabels();
       paintInfo();
+      recSetup();
     }
     /* ----- con el dedo: arrastrar para moverse, pellizcar para acercar. Con ratón: rueda y doble clic ----- */
     var dragged = false;
@@ -290,7 +424,7 @@ window.Mundo = (function () {
         if (a.length > 1) d = Math.sqrt(Math.pow(a[0].x - a[1].x, 2) + Math.pow(a[0].y - a[1].y, 2));
         start = { v: ST.view.slice(), mx: mx, my: my, d: d, r: r };
       }
-      m.addEventListener('pointerdown', function (e) { if (e.button) return; P[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; dragged = false; cancelAnimationFrame(anim); snapshot(); });
+      m.addEventListener('pointerdown', function (e) { if (e.button) return; P[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; dragged = false; cancelAnimationFrame(anim); R.follow = false; if (R.playing) recStop(); snapshot(); });
       m.addEventListener('pointermove', function (e) {
         var p = P[e.pointerId]; if (!p || !ST.view) return;
         p.x = e.clientX; p.y = e.clientY;
@@ -338,28 +472,32 @@ window.Mundo = (function () {
     }
     function recolor() {
       var C = counts();
-      Array.prototype.forEach.call(el.querySelectorAll('#mwMap path, #mwMap circle'), function (p) { p.setAttribute('class', klass(p.getAttribute('data-c'), C) + (ST.sel === p.getAttribute('data-c') ? ' sel' : '')); });
+      Array.prototype.forEach.call(el.querySelectorAll('#mwMap [data-c]'), function (p) { p.setAttribute('class', klass(p.getAttribute('data-c'), C) + (ST.sel === p.getAttribute('data-c') ? ' sel' : '')); });
       paintLabels(); paintInfo();
     }
     el.onclick = function (e) {
       var t = e.target, yb = t.closest('[data-y]'), ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
+      if (t.closest('#mwRec .map-play')) { if (R.playing) recStop(); else recPlay(); return; }
       if (yb) {
+        recStop(); R.limit = null; R.v = -1;
         ST.year = yb.getAttribute('data-y');
         Array.prototype.forEach.call(el.querySelectorAll('[data-y]'), function (x) { x.classList.toggle('on', x === yb); });
         var S1 = statsOf(tf()), box = document.createElement('div'); box.innerHTML = statsHTML(S1);
         el.querySelector('.st-card').replaceWith(box.firstChild);
-        paintList(S1); recolor();
-        if (ST.region === 'mine') animateTo(viewMine());
+        paintList(S1); recSetup(); recolor();
+        if (ST.region === 'mine' || !ST.region) { ST.region = 'mine'; Array.prototype.forEach.call(el.querySelectorAll('[data-mw=region] .opt'), function (x) { x.classList.toggle('on', x.getAttribute('data-v') === 'mine'); }); animateTo(viewMine()); }
         return;
       }
       if (ch) {
         var w = ch.parentNode.getAttribute('data-mw'), v = ch.getAttribute('data-v');
         Array.prototype.forEach.call(ch.parentNode.querySelectorAll('.opt'), function (x) { x.classList.toggle('on', x === ch); });
+        if (w === 'region') { R.follow = false; recStop(); }
         if (w === 'filter') { ST.filter = v; recolor(); if (ST.region === 'mine') animateTo(viewMine()); } else { ST.region = v; animateTo(targetView(v)); }
         return;
       }
       if (tool) {
         var a = tool.getAttribute('data-mt');
+        R.follow = false; recStop();
         if (a === 'in') zoomAt(0.55, 0.5, 0.5, true); else if (a === 'out') zoomAt(1.8, 0.5, 0.5, true);
         else { ST.names = !ST.names; tool.classList.toggle('on', ST.names); tool.setAttribute('aria-pressed', ST.names); paintLabels(); }
         return;
@@ -378,6 +516,16 @@ window.Mundo = (function () {
         if (row) { focusCountry(ST.sel); var mw = el.querySelector('.mw'); if (mw) mw.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       }
     };
+    el.oninput = function (e) {
+      if (!e.target.matches('#mwRec .map-range')) return;
+      recStop(); R.follow = true; if (ST.region) unselectRegion(); recSet(+e.target.value, true);
+    };
+    el.onchange = function (e) {
+      if (!e.target.matches('#mwRec .map-range')) return;
+      var x = +e.target.value, L = R.seq.length - 1; recGlide(x < -0.5 ? -1 : x > L + 0.5 ? L + 1 : Math.max(0, Math.round(x)), 300);
+    };
+    if (el._mwOff) el._mwOff();
+    el._mwOff = recStop;
     draw();
   }
   return { mount: mount, detect: detect, cached: cached, name: name, flag: flag };
