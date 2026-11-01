@@ -140,12 +140,12 @@ window.Mundo = (function () {
 
   /* ---------- Perfil viajero: cómo viajas, nivel, sellos y tarjeta para compartir ---------- */
   var TYPES = [
-    { id: 'hist', ico: '🏰', t: 'Amante de la historia', kinds: ['palace', 'ruins', 'monument', 'sacred'], re: /castillo|castle|palacio|palace|catedral|cathedral|iglesia|church|abad|abbey|ruinas|ruins|foro|forum|monument|memorial|torre|tower|templo|temple/i },
-    { id: 'arte', ico: '🎨', t: 'Alma de museo', kinds: ['museum', 'show'], re: /museo|museum|galer|gallery|teatro|theatre|ópera|opera/i },
-    { id: 'natu', ico: '🏔️', t: 'Espíritu de naturaleza', kinds: ['nature', 'garden'], re: /parque|park|jard[ií]n|garden|lago|loch|lake|monte|mount|glen|cascada|falls|mirador|viewpoint|playa|beach/i },
-    { id: 'urbe', ico: '🏙️', t: 'Urbanita de corazón', kinds: ['square', 'quarter', 'market', 'family'], re: /plaza|piazza|square|barrio|quarter|mercado|market|calle|street|paseo/i }
+    { id: 'hist', ico: '🏰', t: 'Viajes de historia', kinds: ['palace', 'ruins', 'monument', 'sacred'], re: /castillo|castle|palacio|palace|catedral|cathedral|iglesia|church|abad|abbey|ruinas|ruins|foro|forum|monument|memorial|torre|tower|templo|temple/i },
+    { id: 'arte', ico: '🎨', t: 'Viajes de arte y museos', kinds: ['museum', 'show'], re: /museo|museum|galer|gallery|teatro|theatre|ópera|opera/i },
+    { id: 'natu', ico: '🏔️', t: 'Viajes de naturaleza', kinds: ['nature', 'garden'], re: /parque|park|jard[ií]n|garden|lago|loch|lake|monte|mount|glen|cascada|falls|mirador|viewpoint|playa|beach/i },
+    { id: 'urbe', ico: '🏙️', t: 'Viajes de ciudad', kinds: ['square', 'quarter', 'market', 'family'], re: /plaza|piazza|square|barrio|quarter|mercado|market|calle|street|paseo/i }
   ];
-  var LEVELS = [[0, 'Viajero novel'], [5, 'Viajero curioso'], [15, 'Explorador'], [30, 'Trotamundos'], [60, 'Leyenda del viaje']];
+  var LEVELS = [[0, 'Principiante'], [5, 'Viajero'], [15, 'Viajero habitual'], [30, 'Viajero experto'], [60, 'Veterano']];
   var EARTH_KM = 40075;
   function travelType(list) {
     var score = {}; TYPES.forEach(function (T) { score[T.id] = 0; });
@@ -170,13 +170,13 @@ window.Mundo = (function () {
     var got = rows.filter(function (r) { return !r.next; }).length;
     return '<div class="pf-h">Mi pasaporte <small>' + got + (got === 1 ? ' sello' : ' sellos') + '</small></div><div class="mw-stamps">' + rows.map(function (r, i) {
       var col = 0; for (var k = 0; k < r.c.length; k++) col += r.c.charCodeAt(k);
-      return '<button type="button" class="mw-stamp sq' + (r.next ? ' next' : '') + '" data-c="' + esc(r.c) + '" style="--c:' + STAMP[col % STAMP.length] + ';--r:' + ((i * 37) % 13 - 6) + 'deg"><span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.next ? 'Por visitar' : esc(r.y) + (r.n > 1 ? ' · ×' + r.n : '')) + '</small></button>';
+      return '<button type="button" class="mw-stamp sq' + (r.next ? ' next' : '') + '" data-c="' + esc(r.c) + '" style="--c:' + STAMP[col % STAMP.length] + '"><span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.next ? 'Por visitar' : esc(r.y) + (r.n > 1 ? ' · ×' + r.n : '')) + '</small></button>';
     }).join('') + '</div>';
   }
   function heroHTML(trips, base) {
     var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100;
     return '<div class="pf-hero"><button type="button" class="pf-share sq" id="pfShare" aria-label="Compartir mi tarjeta" title="Compartir mi tarjeta"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
-      '<span class="pf-badge">' + (T ? T.ico : '🧭') + '</span><div class="pf-hm"><small>Tu perfil viajero</small><b>' + esc(T ? T.t : 'Por descubrir') + '</b></div>' +
+      '<span class="pf-badge">' + (T ? T.ico : '🧭') + '</span><div class="pf-hm"><small>Tu estilo de viaje</small><b>' + esc(T ? T.t : 'Sin viajes aún') + '</b></div>' +
       '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · <u class="nm">' + esc(L.name) + '</u></span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' pts' : L.pts + ' pts') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
       '<div class="pf-world"><span>🌍 Vuelta al mundo</span><span>' + (pc < 10 ? pc.toFixed(1).replace('.', lg() === 'en' ? '.' : ',') : Math.round(pc)) + ' % · ' + fmtN(S.km) + ' km</span></div><span class="pf-bar w"><i style="width:' + Math.min(100, pc).toFixed(1) + '%"></i></span></div>';
   }
@@ -190,7 +190,7 @@ window.Mundo = (function () {
     g.textAlign = 'left'; g.fillStyle = '#ffc48f'; g.font = '800 34px ' + sans; g.fillText(tr('MIS VIAJES').toUpperCase(), 80, 120);
     g.fillStyle = '#fff'; g.font = 'italic 700 150px ' + serif; g.fillText(year || tr('Hasta hoy'), 76, 270, W0 - 150);
     g.font = '86px ' + sans; g.fillText(T ? T.ico : '🧭', 80, 410);
-    g.font = '700 50px ' + serif; g.fillText(tr(T ? T.t : 'Por descubrir'), 190, 382);
+    g.font = '700 50px ' + serif; g.fillText(tr(T ? T.t : 'Sin viajes aún'), 190, 382);
     g.fillStyle = '#ffc48f'; g.font = '700 32px ' + sans; g.fillText(tr('Nivel') + ' ' + L.n + ' · ' + tr(L.name), 190, 430);
     var vc = Object.keys(S.V).length, cells = [[list.length, list.length === 1 ? 'viaje' : 'viajes'], [vc, 'países visitados'], [S.cities, 'ciudades visitadas'], [fmtN(S.km), 'km recorridos']];
     cells.forEach(function (c, i) {

@@ -330,38 +330,18 @@ window.Mapa = (function () {
       else { line(5.5, [], 'rgba(255,255,255,.6)', alpha); line(3, [0.1, 5.5], col, alpha); }
       g.setLineDash([]); g.globalAlpha = 1;
     }
-    var STARS = []; (function () { var a = 7; for (var i = 0; i < 46; i++) { a = (a * 9301 + 49297) % 233280; var x = a / 233280; a = (a * 9301 + 49297) % 233280; STARS.push([x, a / 233280 * 0.8, 0.5 + (i % 3) * 0.45]); } })();
     function drawNight(f) {
-      var night = Math.min(1, Math.sin(Math.PI * f) * 1.3), dusk = Math.sin(Math.PI * clamp(f / 0.5, 0, 1)) * (f < 0.5 ? 1 : 0), dawn = Math.sin(Math.PI * clamp((f - 0.5) / 0.5, 0, 1)) * (f > 0.5 ? 1 : 0);
-      g.fillStyle = 'rgba(11,20,58,' + (night * 0.66).toFixed(3) + ')'; g.fillRect(0, 0, W, H);
-      // un tinte naranja al atardecer y rosa al amanecer, desde abajo
-      var tint = g.createLinearGradient(0, H * 0.3, 0, H);
-      tint.addColorStop(0, 'rgba(255,140,80,0)');
-      tint.addColorStop(1, dusk >= dawn ? 'rgba(255,120,50,' + (dusk * 0.42).toFixed(3) + ')' : 'rgba(255,150,170,' + (dawn * 0.42).toFixed(3) + ')');
-      g.fillStyle = tint; g.fillRect(0, 0, W, H);
-      if (night > 0.45) {
-        g.fillStyle = '#fff';
-        STARS.forEach(function (st) { g.globalAlpha = (night - 0.45) * 1.7 * (0.55 + st[2] * 0.3); g.beginPath(); g.arc(st[0] * W, st[1] * H, st[2], 0, 7); g.fill(); });
-        g.globalAlpha = 1;
-      }
-      // el sol y la luna dan la vuelta sobre el mapa: el sol se pone por la derecha, la luna cruza y el sol vuelve por la izquierda
+      var night = Math.min(1, Math.sin(Math.PI * f) * 1.3);
+      g.fillStyle = 'rgba(14,20,40,' + (night * 0.6).toFixed(3) + ')'; g.fillRect(0, 0, W, H);
+      // el sol se pone por la derecha, la luna cruza y el sol vuelve por la izquierda
       var cx = W / 2, cy = H * 0.5, Rr = Math.min(W * 0.44, H * 0.42), a = -Math.PI / 2 + f * Math.PI * 2;
-      function body(ang, draw) {
+      function body(ang, col) {
         var x = cx + Math.cos(ang) * Rr, y = cy + Math.sin(ang) * Rr * 0.95, up = clamp((cy + 26 - y) / 60, 0, 1);
         if (up <= 0) return;
-        g.globalAlpha = up * Math.min(1, Math.sin(Math.PI * f) * 4); draw(x, y); g.globalAlpha = 1;
+        g.globalAlpha = up * Math.min(1, Math.sin(Math.PI * f) * 4); g.fillStyle = col; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.globalAlpha = 1;
       }
-      body(a, function (x, y) {
-        var gl = g.createRadialGradient(x, y, 4, x, y, 46); gl.addColorStop(0, 'rgba(255,214,110,.85)'); gl.addColorStop(1, 'rgba(255,190,70,0)');
-        g.fillStyle = gl; g.beginPath(); g.arc(x, y, 46, 0, 7); g.fill();
-        g.fillStyle = '#ffd35c'; g.beginPath(); g.arc(x, y, 17, 0, 7); g.fill();
-      });
-      body(a + Math.PI, function (x, y) {
-        var gl = g.createRadialGradient(x, y, 4, x, y, 40); gl.addColorStop(0, 'rgba(225,232,255,.55)'); gl.addColorStop(1, 'rgba(225,232,255,0)');
-        g.fillStyle = gl; g.beginPath(); g.arc(x, y, 40, 0, 7); g.fill();
-        // luna creciente: un círculo claro al que se le recorta un mordisco
-        g.save(); g.beginPath(); g.arc(x, y, 15, 0, 7); g.arc(x + 7, y - 4, 13, 0, 7, true); g.fillStyle = '#f3efdd'; g.fill('evenodd'); g.restore();
-      });
+      body(a, '#f5c04e');
+      body(a + Math.PI, '#e8e8e0');
     }
     function paint(now) {
       if (dead || !layout()) return;
