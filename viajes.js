@@ -66,7 +66,7 @@
       function paint() {
         Album.listBox($('#list'), { key: 'trips', size: 5, placeholder: 'Buscar por destino, ciudad, país o año', empty: 'Aún no hay viajes.', items: rows,
           chips: [['all', 'Todos', function () { return true; }], ['next', 'Próximos', function (r) { return !r.past; }], ['past', 'Hechos', function (r) { return r.past; }]],
-          text: function (r) { return Album.searchText(r.ref); },
+          text: function (r) { return Album.searchText(r.ref); }, year: function (r) { return (r.start || '').slice(0, 4); },
           select: { all: 'Todos los países', options: function () {
             var seen = {}; rows.forEach(function (r) { (Mundo.cached(r.ref) || []).forEach(function (c) { seen[c] = 1; }); });
             return Object.keys(seen).map(function (c) { return [c, (Mundo.flag(c) ? Mundo.flag(c) + ' ' : '') + Mundo.name(c)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });

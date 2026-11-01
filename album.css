@@ -124,7 +124,8 @@
 /* Mapa del mundo */
 .mw{padding:12px;overflow:hidden}
 .mw .mw-chips{margin:0 -12px 8px;padding:0 12px}
-.mw-ysel{-webkit-appearance:none;appearance:none;flex:0 0 auto;border:0;border-radius:999px;background:var(--fill2);color:var(--txt2);font:650 13px -apple-system,system-ui,sans-serif;padding:7px 12px}
+.mw-years{margin-bottom:10px}
+.lst-years{margin-bottom:12px}
 .mw-wrap{position:relative;margin:4px -12px 0}
 .mw-map{overflow:hidden;background:#dde7ea;aspect-ratio:3/2;min-height:80px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .mw-map:active{cursor:grabbing}

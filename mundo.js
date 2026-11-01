@@ -118,6 +118,7 @@ window.Mundo = (function () {
   }
 
   /* ---------- Cifras ---------- */
+  function citiesOf(t) { var m = t.ref.b.meta; return (m.generated || {}).cities || (m.mapCities || []).map(function (c) { return c.es; }); }
   function statsOf(trips) {
     var done = trips.filter(function (t) { return t.status !== 'next'; }), V = {}, N = {}, conts = {}, cities = {}, km = 0, longest = null, dayN = 0;
     trips.forEach(function (t) {
@@ -126,12 +127,14 @@ window.Mundo = (function () {
     done.forEach(function (t) {
       var m = t.ref.b.meta, prev = null; dayN += t.days;
       (cached(t.ref) || []).forEach(function (c) { if (CONT[c]) conts[CONT[c]] = 1; });
-      ((m.generated || {}).cities || (m.mapCities || []).map(function (c) { return c.es; })).forEach(function (c) { cities[c] = 1; });
+      citiesOf(t).forEach(function (c) { cities[c] = 1; });
       t.ref.b.trip.days.forEach(function (d) { d.items.forEach(function (it) { if (it.lat == null || !Mapa.isStop(it)) return; if (prev) km += Mapa.kmBetween(prev, it); prev = it; }); });
       if (!longest || t.days > longest.days) longest = t;
     });
+    var later = {};
+    trips.forEach(function (t) { if (t.status === 'next') citiesOf(t).forEach(function (c) { if (!cities[c]) later[c] = 1; }); });
     var top = Object.keys(V).sort(function (a, b) { return V[b].length - V[a].length; })[0];
-    return { V: V, N: N, done: done, conts: Object.keys(conts).length, cities: Object.keys(cities).length, km: Math.round(km), longest: longest, dayN: dayN, top: top && V[top].length > 1 ? top : null };
+    return { V: V, N: N, done: done, conts: Object.keys(conts).length, cities: Object.keys(cities).length, citiesN: Object.keys(later).length, km: Math.round(km), longest: longest, dayN: dayN, top: top && V[top].length > 1 ? top : null };
   }
   function fmtN(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, lg() === 'en' ? ',' : '.'); }
 
@@ -160,23 +163,24 @@ window.Mundo = (function () {
     opt = opt || {};
     var years = {}, WORLD = null, labels = [], lastLabelW = 0, anim = 0;
     trips.forEach(function (t) { if (t.start) years[t.start.slice(0, 4)] = 1; });
+    // el año elegido vale para todo el perfil: cifras, mapa y lista de países
+    function tf() { return trips.filter(function (t) { return !ST.year || (t.start || '').slice(0, 4) === ST.year; }); }
     function cell(b, l, sub) { return '<div class="st-cell"><b>' + b + '</b><small>' + esc(l) + '</small>' + (sub ? '<small class="st-sub">' + esc(sub) + '</small>' : '') + '</div>'; }
     function statsHTML(S) {
-      var vc = Object.keys(S.V).length, nc = Object.keys(S.N).filter(function (c) { return !S.V[c]; }).length, O = opt.base || {};
-      var first = [cell(trips.length, trips.length === 1 ? 'viaje' : 'viajes'), cell(vc, 'países visitados', nc ? '+' + nc + ' por visitar' : ''), cell(trips.reduce(function (a, t) { return a + t.days; }, 0), 'días de viaje')];
-      var rest = [cell(S.conts + '<i>/6</i>', 'continentes'), cell(S.cities, 'ciudades y lugares'), cell(fmtN(S.km), 'km recorridos', S.km ? 'en línea recta' : ''),
+      var vc = Object.keys(S.V).length, nc = Object.keys(S.N).filter(function (c) { return !S.V[c]; }).length, O = opt.base || {}, T = tf();
+      var first = [cell(T.length, T.length === 1 ? 'viaje' : 'viajes'), cell(vc, 'países visitados', nc ? '+' + nc + ' por visitar' : ''), cell(S.cities, 'ciudades visitadas', S.citiesN ? '+' + S.citiesN + ' por visitar' : '')];
+      var rest = [cell(S.conts + '<i>/6</i>', 'continentes'), cell(T.length - S.done.length, 'viajes próximos'), cell(fmtN(S.km), 'km recorridos', S.km ? 'en línea recta' : ''),
         cell(S.dayN, 'días ya viajados'), cell(S.longest ? S.longest.days + '<i> ' + (S.longest.days === 1 ? 'día' : 'días') + '</i>' : '–', 'viaje más largo'), cell(S.top ? flag(S.top) || '★' : '–', S.top ? name(S.top) : 'Ningún país repetido', S.top ? S.V[S.top].length + ' veces' : ''),
         cell(vc ? Math.round(vc / 195 * 100) + '<i>%</i>' : '0<i>%</i>', 'del mundo'), cell(O.got != null ? O.got + '<i>/' + O.all + '</i>' : '–', 'cromos'), cell(O.mustGot != null ? O.mustGot + '<i>/' + O.must + '</i>' : '–', 'imprescindibles')];
       return '<div class="card st-card"><div class="st-top"><span class="st-h">Estadísticas</span><button type="button" class="st-tog sq" id="stTog" aria-expanded="' + ST.stats + '">' + (ST.stats ? 'Ver menos' : 'Ver más') + '</button></div>' +
         '<div class="st-grid">' + first.join('') + '</div><div class="st-grid st-more"' + (ST.stats ? '' : ' hidden') + '>' + rest.join('') + '</div></div>';
     }
     function draw() {
-      var S = statsOf(trips), unk = trips.some(function (t) { return !cached(t.ref); }), yl = Object.keys(years).sort().reverse();
+      var S = statsOf(tf()), unk = trips.some(function (t) { return !cached(t.ref); }), yl = Object.keys(years).sort().reverse();
       var ic = function (d) { return '<svg viewBox="0 0 24 24"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; };
-      el.innerHTML = statsHTML(S) +
+      el.innerHTML = (yl.length ? '<div class="mw-chips mw-years" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') + statsHTML(S) +
         '<div class="pf-h">Mi mapa del mundo</div><div class="card mw">' +
-        '<div class="mw-chips" data-mw="filter">' + [['all', 'Todos'], ['one', 'Visitados'], ['rep', 'Repetidos'], ['next', 'Por visitar']].map(function (f) { return '<button type="button" class="opt' + (ST.filter === f[0] ? ' on' : '') + '" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
-        (yl.length > 1 ? '<select id="mwYear" class="mw-ysel" aria-label="Año"><option value="">Todos los años</option>' + yl.map(function (y) { return '<option' + (ST.year === y ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' : '') + '</div>' +
+        '<div class="mw-chips" data-mw="filter">' + [['all', 'Todos'], ['one', 'Visitados'], ['rep', 'Repetidos'], ['next', 'Por visitar']].map(function (f) { return '<button type="button" class="opt' + (ST.filter === f[0] ? ' on' : '') + '" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' +
         '<div class="mw-chips" data-mw="region"><button type="button" class="opt' + (ST.region === 'mine' ? ' on' : '') + '" data-v="mine">Mis países</button><button type="button" class="opt' + (ST.region === 'world' ? ' on' : '') + '" data-v="world">Mundo</button>' + Object.keys(REGION).map(function (r) { return '<button type="button" class="opt' + (ST.region === r ? ' on' : '') + '" data-v="' + r + '">' + REGION[r][0] + '</button>'; }).join('') + '</div>' +
         '<div class="mw-wrap"><div class="mw-map" id="mwMap"><p class="note">Cargando el mapa…</p></div>' +
         '<div class="mw-tools"><button type="button" class="sq" data-mt="in" aria-label="Acercar" title="Acercar">' + ic('M12 5v14M5 12h14') + '</button><button type="button" class="sq" data-mt="out" aria-label="Alejar" title="Alejar">' + ic('M5 12h14') + '</button>' +
@@ -338,7 +342,16 @@ window.Mundo = (function () {
       paintLabels(); paintInfo();
     }
     el.onclick = function (e) {
-      var t = e.target, ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
+      var t = e.target, yb = t.closest('[data-y]'), ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
+      if (yb) {
+        ST.year = yb.getAttribute('data-y');
+        Array.prototype.forEach.call(el.querySelectorAll('[data-y]'), function (x) { x.classList.toggle('on', x === yb); });
+        var S1 = statsOf(tf()), box = document.createElement('div'); box.innerHTML = statsHTML(S1);
+        el.querySelector('.st-card').replaceWith(box.firstChild);
+        paintList(S1); recolor();
+        if (ST.region === 'mine') animateTo(viewMine());
+        return;
+      }
       if (ch) {
         var w = ch.parentNode.getAttribute('data-mw'), v = ch.getAttribute('data-v');
         Array.prototype.forEach.call(ch.parentNode.querySelectorAll('.opt'), function (x) { x.classList.toggle('on', x === ch); });
@@ -356,7 +369,7 @@ window.Mundo = (function () {
         var tg = el.querySelector('#stTog'); tg.textContent = ST.stats ? 'Ver menos' : 'Ver más'; tg.setAttribute('aria-expanded', ST.stats);
         return;
       }
-      if (t.closest('#mwMore')) { ST.more = !ST.more; paintList(statsOf(trips)); return; }
+      if (t.closest('#mwMore')) { ST.more = !ST.more; paintList(statsOf(tf())); return; }
       var c = t.closest('[data-c]');
       if (c) {
         var row = t.closest('.mw-row');
@@ -365,7 +378,6 @@ window.Mundo = (function () {
         if (row) { focusCountry(ST.sel); var mw = el.querySelector('.mw'); if (mw) mw.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       }
     };
-    el.onchange = function (e) { if (e.target.id === 'mwYear') { ST.year = e.target.value; recolor(); if (ST.region === 'mine') animateTo(viewMine()); } };
     draw();
   }
   return { mount: mount, detect: detect, cached: cached, name: name, flag: flag };

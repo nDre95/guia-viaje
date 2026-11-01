@@ -59,14 +59,15 @@ window.Album = (function () {
      El buscador no se vuelve a pintar al escribir, para no perder el foco; el estado se recuerda mientras dure la página. */
   var LST = {};
   function listBox(box, o) {
-    var st = LST[o.key] || (LST[o.key] = { q: '', chip: 'all', sel: '', n: o.size || 5 });
+    var st = LST[o.key] || (LST[o.key] = { q: '', chip: 'all', sel: '', year: '', n: o.size || 5 });
     if (box._lst !== o.key || !box.querySelector('.lst-res')) {
       box._lst = o.key;
       box.innerHTML = '<div class="lst-bar"><label class="lst-q"><svg class="ic" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg><input type="search" enterkeyhint="search" placeholder="' + esc(o.placeholder) + '" aria-label="' + esc(o.placeholder) + '" value="' + esc(st.q) + '"></label></div>' +
-        '<div class="lst-row"><div class="lst-chips"></div><select class="lst-sel" hidden></select></div><div class="lst-res"></div><button type="button" class="lst-more sq" hidden></button>';
+        '<div class="lst-row"><div class="lst-chips"></div><select class="lst-sel" hidden></select></div><div class="lst-chips lst-years"></div><div class="lst-res"></div><button type="button" class="lst-more sq" hidden></button>';
       $('input', box).addEventListener('input', function () { st.q = this.value; st.n = box._lo.size || 5; paintList(box); });
       $('.lst-sel', box).addEventListener('change', function () { st.sel = this.value; st.n = box._lo.size || 5; paintList(box); });
       $('.lst-chips', box).addEventListener('click', function (e) { var c = e.target.closest('[data-lc]'); if (!c) return; st.chip = c.getAttribute('data-lc'); st.n = box._lo.size || 5; paintList(box); });
+      $('.lst-years', box).addEventListener('click', function (e) { var c = e.target.closest('[data-ly]'); if (!c) return; st.year = c.getAttribute('data-ly'); st.n = box._lo.size || 5; paintList(box); });
       $('.lst-more', box).addEventListener('click', function () { st.n += box._lo.size || 5; paintList(box); });
     }
     box._lo = o; box._st = st;
@@ -81,7 +82,12 @@ window.Album = (function () {
     if (st.sel && !opts.some(function (x) { return x[0] === st.sel; })) st.sel = '';
     sel.hidden = !(opts.length > 1);
     if (opts.length > 1) sel.innerHTML = '<option value="">' + esc(o.select.all) + '</option>' + opts.map(function (x) { return '<option value="' + esc(x[0]) + '"' + (x[0] === st.sel ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('');
-    var base = o.items.filter(function (it) { return (!q || q.split(/\s+/).every(function (w) { return plain(o.text(it)).indexOf(w) >= 0; })) && (!st.sel || o.selectVal(it).indexOf(st.sel) >= 0); });
+    // años: de más reciente a más antiguo; solo se ofrecen si hay viajes en más de uno
+    var yl = []; o.items.forEach(function (it) { var y = o.year ? o.year(it) : ''; if (y && yl.indexOf(y) < 0) yl.push(y); }); yl.sort().reverse();
+    if (st.year && yl.indexOf(st.year) < 0) st.year = '';
+    $('.lst-years', box).hidden = yl.length < 2;
+    $('.lst-years', box).innerHTML = yl.length < 2 ? '' : '<button type="button" class="opt' + (st.year ? '' : ' on') + '" data-ly="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (st.year === y ? ' on' : '') + '" data-ly="' + y + '">' + y + '</button>'; }).join('');
+    var base = o.items.filter(function (it) { return (!st.year || o.year(it) === st.year) && (!q || q.split(/\s+/).every(function (w) { return plain(o.text(it)).indexOf(w) >= 0; })) && (!st.sel || o.selectVal(it).indexOf(st.sel) >= 0); });
     $('.lst-chips', box).innerHTML = o.chips.map(function (c) { var n = base.filter(c[2]).length; return '<button type="button" class="opt' + (st.chip === c[0] ? ' on' : '') + '" data-lc="' + c[0] + '">' + esc(c[1]) + ' <i>' + n + '</i></button>'; }).join('');
     var ch = o.chips.filter(function (c) { return c[0] === st.chip; })[0] || o.chips[0], all = base.filter(ch[2]), shown = all.slice(0, st.n), more = $('.lst-more', box);
     $('.lst-res', box).innerHTML = shown.map(o.render).join('') || '<p class="note">' + esc(o.items.length ? 'Nada coincide con la búsqueda.' : o.empty) + '</p>';
@@ -109,7 +115,7 @@ window.Album = (function () {
         function albumList() {
           listBox(box, { key: 'album', size: 5, placeholder: 'Buscar por viaje o país', empty: 'Aún no hay viajes.', items: rows,
             chips: [['all', 'Todos', function () { return true; }], ['part', 'Empezados', function (r) { return r.got && r.got < r.total; }], ['full', 'Completos', function (r) { return r.total && r.got === r.total; }], ['none', 'Sin empezar', function (r) { return !r.got; }]],
-            text: function (r) { return searchText(r.t); }, select: null,
+            text: function (r) { return searchText(r.t); }, select: null, year: function (r) { return (r.t.b.trip.defaultStart || '').slice(0, 4); },
             render: function (r) {
               var cv = coverOf(r.t);
               return '<button type="button" class="card alb-row sq" data-albopen="' + esc(r.t.id) + '"><span class="alb-ph' + cv.cl + '"' + cv.st + '></span><span class="alb-m"><b>' + esc(tripTitle(r.t)) + '</b><small>' + r.got + ' de ' + r.total + ' cromos</small>' +
