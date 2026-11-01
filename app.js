@@ -2683,7 +2683,7 @@ var View = (function () {
       id: META.id, title: (META.title || {})[I18N.lang] || (META.title || {}).es || '', dayLabel: L('day'), lang: I18N.lang, mode: META.mode || 'car', land: T.mapLand || null,
       cities: (T.mapCities || META.mapCities || []).map(function (c) { return { n: c[I18N.lang] || c.es, lat: c.lat, lon: c.lon }; }),
       photos: window.TRIP_PHOTOS || null,
-      days: plans.map(function (p) { return { title: p.day.title, jump: p.ev.some(function (e) { return e.it.jump && !e.skip; }), stops: p.ev.filter(function (e) { return !e.skip && Mapa.isStop(e.it); }).map(function (e) { return e.it; }) }; })
+      days: plans.map(function (p) { return { title: p.day.title, date: C.dateLabel(p.ms), jump: p.ev.some(function (e) { return e.it.jump && !e.skip; }), stops: p.ev.filter(function (e) { return !e.skip && Mapa.isStop(e.it); }).map(function (e) { return e.it; }) }; })
     });
   }
 
