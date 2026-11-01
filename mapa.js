@@ -130,8 +130,8 @@ window.Mapa = (function () {
     if (mode === 'car') return d > 1.5 ? 'car' : 'walk';
     return d > 3.5 ? 'bus' : 'walk';
   }
-  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje', all: 'Ver todo el viaje', start: 'Arrastra la bolita o dale a reproducir para recorrer el viaje', end: 'Este es el viaje completo. Arrastra la bolita hacia atrás para volver a cualquier sitio' },
-    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', hint: 'Slide the ball along the route', play: 'Play the trip', all: 'See the whole trip', start: 'Drag the ball or press play to travel the trip', end: 'This is the whole trip. Drag the ball back to return to any place' } };
+  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', fin: 'Fin del viaje', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje', all: 'Ver todo el viaje', start: 'Arrastra la bolita o dale a reproducir para recorrer el viaje', end: 'Este es el viaje completo. Arrastra la bolita hacia atrás para volver a cualquier sitio' },
+    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', fin: 'End of the trip', hint: 'Slide the ball along the route', play: 'Play the trip', all: 'See the whole trip', start: 'Drag the ball or press play to travel the trip', end: 'This is the whole trip. Drag the ball back to return to any place' } };
 
   var LEG_KM = 3.5, ZONE_KM = 6, ZONE_MAX = 5;
   function model(o) {
@@ -468,20 +468,23 @@ window.Mapa = (function () {
     }
     // el nombre de la ciudad, grande en el centro del mapa al llegar; luego sube y se queda, más pequeño, con el día
     var cityEl = null, cityKey = '', cityT = 0;
-    function cityTitle(overview, where, q) {
+    function cityTitle(overview, where, q, end) {
       if (!cityEl) cityEl = el.querySelector('.map-city');
-      if (overview || !where) { cityEl.classList.remove('on', 'big'); cityKey = ''; clearTimeout(cityT); return; }
-      var key = where + '|' + q.di; if (key === cityKey) return;
+      cityEl.classList.toggle('end', end);
+      if (end) where = H0.fin;
+      if ((overview && !end) || !where) { cityEl.classList.remove('on', 'big'); cityKey = ''; clearTimeout(cityT); return; }
+      var key = end ? 'end' : where + '|' + q.di; if (key === cityKey) return;
       cityKey = key;
       var old = cityEl.querySelector('.mc-now'); if (old) { old.className = 'mc-old'; setTimeout(function () { if (old.parentNode) old.remove(); }, 450); }
-      var d = o.days[q.di] || {}, sub = (o.dayLabel || 'Día') + ' ' + (q.di + 1) + (d.date ? ' · ' + d.date : ''), n = 0, letters = where.split(' ').map(function (w) { return '<u>' + Array.prototype.map.call(w, function (ch) { return '<i style="--i:' + (n++) + '">' + esc(ch) + '</i>'; }).join('') + '</u>'; }).join(' ');
+      var d = o.days[q.di] || {}, sub = end ? o.title || '' : (o.dayLabel || 'Día') + ' ' + (q.di + 1) + (d.date ? ' · ' + d.date : ''), n = 0, letters = where.split(' ').map(function (w) { return '<u>' + Array.prototype.map.call(w, function (ch) { return '<i style="--i:' + (n++) + '">' + esc(ch) + '</i>'; }).join('') + '</u>'; }).join(' ');
       cityEl.insertAdjacentHTML('beforeend', '<div class="mc-now"><b aria-label="' + esc(where) + '">' + letters + '</b><small>' + esc(sub) + '</small></div>');
       cityEl.classList.add('on', 'big');
-      clearTimeout(cityT); cityT = setTimeout(function () { cityEl.classList.remove('big'); }, 2300);
+      // el final se queda en grande mientras se ve el viaje entero
+      clearTimeout(cityT); if (!end) cityT = setTimeout(function () { cityEl.classList.remove('big'); }, 2300);
     }
     function top(v) {
       var overview = v <= -0.5 || v >= last + 0.5 || ovrT === 1, q = M.seq[clamp(Math.round(v), 0, last)], where = q.city || (q.sight ? '' : q.s.ti) || '';
-      cityTitle(overview, where, q);
+      cityTitle(overview, where, q, v > last + 0.05);
       allBtn.classList.toggle('on', !overview);
       Array.prototype.forEach.call(el.querySelectorAll('.map-day'), function (b) { b.classList.toggle('on', !overview && +b.getAttribute('data-di') === q.di); });
     }

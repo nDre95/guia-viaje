@@ -1293,6 +1293,9 @@ html.compact .tl .ev--drive:not(.open) .drv-band{background:linear-gradient(135d
 .map-city{position:absolute;z-index:1;left:52px;right:52px;top:8px;height:0;pointer-events:none;opacity:0;transition:top .7s var(--smooth),left .7s var(--smooth),right .7s var(--smooth),opacity .3s}
 .map-city.on{opacity:1}
 .map-city.big{top:18%;left:12px;right:12px}
+.map-city.end{top:36%}
+.map-city.end>div{top:-26px;padding:26px 56px;max-width:none;background:radial-gradient(closest-side,rgba(255,255,255,.92) 55%,rgba(255,255,255,0))}
+html[data-theme="dark"] .map-city.end>div{background:radial-gradient(closest-side,rgba(24,26,31,.92) 55%,rgba(24,26,31,0))}
 .map-city>div{position:absolute;left:50%;top:0;transform:translateX(-50%);width:max-content;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:1px;text-align:center}
 .map-city b{display:block;font-family:var(--serif);font-size:23px;line-height:1.1;letter-spacing:-.01em;font-style:italic;color:var(--txt);text-shadow:0 0 3px #fff,0 0 12px #fff,0 0 26px #fff,0 2px 14px rgba(255,255,255,.9);transition:font-size .6s var(--smooth)}
 .map-city.big b{font-size:clamp(30px,10vw,42px)}
