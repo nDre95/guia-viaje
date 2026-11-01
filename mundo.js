@@ -165,10 +165,10 @@ window.Mundo = (function () {
       var vc = Object.keys(S.V).length, nc = Object.keys(S.N).filter(function (c) { return !S.V[c]; }).length, O = opt.base || {};
       var first = [cell(trips.length, trips.length === 1 ? 'viaje' : 'viajes'), cell(vc, 'países visitados', nc ? '+' + nc + ' por visitar' : ''), cell(trips.reduce(function (a, t) { return a + t.days; }, 0), 'días de viaje')];
       var rest = [cell(S.conts + '<i>/6</i>', 'continentes'), cell(S.cities, 'ciudades y lugares'), cell(fmtN(S.km), 'km recorridos', S.km ? 'en línea recta' : ''),
-        cell(S.dayN, 'días ya viajados'), cell(S.longest ? S.longest.days : '–', 'días en el viaje más largo'), cell(S.top ? flag(S.top) || '★' : '–', S.top ? name(S.top) : 'Ningún país repetido', S.top ? S.V[S.top].length + ' veces' : ''),
+        cell(S.dayN, 'días ya viajados'), cell(S.longest ? S.longest.days + '<i> ' + (S.longest.days === 1 ? 'día' : 'días') + '</i>' : '–', 'viaje más largo'), cell(S.top ? flag(S.top) || '★' : '–', S.top ? name(S.top) : 'Ningún país repetido', S.top ? S.V[S.top].length + ' veces' : ''),
         cell(vc ? Math.round(vc / 195 * 100) + '<i>%</i>' : '0<i>%</i>', 'del mundo'), cell(O.got != null ? O.got + '<i>/' + O.all + '</i>' : '–', 'cromos'), cell(O.mustGot != null ? O.mustGot + '<i>/' + O.must + '</i>' : '–', 'imprescindibles')];
-      return '<div class="card st-card"><div class="st-h">Estadísticas</div><div class="st-grid">' + first.join('') + '</div><div class="st-grid st-more"' + (ST.stats ? '' : ' hidden') + '>' + rest.join('') + '</div>' +
-        '<button type="button" class="st-tog sq" id="stTog" aria-expanded="' + ST.stats + '">' + (ST.stats ? 'Ver menos' : 'Ver más') + '</button></div>';
+      return '<div class="card st-card"><div class="st-top"><span class="st-h">Estadísticas</span><button type="button" class="st-tog sq" id="stTog" aria-expanded="' + ST.stats + '">' + (ST.stats ? 'Ver menos' : 'Ver más') + '</button></div>' +
+        '<div class="st-grid">' + first.join('') + '</div><div class="st-grid st-more"' + (ST.stats ? '' : ' hidden') + '>' + rest.join('') + '</div></div>';
     }
     function draw() {
       var S = statsOf(trips), unk = trips.some(function (t) { return !cached(t.ref); }), yl = Object.keys(years).sort().reverse();

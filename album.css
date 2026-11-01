@@ -106,18 +106,21 @@
 .lst-chips .opt i{font-style:normal;opacity:.6;font-size:12px;margin-left:2px}
 .lst-more{display:block;width:100%;border:0;border-radius:14px;padding:12px;margin:2px 0 12px;background:var(--fill);color:var(--orange-t);font:750 14.5px -apple-system,system-ui,sans-serif;cursor:pointer;transition:transform .4s var(--spring)}
 .lst-more:active{transform:scale(.98)}
-/* Perfil: un solo cuadro de estadísticas */
-.st-card{padding:13px 14px 8px}
-.st-h{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--txt3);margin-bottom:9px}
-.st-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px}
-.st-more{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);animation:rvH .4s var(--smooth,ease) both}
+/* Perfil: un solo cuadro de estadísticas, con cada cifra en su casilla */
+.st-card{padding:11px}
+.st-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 3px 9px}
+.st-h{font-family:var(--serif);font-size:18px;line-height:1.2}
+.st-tog{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;border:0;background:none;padding:3px 0 3px 8px;color:var(--orange-t);font:750 13px -apple-system,system-ui,sans-serif;cursor:pointer}
+.st-tog::after{content:"";width:6px;height:6px;margin:-3px 2px 0 3px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg);transition:transform .35s var(--spring)}
+.st-tog[aria-expanded=true]::after{margin-top:3px;transform:rotate(-135deg)}
+.st-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.st-more{margin-top:7px;animation:rvH .4s var(--smooth,ease) both}
 .st-more[hidden]{display:none}
-.st-cell{min-width:0}
-.st-cell b{display:block;font-family:var(--serif);font-size:25px;line-height:1.05}
-.st-cell b i{font-style:normal;font-size:14px;color:var(--txt3)}
-.st-cell small{display:block;margin-top:2px;font-size:11.5px;line-height:1.2;font-weight:700;color:var(--txt3)}
-.st-cell .st-sub{font-weight:600;color:var(--orange-t)}
-.st-tog{display:block;width:100%;border:0;background:none;padding:10px 0 6px;margin-top:4px;color:var(--orange-t);font:750 13.5px -apple-system,system-ui,sans-serif;cursor:pointer}
+.st-cell{min-width:0;padding:9px 10px 10px;border-radius:13px;background:var(--fill)}
+.st-cell b{display:block;font-family:var(--serif);font-size:22px;line-height:1.1;white-space:nowrap}
+.st-cell b i{font-style:normal;font-family:-apple-system,system-ui,sans-serif;font-size:12px;font-weight:700;color:var(--txt3)}
+.st-cell small{display:block;margin-top:3px;font-size:11.5px;line-height:1.2;font-weight:650;color:var(--txt2)}
+.st-cell .st-sub{margin-top:2px;font-size:11px;font-weight:700;color:var(--orange-t)}
 /* Mapa del mundo */
 .mw{padding:12px;overflow:hidden}
 .mw .mw-chips{margin:0 -12px 8px;padding:0 12px}
