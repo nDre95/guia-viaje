@@ -330,6 +330,39 @@ window.Mapa = (function () {
       else { line(5.5, [], 'rgba(255,255,255,.6)', alpha); line(3, [0.1, 5.5], col, alpha); }
       g.setLineDash([]); g.globalAlpha = 1;
     }
+    var STARS = []; (function () { var a = 7; for (var i = 0; i < 46; i++) { a = (a * 9301 + 49297) % 233280; var x = a / 233280; a = (a * 9301 + 49297) % 233280; STARS.push([x, a / 233280 * 0.8, 0.5 + (i % 3) * 0.45]); } })();
+    function drawNight(f) {
+      var night = Math.min(1, Math.sin(Math.PI * f) * 1.3), dusk = Math.sin(Math.PI * clamp(f / 0.5, 0, 1)) * (f < 0.5 ? 1 : 0), dawn = Math.sin(Math.PI * clamp((f - 0.5) / 0.5, 0, 1)) * (f > 0.5 ? 1 : 0);
+      g.fillStyle = 'rgba(11,20,58,' + (night * 0.66).toFixed(3) + ')'; g.fillRect(0, 0, W, H);
+      // un tinte naranja al atardecer y rosa al amanecer, desde abajo
+      var tint = g.createLinearGradient(0, H * 0.3, 0, H);
+      tint.addColorStop(0, 'rgba(255,140,80,0)');
+      tint.addColorStop(1, dusk >= dawn ? 'rgba(255,120,50,' + (dusk * 0.42).toFixed(3) + ')' : 'rgba(255,150,170,' + (dawn * 0.42).toFixed(3) + ')');
+      g.fillStyle = tint; g.fillRect(0, 0, W, H);
+      if (night > 0.45) {
+        g.fillStyle = '#fff';
+        STARS.forEach(function (st) { g.globalAlpha = (night - 0.45) * 1.7 * (0.55 + st[2] * 0.3); g.beginPath(); g.arc(st[0] * W, st[1] * H, st[2], 0, 7); g.fill(); });
+        g.globalAlpha = 1;
+      }
+      // el sol y la luna dan la vuelta sobre el mapa: el sol se pone por la derecha, la luna cruza y el sol vuelve por la izquierda
+      var cx = W / 2, cy = H * 0.5, Rr = Math.min(W * 0.44, H * 0.42), a = -Math.PI / 2 + f * Math.PI * 2;
+      function body(ang, draw) {
+        var x = cx + Math.cos(ang) * Rr, y = cy + Math.sin(ang) * Rr * 0.95, up = clamp((cy + 26 - y) / 60, 0, 1);
+        if (up <= 0) return;
+        g.globalAlpha = up * Math.min(1, Math.sin(Math.PI * f) * 4); draw(x, y); g.globalAlpha = 1;
+      }
+      body(a, function (x, y) {
+        var gl = g.createRadialGradient(x, y, 4, x, y, 46); gl.addColorStop(0, 'rgba(255,214,110,.85)'); gl.addColorStop(1, 'rgba(255,190,70,0)');
+        g.fillStyle = gl; g.beginPath(); g.arc(x, y, 46, 0, 7); g.fill();
+        g.fillStyle = '#ffd35c'; g.beginPath(); g.arc(x, y, 17, 0, 7); g.fill();
+      });
+      body(a + Math.PI, function (x, y) {
+        var gl = g.createRadialGradient(x, y, 4, x, y, 40); gl.addColorStop(0, 'rgba(225,232,255,.55)'); gl.addColorStop(1, 'rgba(225,232,255,0)');
+        g.fillStyle = gl; g.beginPath(); g.arc(x, y, 40, 0, 7); g.fill();
+        // luna creciente: un círculo claro al que se le recorta un mordisco
+        g.save(); g.beginPath(); g.arc(x, y, 15, 0, 7); g.arc(x + 7, y - 4, 13, 0, 7, true); g.fillStyle = '#f3efdd'; g.fill('evenodd'); g.restore();
+      });
+    }
     function paint(now) {
       if (dead || !layout()) return;
       var dt = Math.min(60, now - (lastT || now)); lastT = now;
@@ -371,6 +404,9 @@ window.Mapa = (function () {
         var x = sx(q.x), y = sy(q.y); if (x < -10 || x > W + 10 || y < -10 || y > H + 10) return;
         g.beginPath(); g.arc(x, y, 4.2, 0, 7); g.fillStyle = v < 0 || i <= v + 0.5 ? COLORS[q.di % COLORS.length] : dark ? '#70737c' : '#a9a69c'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#fff'; g.stroke();
       });
+      // de un día al siguiente: atardece, sale la luna y amanece
+      var dn = v >= 0 && v < last ? Math.floor(v) : -1;
+      if (dn >= 0 && M.seq[dn].di !== M.seq[dn + 1].di && v > dn) drawNight(v - dn);
       // burbujas con la foto de cada sitio: las que caben, sin pisarse; el resto se suma a la de al lado (+3)
       var R = clamp(W * 0.065, 20, 27), curI = v >= -0.07 && v <= last + 0.07 ? clamp(Math.round(v), 0, last) : -1, placed = [];
       var cand = M.seq.filter(function (q) { return q.sight; }).sort(function (a, b) {
@@ -515,8 +551,9 @@ window.Mapa = (function () {
     function stop() { playing = false; playBtn.classList.remove('on'); clearTimeout(el._pt); cancelAnimationFrame(gl); }
     function legMs(n) {
       if (n <= 0 || n > last) return 1700;
-      var km = M.legs[n - 1].km;
-      return M.seq[n - 1].sc === M.seq[n].sc ? 1300 : km < 6 ? 1800 : clamp(3000 + km * 12, 3000, 5500);
+      var km = M.legs[n - 1].km, ms = M.seq[n - 1].sc === M.seq[n].sc ? 1300 : km < 6 ? 1800 : clamp(3000 + km * 12, 3000, 5500);
+      // al cambiar de día, tiempo para que se vea anochecer y amanecer
+      return M.seq[n - 1].di !== M.seq[n].di ? Math.max(ms, 3200) : ms;
     }
     function play() {
       ovrT = 0; var n = Math.round(mem.v); if (n > last) { mem.ovr = 0; set(-1); n = -1; }

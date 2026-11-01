@@ -138,6 +138,96 @@ window.Mundo = (function () {
   }
   function fmtN(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, lg() === 'en' ? ',' : '.'); }
 
+  /* ---------- Perfil viajero: cómo viajas, nivel, sellos y tarjeta para compartir ---------- */
+  var TYPES = [
+    { id: 'hist', ico: '🏰', t: 'Amante de la historia', kinds: ['palace', 'ruins', 'monument', 'sacred'], re: /castillo|castle|palacio|palace|catedral|cathedral|iglesia|church|abad|abbey|ruinas|ruins|foro|forum|monument|memorial|torre|tower|templo|temple/i },
+    { id: 'arte', ico: '🎨', t: 'Alma de museo', kinds: ['museum', 'show'], re: /museo|museum|galer|gallery|teatro|theatre|ópera|opera/i },
+    { id: 'natu', ico: '🏔️', t: 'Espíritu de naturaleza', kinds: ['nature', 'garden'], re: /parque|park|jard[ií]n|garden|lago|loch|lake|monte|mount|glen|cascada|falls|mirador|viewpoint|playa|beach/i },
+    { id: 'urbe', ico: '🏙️', t: 'Urbanita de corazón', kinds: ['square', 'quarter', 'market', 'family'], re: /plaza|piazza|square|barrio|quarter|mercado|market|calle|street|paseo/i }
+  ];
+  var LEVELS = [[0, 'Viajero novel'], [5, 'Viajero curioso'], [15, 'Explorador'], [30, 'Trotamundos'], [60, 'Leyenda del viaje']];
+  var EARTH_KM = 40075;
+  function travelType(list) {
+    var score = {}; TYPES.forEach(function (T) { score[T.id] = 0; });
+    list.forEach(function (t) { t.ref.b.trip.days.forEach(function (d) { d.items.forEach(function (it) {
+      if (!Mapa.isSight(it)) return;
+      TYPES.forEach(function (T) { if (T.kinds.indexOf(it.k) >= 0 || (!it.k && T.re.test(it.ti)) || (T.id === 'natu' && it.t === 'view')) score[T.id] += it.must ? 2 : 1; });
+    }); }); });
+    return TYPES.slice().sort(function (a, b) { return score[b.id] - score[a.id]; })[0];
+  }
+  function levelOf(S, got) {
+    var pts = Object.keys(S.V).length * 3 + S.done.length * 2 + Math.floor((got || 0) / 2), i = 0;
+    LEVELS.forEach(function (l, k) { if (pts >= l[0]) i = k; });
+    var next = LEVELS[i + 1];
+    return { n: i + 1, name: LEVELS[i][1], pts: pts, next: next, pc: next ? Math.round((pts - LEVELS[i][0]) / (next[0] - LEVELS[i][0]) * 100) : 100 };
+  }
+  var STAMP = ['#b3364b', '#2b6ea3', '#3f8f5b', '#8a4fa8', '#c2622a', '#1f8a8a', '#7a5a2b'];
+  function stampsHTML(S) {
+    var firstYear = function (l) { return l.map(function (t) { return (t.start || '').slice(0, 4); }).sort()[0]; };
+    var rows = Object.keys(S.V).map(function (c) { return { c: c, y: firstYear(S.V[c]), n: S.V[c].length }; }).sort(function (a, b) { return String(a.y).localeCompare(String(b.y)); })
+      .concat(Object.keys(S.N).filter(function (c) { return !S.V[c]; }).map(function (c) { return { c: c, y: firstYear(S.N[c]), next: true }; }));
+    if (!rows.length) return '';
+    var got = rows.filter(function (r) { return !r.next; }).length;
+    return '<div class="pf-h">Mi pasaporte <small>' + got + (got === 1 ? ' sello' : ' sellos') + '</small></div><div class="mw-stamps">' + rows.map(function (r, i) {
+      var col = 0; for (var k = 0; k < r.c.length; k++) col += r.c.charCodeAt(k);
+      return '<button type="button" class="mw-stamp sq' + (r.next ? ' next' : '') + '" data-c="' + esc(r.c) + '" style="--c:' + STAMP[col % STAMP.length] + ';--r:' + ((i * 37) % 13 - 6) + 'deg"><span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.next ? 'Por visitar' : esc(r.y) + (r.n > 1 ? ' · ×' + r.n : '')) + '</small></button>';
+    }).join('') + '</div>';
+  }
+  function heroHTML(trips, base) {
+    var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100;
+    return '<div class="pf-hero"><button type="button" class="pf-share sq" id="pfShare" aria-label="Compartir mi tarjeta" title="Compartir mi tarjeta"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<span class="pf-badge">' + (T ? T.ico : '🧭') + '</span><div class="pf-hm"><small>Tu perfil viajero</small><b>' + esc(T ? T.t : 'Por descubrir') + '</b></div>' +
+      '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · ' + esc(L.name) + '</span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' pts' : L.pts + ' pts') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
+      '<div class="pf-world"><span>🌍 Vuelta al mundo</span><span>' + (pc < 10 ? pc.toFixed(1).replace('.', lg() === 'en' ? '.' : ',') : Math.round(pc)) + ' % · ' + fmtN(S.km) + ' km</span></div><span class="pf-bar w"><i style="width:' + Math.min(100, pc).toFixed(1) + '%"></i></span></div>';
+  }
+  // tarjeta de 1080×1350 para guardar o compartir: sin fotos externas, siempre se puede generar
+  function shareCard(list, year, base) {
+    var S = statsOf(list), T = list.length ? travelType(S.done.length ? S.done : list) : null, L = levelOf(statsOf(allForLevel(list)), (base || {}).got), W0 = 1080, H0 = 1350, cv = document.createElement('canvas'), g = cv.getContext('2d'), tr = function (x) { return window.Lang ? Lang.t(x) : x; };
+    var serif = '"New York","Iowan Old Style",Georgia,serif', sans = '-apple-system,"Segoe UI",Roboto,sans-serif';
+    cv.width = W0; cv.height = H0;
+    var bg = g.createLinearGradient(0, 0, W0, H0); bg.addColorStop(0, '#2b2d36'); bg.addColorStop(1, '#17181d'); g.fillStyle = bg; g.fillRect(0, 0, W0, H0);
+    var glow = g.createRadialGradient(W0 - 120, 120, 40, W0 - 120, 120, 720); glow.addColorStop(0, 'rgba(226,120,47,.6)'); glow.addColorStop(1, 'rgba(226,120,47,0)'); g.fillStyle = glow; g.fillRect(0, 0, W0, H0);
+    g.textAlign = 'left'; g.fillStyle = '#ffc48f'; g.font = '800 34px ' + sans; g.fillText(tr('MIS VIAJES').toUpperCase(), 80, 120);
+    g.fillStyle = '#fff'; g.font = 'italic 700 150px ' + serif; g.fillText(year || tr('Hasta hoy'), 76, 270, W0 - 150);
+    g.font = '86px ' + sans; g.fillText(T ? T.ico : '🧭', 80, 410);
+    g.font = '700 50px ' + serif; g.fillText(tr(T ? T.t : 'Por descubrir'), 190, 382);
+    g.fillStyle = '#ffc48f'; g.font = '700 32px ' + sans; g.fillText(tr('Nivel') + ' ' + L.n + ' · ' + tr(L.name), 190, 430);
+    var vc = Object.keys(S.V).length, cells = [[list.length, list.length === 1 ? 'viaje' : 'viajes'], [vc, 'países visitados'], [S.cities, 'ciudades visitadas'], [fmtN(S.km), 'km recorridos']];
+    cells.forEach(function (c, i) {
+      var x = 80 + (i % 2) * 470, y = 490 + Math.floor(i / 2) * 215;
+      g.fillStyle = 'rgba(255,255,255,.09)'; if (g.roundRect) { g.beginPath(); g.roundRect(x, y, 450, 195, 30); g.fill(); } else g.fillRect(x, y, 450, 195);
+      g.fillStyle = '#fff'; g.font = '700 84px ' + serif; g.fillText(String(c[0]), x + 34, y + 105);
+      g.fillStyle = 'rgba(255,255,255,.72)'; g.font = '600 31px ' + sans; g.fillText(tr(c[1]), x + 34, y + 155);
+    });
+    var cc = Object.keys(S.V).concat(Object.keys(S.N).filter(function (c) { return !S.V[c]; })).slice(0, 14);
+    g.font = '66px ' + sans; g.fillStyle = '#fff';
+    cc.forEach(function (c, i) { g.fillText(flag(c) || '🌍', 80 + (i % 7) * 132, 1020 + Math.floor(i / 7) * 92); });
+    var names = cc.slice(0, 5).map(name).join(' · ') + (cc.length > 5 ? ' …' : '');
+    g.fillStyle = 'rgba(255,255,255,.72)'; g.font = '600 30px ' + sans; g.fillText(names, 80, 1215);
+    g.fillStyle = '#e2782f'; g.font = '800 30px ' + sans; g.fillText(tr('Guía de viaje'), 80, 1285);
+    return cv;
+  }
+  var levelAll = [];
+  function allForLevel() { return levelAll; }
+  function openShare(cv, name0) {
+    cv.toBlob(function (bl) {
+      if (!bl) return;
+      var old = document.getElementById('pfShareBox'); if (old) old.remove();
+      var u = URL.createObjectURL(bl), box = document.createElement('div');
+      box.id = 'pfShareBox'; box.className = 'pf-sharebox';
+      box.innerHTML = '<div class="pf-sharein"><img alt="Mi tarjeta de viajes" src="' + u + '"><div class="btn-row"><button type="button" class="btn navy sq" data-sb="save">Guardar o compartir</button><button type="button" class="btn ghost sq" data-sb="close">Cerrar</button></div></div>';
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-sb]');
+        if (e.target === box || (b && b.getAttribute('data-sb') === 'close')) { box.remove(); URL.revokeObjectURL(u); return; }
+        if (!b) return;
+        var f = null; try { f = new File([bl], name0, { type: 'image/png' }); } catch (err) {}
+        if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: name0 }).catch(function () {}); return; }
+        var a = document.createElement('a'); a.href = u; a.download = name0; document.body.appendChild(a); a.click(); a.remove();
+      });
+      document.body.appendChild(box);
+    }, 'image/png');
+  }
+
   /* ---------- Mapa y lista ---------- */
   // el mapa se ve con esta proporción; la vista es la zona del mapa que entra en él: [x, y, ancho, alto]
   var A = 1.5, WMIN = 70, ST = { filter: 'all', region: 'mine', year: '', sel: '', more: false, stats: false, names: true, view: null };
@@ -178,7 +268,8 @@ window.Mundo = (function () {
     function draw() {
       var S = statsOf(tf()), unk = trips.some(function (t) { return !cached(t.ref); }), yl = Object.keys(years).sort().reverse();
       var ic = function (d) { return '<svg viewBox="0 0 24 24"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; };
-      el.innerHTML = (yl.length ? '<div class="mw-chips mw-years" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') + statsHTML(S) +
+      levelAll = trips;
+      el.innerHTML = heroHTML(trips, opt.base) + (yl.length ? '<div class="mw-chips mw-years" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') + statsHTML(S) + '<div id="mwStamps">' + stampsHTML(S) + '</div>' +
         '<div class="pf-h">Mi mapa del mundo</div><div class="card mw">' +
         '<div class="mw-chips" data-mw="filter">' + [['all', 'Todos'], ['one', 'Visitados'], ['rep', 'Repetidos'], ['next', 'Por visitar']].map(function (f) { return '<button type="button" class="opt' + (ST.filter === f[0] ? ' on' : '') + '" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' +
         '<div class="mw-chips" data-mw="region"><button type="button" class="opt' + (ST.region === 'mine' ? ' on' : '') + '" data-v="mine">Mis países</button><button type="button" class="opt' + (ST.region === 'world' ? ' on' : '') + '" data-v="world">Mundo</button>' + Object.keys(REGION).map(function (r) { return '<button type="button" class="opt' + (ST.region === r ? ' on' : '') + '" data-v="' + r + '">' + REGION[r][0] + '</button>'; }).join('') + '</div>' +
@@ -187,7 +278,7 @@ window.Mundo = (function () {
         '<button type="button" class="sq' + (ST.names ? ' on' : '') + '" data-mt="names" aria-label="Nombres de países" title="Nombres de países" aria-pressed="' + ST.names + '"><b>Aa</b></button></div></div>' +
         '<div class="mw-rec" id="mwRec" hidden><div class="mw-rec-h">Resumen por año</div>' +
         (yl.length ? '<div class="mw-chips mw-rec-y" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') +
-        '<button type="button" class="btn navy sq mw-rec-go" id="mwRecGo"></button><div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#f2b27c,#e2782f)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
+        '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#f2b27c,#e2782f)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
         '<div class="mw-legend"><span><i class="c1"></i>1 vez</span><span><i class="c2"></i>2 veces</span><span><i class="c3"></i>3 o más</span><span><i class="cn"></i>Por visitar</span></div>' +
         '<div class="mw-info" id="mwInfo"></div></div>' +
         '<div id="mwList"></div>';
@@ -253,7 +344,6 @@ window.Mundo = (function () {
       var bar = el.querySelector('#mwRec'), g = el.querySelector('#mwRecG'); if (!bar) return;
       recBuild();
       bar.hidden = !R.seq.length;
-      var go = bar.querySelector('#mwRecGo'); if (go) go.textContent = ST.year ? 'Ver resumen de ' + ST.year : 'Ver resumen de todos mis viajes';
       if (g) g.innerHTML = '';
       if (!R.seq.length || !g) return;
       var rg = bar.querySelector('.map-range'); rg.max = R.seq.length; rg.value = -1;
@@ -499,18 +589,14 @@ window.Mundo = (function () {
     el.onclick = function (e) {
       var t = e.target, yb = t.closest('[data-y]'), ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
       if (t.closest('#mwRec .map-play')) { if (R.playing) recStop(); else recPlay(); return; }
-      // el botón grande: siempre desde el principio y con el mapa a la vista
-      if (t.closest('#mwRecGo')) {
-        recStop(); R.v = -1; R.follow = true; recSet(-1);
-        var mp = el.querySelector('.mw-wrap'); if (mp) mp.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        recPlay(); return;
-      }
+      if (t.closest('#pfShare')) { openShare(shareCard(tf(), ST.year, opt.base), 'mis-viajes' + (ST.year ? '-' + ST.year : '') + '.png'); return; }
       if (yb) {
         recStop(); R.limit = null; R.v = -1;
         ST.year = yb.getAttribute('data-y');
         Array.prototype.forEach.call(el.querySelectorAll('[data-y]'), function (x) { x.classList.toggle('on', x.getAttribute('data-y') === ST.year); });
         var S1 = statsOf(tf()), box = document.createElement('div'); box.innerHTML = statsHTML(S1);
         el.querySelector('.st-card').replaceWith(box.firstChild);
+        var st0 = el.querySelector('#mwStamps'); if (st0) st0.innerHTML = stampsHTML(S1);
         paintList(S1); recSetup(); recolor();
         if (ST.region === 'mine' || !ST.region) { ST.region = 'mine'; Array.prototype.forEach.call(el.querySelectorAll('[data-mw=region] .opt'), function (x) { x.classList.toggle('on', x.getAttribute('data-v') === 'mine'); }); animateTo(viewMine()); }
         return;
@@ -537,7 +623,7 @@ window.Mundo = (function () {
       if (t.closest('#mwMore')) { ST.more = !ST.more; paintList(statsOf(tf())); return; }
       var c = t.closest('[data-c]');
       if (c) {
-        var row = t.closest('.mw-row');
+        var row = t.closest('.mw-row, .mw-stamp');
         if (dragged && !row) { dragged = false; return; }
         ST.sel = !row && ST.sel === c.getAttribute('data-c') ? '' : c.getAttribute('data-c'); recolor();
         if (row) { focusCountry(ST.sel); var mw = el.querySelector('.mw'); if (mw) mw.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
