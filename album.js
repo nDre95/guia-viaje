@@ -69,9 +69,12 @@ window.Album = (function () {
   }
   var SETS = [['hist', 'Historia', ['CAS', 'RUI', 'MON', 'TEM']], ['arte', 'Arte y espectáculos', ['MUS', 'ESP']], ['natu', 'Naturaleza y miradores', ['NAT', 'JAR', 'MIR']], ['urbe', 'Ciudad', ['PLZ', 'BAR', 'MER', 'PAS', 'FAM']]];
   function packsHTML(cards) {
-    var g = Juego.get(), kinds = ['r', 'g', 's', 'c'].filter(function (k) { return g.packs[k] > 0; }), d = Juego.dups(g);
-    var head = '<div class="pk-row">' + (kinds.length ? kinds.map(function (k) {
-      return '<button type="button" class="pk-mini k-' + k + ' sq" data-pkopen="' + k + '"><span class="pk-foil"></span><b>' + g.packs[k] + '</b><small>' + esc(Juego.PACK[k]) + '</small></button>';
+    var g = Juego.get(), d = Juego.dups(g), groups = [], order = { r: 0, g: 1, s: 2, c: 3 };
+    g.bag.forEach(function (b) { var f = groups.filter(function (x) { return x.k === b.k && x.t === b.t; })[0]; if (f) f.n++; else groups.push({ k: b.k, t: b.t, n: 1 }); });
+    groups.sort(function (a, b) { return order[a.k] - order[b.k]; });
+    var head = '<div class="pk-row">' + (groups.length ? groups.map(function (x) {
+      var tr0 = (TRIPS || []).filter(function (t) { return t.id === x.t; })[0];
+      return '<button type="button" class="pk-mini k-' + x.k + ' sq" data-pkopen="' + x.k + '" data-pktrip="' + esc(x.t) + '"><span class="pk-foil"></span><b>' + x.n + '</b><small>' + esc(Juego.PACK[x.k]) + '</small>' + (tr0 ? '<small class="pk-trip">' + esc(tripTitle(tr0)) + '</small>' : '') + '</button>';
     }).join('') : '<p class="pk-none">Gana sobres con los quizzes: cuantos más aciertos, mejor sobre.</p>') +
       (d >= 5 ? '<button type="button" class="pk-ex sq" data-pkex>Cambiar 5 repetidos por un sobre</button>' : '') + '</div>';
     // colecciones: cuántos has canjeado de cada clase
@@ -444,7 +447,7 @@ window.Album = (function () {
       if (!o || o.app !== 'guia-album' || !o.album) { alert('Ese archivo no es una copia del álbum.'); return; }
       var a = albumGet(); Object.keys(o.album).forEach(function (k) { if (!a[k]) a[k] = o.album[k]; });   // se suman, no se pisan
       albumSet(a);
-      if (o.game && window.Juego) { var g1 = Juego.get(), g2 = o.game; ['n', 'g', 'i'].forEach(function (k) { g1.packs[k] = Math.max(g1.packs[k], (g2.packs || {})[k] || 0); }); Object.keys(g2.own || {}).forEach(function (k) { if (!g1.own[k]) g1.own[k] = g2.own[k]; }); Object.keys(g2.claimed || {}).forEach(function (k) { g1.claimed[k] = 1; }); Juego.save(g1); }
+      if (o.game && window.Juego) { var g1 = Juego.get(), g2 = o.game; if ((g2.bag || []).length > g1.bag.length) g1.bag = g2.bag; Object.keys(g2.own || {}).forEach(function (k) { if (!g1.own[k]) g1.own[k] = g2.own[k]; }); Object.keys(g2.claimed || {}).forEach(function (k) { g1.claimed[k] = 1; }); Juego.save(g1); }
       (cfg.restoreTrips && o.trips ? cfg.restoreTrips(o.trips) : Promise.resolve()).then(function () { reset0(); if (cfg.onChange) cfg.onChange(''); renderAlbum(); renderProfile(); alert('Copia cargada.'); });
     }; r.readAsText(f);
   }
@@ -463,7 +466,7 @@ window.Album = (function () {
       if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
       var po = t.closest('[data-pkopen]');
-      if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), cards.filter(function (x) { return x.got; }), function () { renderAlbum(); }); }); return; }
+      if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), po.getAttribute('data-pktrip') || '', cards, function () { renderAlbum(); }); }); return; }
       if (t.closest('[data-pkex]')) { Juego.exchange(); renderAlbum(); return; }
       if (c) openCromo(c.getAttribute('data-cr'));
       else if (pb) makeReel(pb.getAttribute('data-post'), pb);

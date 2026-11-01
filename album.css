@@ -323,6 +323,7 @@ html[data-theme="dark"] .mw-map .sel{stroke:#fff}
 .pk-mini:active{transform:scale(.94) rotate(-1deg)}
 .pk-mini b{position:relative;font:800 25px/1 var(--serif)}
 .pk-mini small{position:relative;font-size:10.5px;font-weight:750;line-height:1.1}
+.pk-mini .pk-trip{font-weight:600;opacity:.82;max-width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .k-c{--pa:#b76a38;--pb:#4c260f}
 .k-s{--pa:#a6aeb9;--pb:#454c56}
 .k-g{--pa:#d7a22f;--pb:#6d4c0c}

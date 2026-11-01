@@ -2,7 +2,7 @@
    Todo se guarda en el dispositivo: localStorage guia-game; las fotos propias, en IndexedDB guia-fotos.
    Un cromo normal se canjea en el sitio, con GPS y tu foto (álbum guia-album). Los sobres solo salen de los quizzes,
    y dan rarezas de cromos que ya tienes: cuantos más aciertos, mejor sobre.
-   Rarezas: cobre, plata, oro, esmeralda, rubí (guia-game.own[clave].tier). Sobres: c, s, g, r. */
+   Rarezas: cobre, plata, oro, esmeralda, rubí (guia-game.own[clave].tier). Sobres: guia-game.bag, cada uno de un viaje (tipo c, s, g, r). */
 window.Juego = (function () {
   'use strict';
   var KEY = 'guia-game';
@@ -10,10 +10,12 @@ window.Juego = (function () {
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function get() {
     var g = null; try { g = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
-    g = g || { v: 2 };
-    // de la versión 3.0/3.1: los sobres pasan a los nuevos; las cartas que salían sin haber estado allí, fuera
-    if (g.v !== 2) { var o = g.packs || {}; g = { v: 2, packs: { c: o.n || 0, s: 0, g: o.g || 0, r: o.i || 0 }, own: {}, claimed: {}, backup: g.backup, dayV: g.dayV }; }
-    g.packs = g.packs || {}; ['c', 's', 'g', 'r'].forEach(function (k) { g.packs[k] = g.packs[k] || 0; });
+    g = g || { v: 3 };
+    // de versiones anteriores: las cartas que salían sin haber estado allí, fuera; los sobres se guardan sin viaje
+    if (g.v === undefined || g.v === 1) { var o0 = g.packs || {}; g = { v: 2, packs: { c: o0.n || 0, s: 0, g: o0.g || 0, r: o0.i || 0 }, own: {}, claimed: {}, backup: g.backup, dayV: g.dayV }; }
+    // cada sobre es de un viaje: { k: tipo, t: viaje }. Los de antes, sin viaje (t: ''), sirven para cualquiera
+    if (g.v === 2) { var o1 = g.packs || {}; g.bag = []; ['c', 's', 'g', 'r'].forEach(function (k) { for (var n = 0; n < (o1[k] || 0); n++) g.bag.push({ k: k, t: '' }); }); delete g.packs; g.v = 3; }
+    g.bag = g.bag || [];
     g.own = g.own || {}; g.claimed = g.claimed || {};
     return g;
   }
@@ -58,12 +60,12 @@ window.Juego = (function () {
   /* ---------- Conseguir sobres: solo con los quizzes ---------- */
   var PACK = { c: 'Sobre de cobre', s: 'Sobre de plata', g: 'Sobre de oro', r: 'Sobre rubí' };
   var BY_HITS = { 2: 'c', 3: 's', 4: 'g', 5: 'r' };
-  function total(g) { g = g || get(); return g.packs.c + g.packs.s + g.packs.g + g.packs.r; }
+  function total(g) { return (g || get()).bag.length; }
   // un sobre por viaje y día; cuantos más aciertos, mejor. Devuelve qué sobre ha dado, o nada
   function onQuiz(hits, tripId) {
     var kind = BY_HITS[hits]; if (!kind) return '';
     var g = get(), key = 'quiz:' + today() + ':' + (tripId || ''); if (g.claimed[key]) return '';
-    g.claimed[key] = 1; g.packs[kind]++; save(g);
+    g.claimed[key] = 1; g.bag.push({ k: kind, t: tripId || '' }); save(g);
     document.dispatchEvent(new Event('juego:change'));
     return kind;
   }
@@ -145,12 +147,15 @@ window.Juego = (function () {
     }
     return picks.sort(function (a, b) { return RANK[a.tier] - RANK[b.tier]; });
   }
-  function openPack(kind, pool, done) {
-    var g = get(); if (!g.packs[kind]) return;
-    if (!pool.length) { toast('Canjea tu primer cromo para abrir sobres'); return; }
+  // abre un sobre de ese tipo y viaje; pool = todos los cromos canjeados: solo valen los de su viaje
+  function openPack(kind, tripId, cromos, done) {
+    var g = get(), at = -1; g.bag.some(function (b, i) { if (b.k === kind && b.t === tripId) { at = i; return true; } return false; });
+    if (at < 0) return;
+    var pool = cromos.filter(function (c) { return c.got && (!tripId || c.trip === tripId); });
+    if (!pool.length) { toast('Canjea un cromo de este viaje para abrir este sobre'); return; }
     var old = document.getElementById('pkBox'); if (old) old.remove();
     var cards = draw(kind, pool), box = watch(document.createElement('div')), i = -1;
-    g.packs[kind]--;
+    g.bag.splice(at, 1);
     cards.forEach(function (x) { var o = g.own[x.key] || { tier: 'base', n: 0 }; o.n = (o.n || 0) + 1; if (x.better) o.tier = x.tier; o.at = today(); g.own[x.key] = o; });
     save(g);
     box.id = 'pkBox'; box.className = 'pk k-' + kind;
@@ -182,9 +187,10 @@ window.Juego = (function () {
   // cambiar repetidos: 5 de más, un sobre de cobre
   function dups(g) { g = g || get(); return Object.keys(g.own).reduce(function (a, k) { return a + Math.max(0, (g.own[k].n || 1) - 1); }, 0); }
   function exchange() {
-    var g = get(), left = 5; if (dups(g) < 5) return false;
-    Object.keys(g.own).forEach(function (k) { var o = g.own[k]; while (left > 0 && (o.n || 1) > 1) { o.n--; left--; } });
-    g.packs.c++; save(g); toast('5 repetidos: sobre de cobre +1'); document.dispatchEvent(new Event('juego:change'));
+    var g = get(), left = 5, from = ''; if (dups(g) < 5) return false;
+    // el sobre es del viaje del que salen los repetidos
+    Object.keys(g.own).forEach(function (k) { var o = g.own[k]; while (left > 0 && (o.n || 1) > 1) { o.n--; left--; from = from || k.slice(0, k.indexOf('|')); } });
+    g.bag.push({ k: 'c', t: from }); save(g); toast('5 repetidos: sobre de cobre +1'); document.dispatchEvent(new Event('juego:change'));
     return true;
   }
   // ¿ya pasó el viaje? Entonces no se puede pedir estar allí: basta la foto
