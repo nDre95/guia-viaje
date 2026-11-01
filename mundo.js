@@ -146,17 +146,17 @@ window.Mundo = (function () {
     { id: 'urbe', ico: '🏙️', t: 'Viajes de ciudad', kinds: ['square', 'quarter', 'market', 'family'], re: /plaza|piazza|square|barrio|quarter|mercado|market|calle|street|paseo/i }
   ];
   var LEVELS = [[0, 'Principiante'], [40, 'Viajero'], [120, 'Viajero habitual'], [300, 'Viajero experto'], [700, 'Veterano']];
-  // bordes del perfil: se desbloquean con aciertos en los quizzes
-  var BORDERS = [['none', 'Sin borde', 0], ['bronze', 'Bronce', 10], ['silver', 'Plata', 30], ['gold', 'Oro', 60], ['plat', 'Platino', 100], ['diam', 'Diamante', 160], ['master', 'Maestro', 250]];
+  // el borde del perfil sale del nivel, con los mismos materiales que las rarezas de los cromos
+  var BORDERS = ['copper', 'silver', 'gold', 'emerald', 'ruby'];
   // colores del metal: sombra, medio, luz, brillo
-  var BD = { bronze: ['#4a2710', '#a8693a', '#e6a874', '#ffe2c4'], silver: ['#4d5560', '#9aa4b0', '#e4e9ee', '#ffffff'], gold: ['#5c3f06', '#c4942a', '#ffdf85', '#fff8d8'], plat: ['#14574a', '#49ad97', '#b4f2e0', '#f0fffa'], diam: ['#1b2f7a', '#4f7df0', '#aed4ff', '#f2fbff'], master: ['#5a1038', '#d03c74', '#ffc35c', '#fff6d0'] };
+  var BD = { copper: ['#4a2710', '#a8693a', '#e6a874', '#ffe2c4'], silver: ['#4d5560', '#9aa4b0', '#e4e9ee', '#ffffff'], gold: ['#5c3f06', '#c4942a', '#ffdf85', '#fff8d8'], emerald: ['#06402b', '#129a69', '#6ff0bb', '#e6fff4'], ruby: ['#4f0617', '#c5163c', '#ff7a92', '#ffe3e9'] };
   var bdN = 0;
   // una voluta: sale del aro, se dobla y acaba en espiral; se repite alrededor y en espejo
   var CURL = 'M1 -45 C4 -52 13 -54 17 -49 C20 -45 16 -40 12 -42 C9 -44 11 -48 14 -46.5';
   var CURL2 = 'M0 -46 C-1 -53 3 -59 8 -57 C11 -55 10 -51 7 -52';
   function borderSVG(id) {
     var c = BD[id]; if (!c) return '';
-    var rank = ['bronze', 'silver', 'gold', 'plat', 'diam', 'master'].indexOf(id), n = [4, 6, 6, 8, 8, 10][rank], u = 'bd' + (++bdN);
+    var rank = BORDERS.indexOf(id), n = [4, 6, 6, 8, 10][rank], u = 'bd' + (++bdN);
     function metal(d, w) {
       // relieve: sombra debajo, el metal y un filo de luz encima
       return '<path d="' + d + '" stroke="' + c[0] + '" stroke-width="' + (w + 1.5) + '" transform="translate(.5 .9)"/><path d="' + d + '" stroke="url(#' + u + 'm)" stroke-width="' + w + '"/><path d="' + d + '" stroke="' + c[3] + '" stroke-width="' + (w * 0.28).toFixed(2) + '" stroke-opacity=".85" transform="translate(-.25 -.35)"/>';
@@ -178,8 +178,6 @@ window.Mundo = (function () {
       // el aro, con canto de luz arriba y sombra abajo
       '<circle r="42" fill="none" stroke="' + c[0] + '" stroke-width="7.5" transform="translate(.4 .9)"/><circle r="42" fill="none" stroke="url(#' + u + 'm)" stroke-width="6"/><circle r="44.6" fill="none" stroke="' + c[3] + '" stroke-width=".9" stroke-opacity=".8"/><circle r="39.3" fill="none" stroke="' + c[0] + '" stroke-width="1.1"/>' + crest + foot + '</svg>';
   }
-  function borderNow() { var S = quizStore(), b = S.border || 'none', ok = BORDERS.filter(function (x) { return x[0] === b && (S.right || 0) >= x[2]; })[0]; return ok ? ok[0] : 'none'; }
-  function nextBorder(right) { return BORDERS.filter(function (x) { return right < x[2]; })[0] || null; }
   var EARTH_KM = 40075;
   function travelType(list) {
     var score = {}; TYPES.forEach(function (T) { score[T.id] = 0; });
@@ -190,7 +188,7 @@ window.Mundo = (function () {
     return TYPES.slice().sort(function (a, b) { return score[b.id] - score[a.id]; })[0];
   }
   function levelOf(S, got) {
-    // la experiencia solo sale de viajar; los quizzes desbloquean bordes
+    // la experiencia solo sale de viajar
     var pts = Object.keys(S.V).length * 15 + S.done.length * 10 + (got || 0) * 2, i = 0;
     LEVELS.forEach(function (l, k) { if (pts >= l[0]) i = k; });
     var next = LEVELS[i + 1];
@@ -211,7 +209,7 @@ window.Mundo = (function () {
   function heroHTML(trips, base) {
     var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100;
     return '<div class="pf-hero"><button type="button" class="pf-share sq" id="pfShare" aria-label="Compartir mi tarjeta" title="Compartir mi tarjeta"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
-      '<button type="button" class="pf-badge sq" id="pfBorder" aria-label="Elegir borde" title="Elegir borde">' + borderSVG(borderNow()) + '<span>' + (T ? T.ico : '🧭') + '</span></button><div class="pf-hm"><small>Tu estilo de viaje</small><b>' + esc(T ? T.t : 'Sin viajes aún') + '</b></div>' +
+      '<span class="pf-badge">' + borderSVG(BORDERS[L.n - 1]) + '<span>' + (T ? T.ico : '🧭') + '</span></span><div class="pf-hm"><small>Tu estilo de viaje</small><b>' + esc(T ? T.t : 'Sin viajes aún') + '</b></div>' +
       '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · <u class="nm">' + esc(L.name) + '</u></span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' XP' : L.pts + ' XP') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
       '<div class="pf-world"><span>🌍 Vuelta al mundo</span><span>' + (pc < 10 ? pc.toFixed(1).replace('.', lg() === 'en' ? '.' : ',') : Math.round(pc)) + ' % · ' + fmtN(S.km) + ' km</span></div><span class="pf-bar w"><i style="width:' + Math.min(100, pc).toFixed(1) + '%"></i></span></div>';
   }
@@ -310,7 +308,7 @@ window.Mundo = (function () {
   }
   function quizCardHTML(trips) {
     var P = quizPool(trips); if (P.list.length < 4) return '';
-    var S = quizStore(), sub = 'Elige un viaje y gana sobres y bordes';
+    var sub = 'Elige un viaje y gana sobres';
     return '<button type="button" class="card qz-card sq" id="pfQuiz"><span class="qz-ic">?</span><span class="qz-m"><b>Quiz de mis viajes</b><small>' + esc(sub) + '</small></span><svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
   }
   // la página para elegir de qué viaje es el quiz, con el récord de cada uno
@@ -319,7 +317,7 @@ window.Mundo = (function () {
     var S = quizStore(), box = document.createElement('div'), rec = S.trips || {};
     box.id = 'qzBox'; box.className = 'qz';
     var rows = trips.filter(function (t) { return quizPool([t]).list.length >= 4; }).slice().sort(function (a, b) { return String(b.start || '').localeCompare(String(a.start || '')); });
-    box.innerHTML = '<div class="qz-in"><div class="qz-top"><span>Quiz de mis viajes</span><button type="button" class="qz-x sq" data-qp="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div><h3>Elige un viaje</h3><p class="qz-tx">5 preguntas sobre sus sitios. Con 4 aciertos ganas un sobre, y cada acierto te acerca a un borde nuevo.</p><div class="qz-trips">' + rows.map(function (t) {
+    box.innerHTML = '<div class="qz-in"><div class="qz-top"><span>Quiz de mis viajes</span><button type="button" class="qz-x sq" data-qp="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div><h3>Elige un viaje</h3><p class="qz-tx">5 preguntas sobre sus sitios. Cuantos más aciertos, mejor sobre: 2 cobre, 3 plata, 4 oro y 5 rubí.</p><div class="qz-trips">' + rows.map(function (t) {
       var r = rec[t.id];
       return '<button type="button" class="qz-trip sq" data-qp="' + esc(t.id) + '"><span class="qz-tph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '></span><span class="qz-tm"><b>' + esc(t.title) + '</b><small>' + (r ? 'Récord: ' + r.best + '/5' : 'Sin jugar') + '</small></span><svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
     }).join('') + '</div></div>';
@@ -348,14 +346,10 @@ window.Mundo = (function () {
     }
     function result() {
       var S = quizStore(); S.played = (S.played || 0) + 1; S.best = Math.max(S.best || 0, hits);
-      // los aciertos desbloquean bordes; solo cuentan las 3 primeras partidas de cada día
-      var d0 = new Date().toISOString().slice(0, 10), before = S.right || 0; if (S.day !== d0) { S.day = d0; S.games = 0; }
-      S.games = (S.games || 0) + 1; if (S.games <= 3) S.right = before + hits;
       var tid = trips[0].id; S.trips = S.trips || {}; var tr0 = S.trips[tid] || { best: 0, played: 0 }; tr0.best = Math.max(tr0.best, hits); tr0.played++; S.trips[tid] = tr0;
       quizStore(S);
-      var pack = window.Juego ? Juego.onQuiz(hits, tid) : false;
-      var won = BORDERS.filter(function (x) { return x[2] > before && x[2] <= (S.right || 0); }).pop(), nb = nextBorder(S.right || 0);
-      box.innerHTML = '<div class="qz-in qz-end"><b class="qz-score">' + hits + '<i>/' + Q.length + '</i></b><h3>' + esc(hits === Q.length ? 'Perfecto' : hits * 2 >= Q.length ? 'Bien' : 'Hay que repasar') + '</h3><p class="qz-tx">Has acertado ' + hits + ' de ' + Q.length + '</p><div class="qz-rew"><p class="' + (pack ? 'on' : '') + '">' + (pack ? 'Sobre conseguido' : hits >= 4 ? 'Hoy ya ganaste el sobre de este viaje' : 'Con 4 aciertos ganas un sobre') + '</p><p class="' + (won ? 'on' : '') + '">' + (won ? 'Borde desbloqueado: ' + esc(won[1]) : S.games > 3 ? 'Hoy ya no cuentan más aciertos' : nb ? 'Faltan ' + (nb[2] - S.right) + ' aciertos para el borde ' + esc(nb[1]) : 'Tienes todos los bordes') + '</p></div>' +
+      var pack = window.Juego ? Juego.onQuiz(hits, tid) : '';
+      box.innerHTML = '<div class="qz-in qz-end"><b class="qz-score">' + hits + '<i>/' + Q.length + '</i></b><h3>' + esc(hits === Q.length ? 'Perfecto' : hits * 2 >= Q.length ? 'Bien' : 'Hay que repasar') + '</h3><p class="qz-tx">Has acertado ' + hits + ' de ' + Q.length + '</p><div class="qz-rew"><p class="' + (pack ? 'on' : '') + '">' + (pack ? Juego.PACK[pack] + ' conseguido' : hits >= 2 ? 'Hoy ya ganaste el sobre de este viaje' : 'Con 2 aciertos ya ganas un sobre') + '</p></div>' +
         '<div class="btn-row"><button type="button" class="btn navy sq" data-qz="again">Otra vez</button>' + (back ? '<button type="button" class="btn ghost sq" data-qz="back">Otro viaje</button>' : '') + '<button type="button" class="btn ghost sq" data-qz="close">Cerrar</button></div></div>';
     }
     box.addEventListener('click', function (e) {
@@ -378,24 +372,6 @@ window.Mundo = (function () {
       nx.innerHTML = '<p class="qz-tx">' + esc(q.type === 'north' ? '' : q.q.lead.length > 150 ? q.q.lead.slice(0, 150).replace(/\s+\S*$/, '') + '…' : q.q.lead) + '</p><button type="button" class="btn navy sq" data-qz="next">' + (i + 1 < Q.length ? 'Siguiente' : 'Ver resultado') + '</button>';
     });
     paint();
-    if (window.Lang) Lang.watch(box);
-    document.body.appendChild(box);
-  }
-
-  function openBorders(onEnd) {
-    var old = document.getElementById('qzBox'); if (old) old.remove();
-    var S = quizStore(), right = S.right || 0, box = document.createElement('div'), T0 = 'Bordes del perfil';
-    box.id = 'qzBox'; box.className = 'qz';
-    box.innerHTML = '<div class="qz-in"><div class="qz-top"><span>' + right + (right === 1 ? ' acierto' : ' aciertos') + '</span><button type="button" class="qz-x sq" data-b="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div><h3>' + T0 + '</h3><p class="qz-tx">Se desbloquean acertando preguntas en los quizzes.</p><div class="bd-grid">' + BORDERS.map(function (x) {
-      var open = right >= x[2], cur = borderNow() === x[0];
-      return '<button type="button" class="bd-o sq' + (cur ? ' on' : '') + (open ? '' : ' lock') + '" data-b="' + x[0] + '"' + (open ? '' : ' disabled') + '><span class="pf-badge">' + borderSVG(x[0]) + '<span>' + (open ? '' : '🔒') + '</span></span><b>' + esc(x[1]) + '</b><small>' + (open ? (cur ? 'En uso' : 'Disponible') : x[2] + ' aciertos') + '</small></button>';
-    }).join('') + '</div></div>';
-    box.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-b]');
-      if (e.target === box || (b && b.getAttribute('data-b') === 'close')) { box.remove(); if (onEnd) onEnd(); return; }
-      if (!b) return;
-      var q = quizStore(); q.border = b.getAttribute('data-b'); quizStore(q); box.remove(); if (onEnd) onEnd();
-    });
     if (window.Lang) Lang.watch(box);
     document.body.appendChild(box);
   }
@@ -762,7 +738,6 @@ window.Mundo = (function () {
       var t = e.target, yb = t.closest('[data-y]'), ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
       if (t.closest('#mwRec .map-play')) { if (R.playing) recStop(); else recPlay(); return; }
       if (t.closest('#pfQuiz')) { openQuizPicker(trips, function () { var qb = el.querySelector('#pfQuizBox'); if (qb) qb.innerHTML = quizCardHTML(trips); var hb = el.querySelector('.pf-hero'); if (hb) { var tmp = document.createElement('div'); tmp.innerHTML = heroHTML(trips, opt.base); hb.replaceWith(tmp.firstChild); } }); return; }
-      if (t.closest('#pfBorder')) { openBorders(function () { var hb = el.querySelector('.pf-hero'); if (hb) { var tmp = document.createElement('div'); tmp.innerHTML = heroHTML(trips, opt.base); hb.replaceWith(tmp.firstChild); } }); return; }
       if (t.closest('#pfShare')) { openShare(shareCard(tf(), ST.year, opt.base), 'mis-viajes' + (ST.year ? '-' + ST.year : '') + '.png'); return; }
       if (yb) {
         recStop(); R.limit = null; R.v = -1;

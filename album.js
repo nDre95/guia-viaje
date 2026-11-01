@@ -37,7 +37,7 @@ window.Album = (function () {
       list.forEach(function (c) { c.must = c.links > 0 && c.links >= cut; });
     }
     var own = window.Juego ? Juego.get().own : {};
-    list.forEach(function (c, n) { c.n = n + 1; c.key = t.id + '|' + c.id; c.got = alb[c.key] || null; c.own = own[c.key] || null; if (window.Juego) c.rate = Juego.rate(c.raw.must || !c.must ? c.raw : Object.assign({}, c.raw, { must: 1 })); });
+    list.forEach(function (c, n) { c.n = n + 1; c.key = t.id + '|' + c.id; c.got = alb[c.key] || null; c.own = own[c.key] && c.got ? own[c.key] : null; if (window.Juego) { c.rate = Juego.rate(c.raw); c.rate.tier = Juego.tierOf(c.key); c.rate.r = Juego.RANK[c.rate.tier]; } });
     return list;
   }
   // lo que encuentra el buscador: títulos, ciudades y países
@@ -69,19 +69,17 @@ window.Album = (function () {
   }
   var SETS = [['hist', 'Historia', ['CAS', 'RUI', 'MON', 'TEM']], ['arte', 'Arte y espectáculos', ['MUS', 'ESP']], ['natu', 'Naturaleza y miradores', ['NAT', 'JAR', 'MIR']], ['urbe', 'Ciudad', ['PLZ', 'BAR', 'MER', 'PAS', 'FAM']]];
   function packsHTML(cards) {
-    var g = Juego.get(), kinds = ['i', 'g', 'n'].filter(function (k) { return g.packs[k] > 0; }), d = Juego.dups(g);
+    var g = Juego.get(), kinds = ['r', 'g', 's', 'c'].filter(function (k) { return g.packs[k] > 0; }), d = Juego.dups(g);
     var head = '<div class="pk-row">' + (kinds.length ? kinds.map(function (k) {
       return '<button type="button" class="pk-mini k-' + k + ' sq" data-pkopen="' + k + '"><span class="pk-foil"></span><b>' + g.packs[k] + '</b><small>' + esc(Juego.PACK[k]) + '</small></button>';
-    }).join('') : '<p class="pk-none">Hoy no te quedan sobres. Mañana hay otro, y también se ganan con el quiz, los retos y visitando sitios.</p>') +
-      (d >= 5 ? '<button type="button" class="pk-ex sq" data-pkex>Cambiar 5 repetidas por un sobre</button>' : '') + '</div>';
-    // colecciones
+    }).join('') : '<p class="pk-none">Gana sobres con los quizzes: cuantos más aciertos, mejor sobre.</p>') +
+      (d >= 5 ? '<button type="button" class="pk-ex sq" data-pkex>Cambiar 5 repetidos por un sobre</button>' : '') + '</div>';
+    // colecciones: cuántos has canjeado de cada clase
     var sets = SETS.map(function (S) {
-      var all = cards.filter(function (c) { return S[2].indexOf(c.rate.pos) >= 0; }), have = all.filter(function (c) { return c.own || c.got; }).length;
-      if (all.length && have === all.length) Juego.reward('set:' + S[0], 'g', 'Colección completa');
-      return all.length ? { n: S[1], have: have, all: all.length } : null;
+      var all = cards.filter(function (c) { return S[2].indexOf(c.rate.pos) >= 0; });
+      return all.length ? { n: S[1], have: all.filter(function (c) { return c.got; }).length, all: all.length } : null;
     }).filter(Boolean);
-    var tops = cards.filter(function (c) { return c.rate.r >= 80; });
-    if (tops.length) sets.push({ n: 'Oro y superiores', have: tops.filter(function (c) { return c.own || c.got; }).length, all: tops.length });
+    if (cards.length) sets.push({ n: 'Oro o mejores', have: cards.filter(function (c) { return c.got && c.rate.r >= 80; }).length, all: cards.length });
     return head + (sets.length ? '<div class="pf-h">Colecciones</div><div class="set-row">' + sets.map(function (x) {
       return '<div class="card set-c"><b>' + esc(x.n) + '</b><small>' + x.have + ' de ' + x.all + '</small><span class="alb-bar"><i style="width:' + Math.round(x.have / x.all * 100) + '%"></i></span></div>';
     }).join('') + '</div><div class="pf-h">Mis viajes</div>' : '');
@@ -91,10 +89,7 @@ window.Album = (function () {
     var el = $('#packBox');
     if (!el) { el = document.createElement('div'); el.id = 'packBox'; box.parentNode.insertBefore(el, box); }
     if (!on) { el.innerHTML = ''; return Promise.resolve(); }
-    Juego.claimDaily();
     return allCards().then(function (cards) {
-      // un sobre de oro de regalo por cada viaje, una sola vez
-      (TRIPS || []).forEach(function (t) { Juego.reward('trip:' + t.id, 'g', tripTitle(t)); });
       el.innerHTML = packsHTML(cards);
     });
   }
@@ -173,7 +168,7 @@ window.Album = (function () {
       box.innerHTML = (cfg.single ? '' : '<button type="button" class="alb-back sq" data-albback><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg><span>Todos los viajes</span></button>') +
         '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
           '<div class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></div>' +
-          (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Pegados', got], ['miss', 'Faltan', cs.length - got], ['top', 'Oro o más', cs.filter(function (c) { return c.rate && (c.rate.r >= 80); }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
+          (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Canjeados', got], ['miss', 'Faltan', cs.length - got], ['top', 'Oro o más', cs.filter(function (c) { return c.got && c.rate && c.rate.r >= 80; }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
           '<div class="crs">' + seen.map(function (c) {
             var R = c.rate || { r: '', pos: '', tier: 'copper' };
             return '<button type="button" class="cr fc t-' + R.tier + (c.got ? ' got' : '') + (c.own ? ' own' : '') + phCls(c) + '" data-cr="' + esc(t.id + '|' + c.id) + '"' + phStyle(c) + '>' +
@@ -194,19 +189,19 @@ window.Album = (function () {
   }
   function openCromo(key) {
     var f = cromoByKey(key); if (!f) return;
-    var c = f.c, R = c.rate || { r: '', pos: '', tier: 'copper', st: [] }, have = c.got || c.own, top = R.r >= 80, cls = ' fc t-' + R.tier + (have ? '' : ' miss');
+    var c = f.c, R = c.rate || { r: '', pos: '', tier: 'copper', st: [] }, have = c.got, top = R.r >= 80, cls = ' fc t-' + R.tier + (have ? '' : ' miss');
     cv3.key = key; cv3.rx = 0; cv3.ry = 0;
     $('#crView').innerHTML =
       '<div class="hv-wrap"><div class="hv-halo' + (have ? (top ? ' gold' : '') : ' miss') + '"></div>' +
         '<div class="holo' + cls + '">' +
           '<div class="hf"><div class="hp' + phCls(c) + '"' + phStyle(c) + '></div><div class="foil"></div><div class="glit"></div>' +
             '<span class="fc-frame"></span><span class="fc-glit"></span>' +
-            (c.got ? '<span class="fc-seen">' + (c.got.gps ? '✓ GPS · ' : '✓ ') + esc(shortDate(c.got.at)) + '</span>' : have ? '' : '<span class="lock">Aún no la tienes</span>') +
+            (c.got ? '<span class="fc-seen">' + (c.got.gps ? '✓ GPS · ' : '✓ ') + esc(shortDate(c.got.at)) + '</span>' : have ? '' : '<span class="lock">Se canjea en el sitio</span>') +
             '<div class="cap"><b>' + esc(c.ti) + '</b></div><div class="fc-kind"><u>' + esc(R.type || '') + '</u> · <u>' + esc(window.Juego ? Juego.TIER[R.tier] : '') + '</u></div><div class="glare"></div></div>' +
           '<div class="hb"><span class="seal">' + (c.got ? 'Visto<br>' + esc(shortDate(c.got.at)) : 'Por<br>pegar') + '</span><b>' + esc(tripTitle(f.t)) + '</b><small>Cromo #' + c.n + ' de ' + f.total + ' · Día ' + c.day + '</small></div>' +
         '</div></div>' +
       '<p class="hv-hint">Arrastra para girarlo · dale la vuelta para ver el reverso</p>' +
-      '<div class="hv-btns"><button type="button" class="btn go sq" data-cv="toggle">' + (c.got ? 'Quitar del álbum' : 'Pegar cromo') + '</button>' +
+      '<div class="hv-btns">' + (c.got ? '<button type="button" class="btn ghost sq" data-cv="toggle">Quitar del álbum</button>' : '') +
         (window.DeviceOrientationEvent ? '<button type="button" class="btn ghost sq" data-cv="gyro">Mover con el móvil</button>' : '') +
         '<button type="button" class="btn ghost sq" data-cv="close">Cerrar</button></div>';
     $('#crView').classList.add('on');
@@ -256,7 +251,7 @@ window.Album = (function () {
     } else if (a === 'toggle') {
       var alb = albumGet(), k = cv3.key, f = cromoByKey(k); if (!f) return;
       if (alb[k]) { if (!confirm('¿Quitar este cromo del álbum?')) return; delete alb[k]; }
-      else { alb[k] = { at: today(), ti: f.c.ti }; if (window.Juego) Juego.onVisit(f.t.id, cromosOf(f.t, alb), alb, false); }
+      else return;
       albumSet(alb); if (cfg.onChange) cfg.onChange(k);
       renderAlbum().then(function () {
         var was = !!alb[k]; openCromo(k);
@@ -468,7 +463,7 @@ window.Album = (function () {
       if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
       var po = t.closest('[data-pkopen]');
-      if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), cards, function () { renderAlbum(); }); }); return; }
+      if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), cards.filter(function (x) { return x.got; }), function () { renderAlbum(); }); }); return; }
       if (t.closest('[data-pkex]')) { Juego.exchange(); renderAlbum(); return; }
       if (c) openCromo(c.getAttribute('data-cr'));
       else if (pb) makeReel(pb.getAttribute('data-post'), pb);

@@ -248,9 +248,7 @@
         h += '<button type="button" class="hm-next empty rv-h" data-new><span class="hm-ey">Sin viajes a la vista</span><b>¿A dónde vamos?</b><small>Crea una guía nueva en un par de minutos, con datos reales.</small><span class="hm-go">Crear un viaje' + ic('chev') + '</span></button>';
       }
       if (window.Juego) {
-        Juego.claimDaily();
-        trips.forEach(function (t) { Juego.reward('trip:' + t.id, 'g', t.title); });
-        var G = Juego.get(), nP = Juego.total(G), kP = G.packs.i ? 'i' : G.packs.g ? 'g' : 'n';
+        var G = Juego.get(), nP = Juego.total(G), kP = G.packs.r ? 'r' : G.packs.g ? 'g' : G.packs.s ? 's' : 'c';
         if (nP) h += '<button type="button" class="card hm-row sq rv-h" data-go="album" style="--d:30ms"><span class="hm-pk k-' + kP + '"><span class="pk-foil"></span></span><span><b>' + (nP === 1 ? 'Tienes 1 sobre' : 'Tienes ' + nP + ' sobres') + '</b><small>Ábrelo en tu álbum</small></span>' + ic('chev') + '</button>';
         // durante un viaje: los retos de hoy
         if (nextT && nextT.status === 'now') h += '<div class="card hm-ret rv-h"><b>Retos de hoy</b><ul>' + Juego.challenges().map(function (c) { return '<li class="' + (c.done ? 'ok' : '') + '">' + esc(c.t) + '</li>'; }).join('') + '</ul></div>';
@@ -275,7 +273,6 @@
       // del próximo viaje: imprescindibles y preparativos
       if (nextT) {
         var T = nextT.ref, must = Album.cromosOf(T, Album.get()).filter(function (c) { return c.must; }).slice(0, 10), st = checklistStat(T), pc = st.all ? Math.round(st.done / st.all * 100) : 0;
-        if (window.Juego && st.all && st.done === st.all) Juego.reward('ready:' + nextT.id, 'g', 'Todo listo');
         if (must.length) h += '<div class="hm-sec rv-h" style="--d:160ms"><div class="hm-h"><b>Imprescindibles</b><small>' + must.filter(function (c) { return c.got; }).length + ' de ' + must.length + '</small></div><div class="hm-scroll">' + must.map(function (c) {
           return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(T.id + '|' + c.id) + '"' + (c.img ? ' style="background-image:url(&quot;' + esc(c.img) + '&quot;)"' : '') + '><span>' + esc(c.ti) + '</span></button>';
         }).join('') + '</div></div>';

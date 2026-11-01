@@ -1,15 +1,20 @@
-/* ===== El juego: cartas estilo FC, sobres, colecciones, retos, GPS y fotos propias =====
+/* ===== El juego: cromos, rarezas, sobres, retos y fotos propias =====
    Todo se guarda en el dispositivo: localStorage guia-game; las fotos propias, en IndexedDB guia-fotos.
-   Dos estados de una carta: «conseguida» (salió en un sobre) y «visitada» (pegada en el álbum; con GPS, verificada).
-   Sobres: n = normal (3 cartas), g = oro (al menos una de oro), i = rubí (al menos una esmeralda o rubí). */
+   Un cromo normal se canjea en el sitio, con GPS y tu foto (álbum guia-album). Los sobres solo salen de los quizzes,
+   y dan rarezas de cromos que ya tienes: cuantos más aciertos, mejor sobre.
+   Rarezas: cobre, plata, oro, esmeralda, rubí (guia-game.own[clave].tier). Sobres: c, s, g, r. */
 window.Juego = (function () {
   'use strict';
-  var KEY = 'guia-game', DAILY_MAX = 3;
+  var KEY = 'guia-game';
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function get() {
     var g = null; try { g = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
-    g = g || {}; g.packs = g.packs || { n: 0, g: 0, i: 0 }; g.own = g.own || {}; g.claimed = g.claimed || {};
+    g = g || { v: 2 };
+    // de la versión 3.0/3.1: los sobres pasan a los nuevos; las cartas que salían sin haber estado allí, fuera
+    if (g.v !== 2) { var o = g.packs || {}; g = { v: 2, packs: { c: o.n || 0, s: 0, g: o.g || 0, r: o.i || 0 }, own: {}, claimed: {}, backup: g.backup, dayV: g.dayV }; }
+    g.packs = g.packs || {}; ['c', 's', 'g', 'r'].forEach(function (k) { g.packs[k] = g.packs[k] || 0; });
+    g.own = g.own || {}; g.claimed = g.claimed || {};
     return g;
   }
   function save(g) { try { localStorage.setItem(KEY, JSON.stringify(g)); } catch (e) {} }
@@ -25,24 +30,17 @@ window.Juego = (function () {
     if (/castillo|castle|palacio|palace|fortaleza/i.test(t)) return 'CAS';
     if (/catedral|cathedral|iglesia|church|abad|abbey|templo|temple/i.test(t)) return 'TEM';
     if (/museo|museum|galer/i.test(t)) return 'MUS';
-    if (/mercado|market/i.test(t)) return 'MER';
+    if (/\b(mercado|market)\b/i.test(t)) return 'MER';
     if (it.t === 'view') return 'MIR';
     if (/jard[ií]n|garden|parque|park/i.test(t)) return 'JAR';
     if (/loch|lago|glen|cascada|falls/i.test(t)) return 'NAT';
     return 'PAS';
   }
-  // la media sale de la fama real del sitio (visitas a Wikipedia); sin ese dato, de si es imprescindible
-  function rate(it) {
-    var src = it.src || {}, h = hash(it.id + '|' + it.ti), r;
-    if (src.views) r = 58 + 13 * (Math.log(src.views + 1) / Math.LN10 - 3) + Math.min(10, (src.links || 0) / 12) + (it.must ? 6 : 0);
-    // sin datos de visitas (Escocia): imprescindibles arriba; los castillos, por encima de un sitio cualquiera
-    else r = it.must ? 84 + h % 8 : (posOf(it) === 'CAS' ? 78 + h % 8 : 62 + h % 18);
-    r = Math.max(45, Math.min(99, Math.round(r)));
-    var pos = posOf(it);
-    // la media no se enseña: solo decide el material del borde
-    return { r: r, tier: r >= 91 ? 'ruby' : r >= 86 ? 'emerald' : r >= 80 ? 'gold' : r >= 70 ? 'silver' : 'copper', pos: pos, type: TYPE[pos] };
-  }
-  var TIER = { copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' };
+  function rate(it) { var pos = posOf(it); return { pos: pos, type: TYPE[pos] }; }
+  // la rareza de un cromo: la mejor que te haya salido en un sobre
+  var ORDER = ['base', 'copper', 'silver', 'gold', 'emerald', 'ruby'], RANK = { base: 0, copper: 60, silver: 70, gold: 80, emerald: 86, ruby: 91 };
+  function tierOf(key, g) { var o = (g || get()).own[key]; return o && o.tier ? o.tier : 'base'; }
+  var TIER = { base: 'Normal', copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' };
   function cardHTML(c, extra) {
     var R = c.rate;
     return '<div class="pk-card t-' + R.tier + '"><span class="fc-b"></span><span class="pk-ph"' + (c.url ? ' style="background-image:url(&quot;' + esc(c.url) + '&quot;)"' : '') + '></span>' +
@@ -57,50 +55,31 @@ window.Juego = (function () {
     clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove('on'); }, 3400);
   }
 
-  /* ---------- Conseguir sobres ---------- */
-  var PACK = { n: 'Sobre', g: 'Sobre de oro', i: 'Sobre rubí' };
-  function total(g) { g = g || get(); return g.packs.n + g.packs.g + g.packs.i; }
-  function give(kind, why) {
-    var g = get(); g.packs[kind]++; save(g);
-    toast((why ? why + ': ' : '') + PACK[kind].toLowerCase() + ' +1');
-    document.dispatchEvent(new Event('juego:change'));
-  }
-  // una sola vez por motivo
-  function reward(key, kind, why) {
-    var g = get(); if (g.claimed[key]) return false;
+  /* ---------- Conseguir sobres: solo con los quizzes ---------- */
+  var PACK = { c: 'Sobre de cobre', s: 'Sobre de plata', g: 'Sobre de oro', r: 'Sobre rubí' };
+  var BY_HITS = { 2: 'c', 3: 's', 4: 'g', 5: 'r' };
+  function total(g) { g = g || get(); return g.packs.c + g.packs.s + g.packs.g + g.packs.r; }
+  // un sobre por viaje y día; cuantos más aciertos, mejor. Devuelve qué sobre ha dado, o nada
+  function onQuiz(hits, tripId) {
+    var kind = BY_HITS[hits]; if (!kind) return '';
+    var g = get(), key = 'quiz:' + today() + ':' + (tripId || ''); if (g.claimed[key]) return '';
     g.claimed[key] = 1; g.packs[kind]++; save(g);
-    toast((why ? why + ': ' : '') + PACK[kind].toLowerCase() + ' +1');
     document.dispatchEvent(new Event('juego:change'));
-    return true;
+    return kind;
   }
-  // el sobre del día: sin rachas ni castigos; si no entras, se quedan guardados hasta 3
-  function claimDaily() {
-    var g = get(), d = today(); if (g.daily === d) return false;
-    g.daily = d;
-    if (g.packs.n < DAILY_MAX) g.packs.n++;
-    save(g); return true;
-  }
-  // un sobre por viaje y día, con 4 aciertos o más
-  function onQuiz(hits, tripId) { return hits >= 4 ? reward('quiz:' + today() + ':' + (tripId || ''), 'n', 'Quiz aprobado') : false; }
-  // al pegar un cromo: cada 3 visitas, un sobre; imprescindibles o viaje completos, sobres mejores
-  function onVisit(tripId, list, album, gps) {
-    var g = get(); g.visits = (g.visits || 0) + 1; if (gps) g.gps = (g.gps || 0) + 1;
-    var day = today(); g.dayV = g.dayV && g.dayV.d === day ? g.dayV : { d: day, n: 0, gps: 0, must: 0 };
-    g.dayV.n++; if (gps) g.dayV.gps++;
-    var must = list.filter(function (c) { return c.must; }), key = function (c) { return tripId + '|' + c.id; };
-    if (must.some(function (c) { var a = album[key(c)]; return a && a.at === day; })) g.dayV.must = 1;
-    var bonus = g.visits % 3 === 0; save(g);
-    if (bonus) give('n', '3 sitios visitados');
-    if (must.length && must.every(function (c) { return album[key(c)]; })) reward('must:' + tripId, 'g', 'Imprescindibles completos');
-    if (list.length && list.every(function (c) { return album[key(c)]; })) reward('full:' + tripId, 'i', 'Viaje completo');
-    checkChallenges();
+  // al canjear un cromo: cuenta para los retos del día
+  function onVisit(tripId, list, album) {
+    var g = get(), day = today(); g.visits = (g.visits || 0) + 1;
+    g.dayV = g.dayV && g.dayV.d === day ? g.dayV : { d: day, n: 0, must: 0 };
+    g.dayV.n++;
+    if (list.some(function (c) { var a = album[tripId + '|' + c.id]; return c.must && a && String(a.at).slice(0, 10) === day; })) g.dayV.must = 1;
+    save(g); document.dispatchEvent(new Event('juego:change'));
   }
   /* ---------- Retos del día (durante un viaje) ---------- */
   function challenges() {
-    var g = get(), v = g.dayV && g.dayV.d === today() ? g.dayV : { n: 0, gps: 0, must: 0 };
-    return [{ t: 'Visita 2 sitios', done: v.n >= 2 }, { t: 'Verifica uno con GPS', done: v.gps >= 1 }, { t: 'Ve a un imprescindible', done: !!v.must }];
+    var g = get(), v = g.dayV && g.dayV.d === today() ? g.dayV : { n: 0, must: 0 };
+    return [{ t: 'Canjea 1 cromo', done: v.n >= 1 }, { t: 'Canjea 3 cromos', done: v.n >= 3 }, { t: 'Canjea un imprescindible', done: !!v.must }];
   }
-  function checkChallenges() { if (challenges().every(function (c) { return c.done; })) reward('reto:' + today(), 'n', 'Retos del día'); }
 
   /* ---------- GPS: solo se pide al tocar el botón, y no sale del dispositivo ---------- */
   function kmTo(a, lat, lon) {
@@ -148,47 +127,47 @@ window.Juego = (function () {
     });
   }
 
-  /* ---------- Abrir un sobre ---------- */
-  var ORDER = ['copper', 'silver', 'gold', 'emerald', 'ruby'], WEIGHT = { copper: 56, silver: 29, gold: 10, emerald: 4, ruby: 1 };
+  /* ---------- Abrir un sobre: 3 cromos de los que ya tienes, con una rareza según el sobre ---------- */
+  var ODDS = { c: { copper: 75, silver: 25 }, s: { copper: 35, silver: 50, gold: 15 }, g: { silver: 40, gold: 45, emerald: 15 }, r: { gold: 45, emerald: 40, ruby: 15 } };
+  function drawTier(kind) {
+    var t = ODDS[kind], x = Math.random() * 100, out = 'copper';
+    Object.keys(t).some(function (k) { x -= t[k]; if (x <= 0) { out = k; return true; } out = k; return false; });
+    return out;
+  }
   function draw(kind, pool) {
-    var g = get(), picks = [];
-    function pick(min) {
-      var cand = pool.filter(function (c) { return picks.indexOf(c) < 0 && ORDER.indexOf(c.rate.tier) >= min; });
-      if (!cand.length) cand = pool.filter(function (c) { return picks.indexOf(c) < 0; });
-      if (!cand.length) cand = pool;
-      // mejor las que aún no tienes
-      var fresh = cand.filter(function (c) { return !g.own[c.key]; }); if (fresh.length && Math.random() < 0.7) cand = fresh;
-      var sum = cand.reduce(function (a, c) { return a + WEIGHT[c.rate.tier]; }, 0), x = Math.random() * sum, out = cand[0];
-      cand.some(function (c) { x -= WEIGHT[c.rate.tier]; if (x <= 0) { out = c; return true; } return false; });
-      return out;
+    var g = get(), left = pool.slice(), picks = [];
+    for (var i = 0; i < 3 && left.length; i++) {
+      // mejor uno que aún no tenga rareza
+      var plain = left.filter(function (c) { return !g.own[c.key]; }), from = plain.length && Math.random() < 0.7 ? plain : left, c = from[Math.floor(Math.random() * from.length)];
+      left.splice(left.indexOf(c), 1);
+      var tier = drawTier(kind), o = g.own[c.key], was = o && o.tier ? o.tier : 'base', better = RANK[tier] > RANK[was];
+      picks.push({ c: Object.assign({}, c, { rate: Object.assign({}, c.rate, { tier: tier, r: RANK[tier] }) }), tier: tier, better: better, was: was, key: c.key });
     }
-    if (kind === 'i') picks.push(pick(3));   // esmeralda o rubí else if (kind === 'g') picks.push(pick(2));
-    while (picks.length < 3) picks.push(pick(0));
-    // de menos a más, para que la mejor salga la última
-    return picks.sort(function (a, b) { return a.rate.r - b.rate.r; });
+    return picks.sort(function (a, b) { return RANK[a.tier] - RANK[b.tier]; });
   }
   function openPack(kind, pool, done) {
-    var g = get(); if (!g.packs[kind] || !pool.length) return;
+    var g = get(); if (!g.packs[kind]) return;
+    if (!pool.length) { toast('Canjea tu primer cromo para abrir sobres'); return; }
     var old = document.getElementById('pkBox'); if (old) old.remove();
-    var cards = draw(kind, pool), box = watch(document.createElement('div')), i = -1, news = {};
+    var cards = draw(kind, pool), box = watch(document.createElement('div')), i = -1;
     g.packs[kind]--;
-    cards.forEach(function (c) { var o = g.own[c.key]; if (!o) { g.own[c.key] = { n: 1, at: today() }; news[c.key] = 1; } else o.n = (o.n || 1) + 1; });
+    cards.forEach(function (x) { var o = g.own[x.key] || { tier: 'base', n: 0 }; o.n = (o.n || 0) + 1; if (x.better) o.tier = x.tier; o.at = today(); g.own[x.key] = o; });
     save(g);
     box.id = 'pkBox'; box.className = 'pk k-' + kind;
     function close() { box.remove(); document.dispatchEvent(new Event('juego:change')); if (done) done(); }
     function pack() {
-      box.innerHTML = '<div class="pk-in"><button type="button" class="pk-pack sq" data-pk="tear"><span class="pk-foil"></span><span class="pk-lb"><small>Guía de viaje</small><b>' + esc(PACK[kind]) + '</b><small>3 cartas</small></span></button><p class="pk-hint">Toca para abrirlo</p></div>';
+      box.innerHTML = '<div class="pk-in"><button type="button" class="pk-pack sq" data-pk="tear"><span class="pk-foil"></span><span class="pk-lb"><small>Guía de viaje</small><b>' + esc(PACK[kind]) + '</b><small>Mejora tus cromos</small></span></button><p class="pk-hint">Toca para abrirlo</p></div>';
     }
     function card() {
-      var c = cards[i];
-      box.className = 'pk k-' + kind + ' r-' + c.rate.tier;
-      box.innerHTML = '<div class="pk-in"><div class="pk-flip">' + cardHTML(c, news[c.key] ? '<em class="pk-new">Nueva</em>' : '<em class="pk-new dup">Repetida</em>') + '</div>' +
-        (c.lead ? '<p class="pk-lead">' + esc(c.lead.length > 110 ? c.lead.slice(0, 110).replace(/\s+\S*$/, '') + '…' : c.lead) + '</p>' : '') +
-        '<button type="button" class="btn navy sq" data-pk="next">' + (i + 1 < cards.length ? 'Siguiente carta' : 'Ver las tres') + '</button></div>';
+      var x = cards[i];
+      box.className = 'pk k-' + kind + ' r-' + x.tier;
+      box.innerHTML = '<div class="pk-in"><div class="pk-flip">' + cardHTML(x.c, x.better ? '<em class="pk-new">Mejorado</em>' : '<em class="pk-new dup">Repetido</em>') + '</div>' +
+        '<p class="pk-lead">' + esc(x.better ? 'De ' + TIER[x.was] + ' a ' + TIER[x.tier] : 'Ya lo tenías en ' + TIER[x.was]) + '</p>' +
+        '<button type="button" class="btn navy sq" data-pk="next">' + (i + 1 < cards.length ? 'Siguiente cromo' : 'Ver todos') + '</button></div>';
     }
     function all() {
       box.className = 'pk k-' + kind;
-      box.innerHTML = '<div class="pk-in wide"><div class="pk-three">' + cards.map(function (c) { return cardHTML(c); }).join('') + '</div><button type="button" class="btn navy sq" data-pk="close">Guardar en el álbum</button></div>';
+      box.innerHTML = '<div class="pk-in wide"><div class="pk-three">' + cards.map(function (x) { return cardHTML(x.c); }).join('') + '</div><button type="button" class="btn navy sq" data-pk="close">Guardar en el álbum</button></div>';
     }
     box.addEventListener('click', function (e) {
       var a = e.target.closest('[data-pk]'); if (!a) return;
@@ -200,14 +179,16 @@ window.Juego = (function () {
     pack();
     document.body.appendChild(box);
   }
-  // cambiar repetidas: 5 copias de más, un sobre
+  // cambiar repetidos: 5 de más, un sobre de cobre
   function dups(g) { g = g || get(); return Object.keys(g.own).reduce(function (a, k) { return a + Math.max(0, (g.own[k].n || 1) - 1); }, 0); }
   function exchange() {
     var g = get(), left = 5; if (dups(g) < 5) return false;
     Object.keys(g.own).forEach(function (k) { var o = g.own[k]; while (left > 0 && (o.n || 1) > 1) { o.n--; left--; } });
-    g.packs.n++; save(g); toast('5 repetidas: sobre +1'); document.dispatchEvent(new Event('juego:change'));
+    g.packs.c++; save(g); toast('5 repetidos: sobre de cobre +1'); document.dispatchEvent(new Event('juego:change'));
     return true;
   }
+  // ¿ya pasó el viaje? Entonces no se puede pedir estar allí: basta la foto
+  function isPast(start, days) { if (!start) return false; var e = new Date(start + 'T12:00:00Z'); e.setUTCDate(e.getUTCDate() + Math.max(0, days - 1)); return e.toISOString().slice(0, 10) < today(); }
 
   /* ---------- Siguiente destino ---------- */
   var IDEAS = [['Lisboa', 'Lisbon', 'PT'], ['Atenas', 'Athens', 'GR'], ['Islandia', 'Iceland', 'IS'], ['Kioto', 'Kyoto', 'JP'], ['Marrakech', 'Marrakesh', 'MA'], ['Ciudad de México', 'Mexico City', 'MX'], ['Estambul', 'Istanbul', 'TR'], ['Praga', 'Prague', 'CZ'], ['Buenos Aires', 'Buenos Aires', 'AR'], ['Bangkok', 'Bangkok', 'TH'], ['Nueva York', 'New York', 'US'], ['Sídney', 'Sydney', 'AU'], ['Roma', 'Rome', 'IT'], ['París', 'Paris', 'FR']];
@@ -217,5 +198,5 @@ window.Juego = (function () {
     return { name: window.Lang && Lang.get() === 'en' ? pick[1] : pick[0], cc: pick[2] };
   }
 
-  return { get: get, save: save, rate: rate, cardHTML: cardHTML, TIER: TIER, PACK: PACK, toast: toast, total: total, give: give, reward: reward, claimDaily: claimDaily, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, dups: dups, exchange: exchange, suggest: suggest, watch: watch, today: today };
+  return { get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, dups: dups, exchange: exchange, suggest: suggest, watch: watch, today: today, isPast: isPast };
 })();
