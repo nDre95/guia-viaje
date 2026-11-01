@@ -889,15 +889,12 @@ window.Motor = (function () {
       return climate(bundle).then(function () { s9.ok('Temperaturas listas'); }, function () { s9.warn('Sin datos de clima: se verá la previsión cuando falten pocos días'); }).then(function () { return bundle; });
     }).then(function (bundle) {
       if (!window.Mapa) return bundle;
-      // el mapa ilustrado: se prepara ahora, con conexión, para verlo después sin ella
-      var s10 = step('Dibujando el mapa del viaje'), days = Mapa.fromTrip(bundle.trip);
+      // la silueta del mapa: se prepara ahora, con conexión, para verla después sin ella
+      var s10 = step('Preparando el mapa del viaje'), days = Mapa.fromTrip(bundle.trip);
       return Mapa.landFor(days).catch(function () { return null; }).then(function (land) {
         if (land && land.length) bundle.trip.mapLand = land;
-        return pool(Mapa.pickPins(days), 3, function (q) {
-          var src = Mapa.photoOf(q.s, bundle.photos); if (!src) return;
-          return Mapa.sketch(src).then(function (u) { q.s.sk = u; });
-        });
-      }).then(function () { s10.ok('Mapa del viaje listo'); return bundle; }, function () { s10.warn('Mapa sin todos los dibujos'); return bundle; });
+        s10.ok('Mapa del viaje listo'); return bundle;
+      });
     });
   }
 

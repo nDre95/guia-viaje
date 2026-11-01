@@ -1,40 +1,28 @@
-/* ===== Mapa del viaje: diseño minimalista =====
-   De fondo, un mapa real sin rótulos (baldosas Canvas de Esri, sin clave: costa, ríos, calles), claro u oscuro según
-   el tema; debajo, por si no hay conexión, una silueta lisa de la tierra (Natural Earth, dominio público, vía world-atlas).
-   Encima, la ruta de un color por día y pines con la foto de cada sitio pasada a dibujo a lápiz.
-   Un slider mueve la bolita naranja por toda la ruta: cada tramo se dibuja según cómo se hace (avión en arco, coche en
-   puntitos, tren como una vía, a pie…) y al llegar a un sitio se despliegan su foto y su descripción.
-   Sin librerías. Mapa.mount(el, { days, land, title, id, mode, photos, dayLabel, heading, lang }) */
+/* ===== Mapa del viaje =====
+   Un mapa propio en <canvas>, sin librerías. De fondo, un mapa real sin rótulos (baldosas Canvas de Esri, sin clave);
+   debajo, por si no hay conexión, una silueta lisa de la tierra (Natural Earth, dominio público, vía world-atlas).
+   Encima, la ruta de un color por día, burbujas con la foto de cada sitio y los nombres de las ciudades.
+   Empieza con el viaje entero. Al mover el slider o reproducir, la cámara entra en la ciudad del día, se aleja en cada
+   viaje a otro sitio (avión en arco, coche en puntitos, tren como una vía, a pie…) y vuelve a entrar en la siguiente.
+   Al llegar a un sitio se despliegan su foto y su descripción.
+   Mapa.mount(el, { days, land, title, id, mode, photos, dayLabel, heading, lang, cities }) */
 window.Mapa = (function () {
   'use strict';
   var COLORS = ['#d9622b', '#2b6ea3', '#3f8f5b', '#9b4fa8', '#c2962a', '#c0394b', '#1f8a8a', '#6b7fb3', '#8a5a2b', '#444c5e'];
-  var W = 800, R = 40, uid = 0, ATLAS = 'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json';
+  var ATLAS = 'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json';
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function kmBetween(a, b) {
     var r = Math.PI / 180, x = (b.lon - a.lon) * r * Math.cos((a.lat + b.lat) / 2 * r), y = (b.lat - a.lat) * r;
     return Math.sqrt(x * x + y * y) * 6371;
   }
-  // azar repetible: el dibujo sale igual cada vez
-  function rnd(seed) { var s = seed * 9301 + 49297; return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
 
   /* ---------- Qué sale en el mapa ---------- */
   function isSight(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole && it.lat != null && !/aeropuerto|airport/i.test(it.ti); }
   // la ruta va de principio a fin: también el aeropuerto de llegada y el de salida, aunque no lleven dibujo
   function isStop(it) { return isSight(it) || (!!it && it.lat != null && !it.hidden && /aeropuerto|airport|^llegada/i.test(it.ti)); }
   function fromTrip(trip) { return trip.days.map(function (d) { return { title: d.title, jump: d.items.some(function (i) { return i.jump; }), stops: d.items.filter(isStop) }; }); }
-  function weight(s) { return (s.must ? 1e7 : 0) + ((s.src || {}).views || 0) + ((s.src || {}).links || 0) * 50 + (s.ph || s.sk ? 500 : 0); }
-  // los sitios con dibujo: los más representativos de cada día
-  function pickPins(days) {
-    var per = days.length <= 2 ? 3 : days.length <= 5 ? 2 : 1, out = [];
-    days.forEach(function (d, di) {
-      d.stops.filter(isSight).sort(function (a, b) { return weight(b) - weight(a); }).slice(0, per).forEach(function (s) { out.push({ s: s, di: di }); });
-    });
-    return out;
-  }
 
-  /* ---------- Dibujo a lápiz a partir de una foto ---------- */
-  var SK = {};
   // Special:FilePath de Wikimedia no deja leer la imagen desde la página: se pide su dirección directa, que sí
   function corsUrl(src) {
     var m = /commons\.wikimedia\.org\/wiki\/Special:FilePath\/([^?]+)/.exec(src);
@@ -44,39 +32,6 @@ window.Mapa = (function () {
         var pg = j.query.pages, i = pg[Object.keys(pg)[0]].imageinfo[0];
         return i.thumburl || i.url;
       });
-  }
-  function sketch(src) {
-    if (SK[src]) return SK[src];
-    SK[src] = corsUrl(src).then(function (direct) { return new Promise(function (res, rej) {
-      var im = new Image(); im.crossOrigin = 'anonymous';
-      im.onload = function () {
-        try {
-          var n = 140, cv = document.createElement('canvas'); cv.width = cv.height = n;
-          var g = cv.getContext('2d', { willReadFrequently: true }), k = Math.max(n / im.width, n / im.height), w = im.width * k, h = im.height * k;
-          g.drawImage(im, (n - w) / 2, (n - h) / 2, w, h);
-          var d = g.getImageData(0, 0, n, n), p = d.data, gray = new Float32Array(n * n), i;
-          for (i = 0; i < n * n; i++) gray[i] = 0.3 * p[i * 4] + 0.59 * p[i * 4 + 1] + 0.11 * p[i * 4 + 2];
-          // lápiz: la imagen dividida por su negativo desenfocado deja solo los trazos
-          var blur = boxBlur(gray.map(function (v) { return 255 - v; }), n, 3);
-          for (i = 0; i < n * n; i++) {
-            var v = Math.min(255, gray[i] * 255 / Math.max(1, 255 - blur[i]));
-            v = Math.pow(v / 255, 2.4) * 255;   // trazos más marcados
-            p[i * 4] = 40 + v * 0.84; p[i * 4 + 1] = 34 + v * 0.83; p[i * 4 + 2] = 28 + v * 0.78;
-          }
-          g.putImageData(d, 0, 0);
-          res(cv.toDataURL('image/jpeg', 0.72));
-        } catch (e) { rej(e); }
-      };
-      im.onerror = rej; im.src = direct;
-    }); });
-    SK[src].catch(function () { delete SK[src]; });
-    return SK[src];
-  }
-  function boxBlur(a, n, r) {
-    var b = new Float32Array(a.length), c = new Float32Array(a.length), x, y, s, q;
-    for (y = 0; y < n; y++) for (x = 0; x < n; x++) { s = 0; q = 0; for (var i = -r; i <= r; i++) { var xx = x + i; if (xx >= 0 && xx < n) { s += a[y * n + xx]; q++; } } b[y * n + x] = s / q; }
-    for (x = 0; x < n; x++) for (y = 0; y < n; y++) { s = 0; q = 0; for (var j = -r; j <= r; j++) { var yy = y + j; if (yy >= 0 && yy < n) { s += b[yy * n + x]; q++; } } c[y * n + x] = s / q; }
-    return c;
   }
   // la dirección de la foto de un sitio: en la web, una dirección; en el HTML único, la clase con la foto incrustada
   function photoOf(s, photos) {
@@ -133,17 +88,9 @@ window.Mapa = (function () {
     });
   }
 
-  /* ---------- El dibujo ---------- */
-  // curva suave por varios puntos
-  function curve(p, closed) {
-    if (p.length < 2) return '';
-    var d = 'M' + p[0][0].toFixed(1) + ' ' + p[0][1].toFixed(1), n = p.length;
-    for (var i = 0; i < (closed ? n : n - 1); i++) {
-      var a = p[closed ? (i - 1 + n) % n : Math.max(0, i - 1)], b = p[i], c = p[closed ? (i + 1) % n : i + 1], e = p[closed ? (i + 2) % n : Math.min(n - 1, i + 2)];
-      d += 'C' + (b[0] + (c[0] - a[0]) / 6).toFixed(1) + ' ' + (b[1] + (c[1] - a[1]) / 6).toFixed(1) + ' ' + (c[0] - (e[0] - b[0]) / 6).toFixed(1) + ' ' + (c[1] - (e[1] - b[1]) / 6).toFixed(1) + ' ' + c[0].toFixed(1) + ' ' + c[1].toFixed(1);
-    }
-    return d + (closed ? 'Z' : '');
-  }
+  /* ---------- Modelo: la ruta en coordenadas del mundo (Mercator, de 0 a 1) ---------- */
+  function wx(lon) { return (lon + 180) / 360; }
+  function wy(lat) { var l = clamp(lat, -85, 85) * Math.PI / 180; return 0.5 - Math.log(Math.tan(Math.PI / 4 + l / 2)) / (2 * Math.PI); }
   var ICONS = {
     castle: 'M5 21V9h3V6h2v3h4V6h2v3h3v12zM10 21v-5a2 2 0 0 1 4 0v5',
     sacred: 'M12 2v4M10 4h4M5 21v-9l7-6 7 6v9zM10 21v-5a2 2 0 0 1 4 0v5',
@@ -183,191 +130,381 @@ window.Mapa = (function () {
     if (mode === 'car') return d > 1.5 ? 'car' : 'walk';
     return d > 3.5 ? 'bus' : 'walk';
   }
-  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje' },
-    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', hint: 'Slide the ball along the route', play: 'Play the trip' } };
-  function draw(o) {
-    var days = o.days.filter(function (d) { return true; }), all = [];
-    days.forEach(function (d) { d.stops.forEach(function (s) { all.push(s); }); });
-    if (!all.length) return '';
-    var id = 'm' + (++uid), b = boundsOf(all), rand = rnd(all.length + 7);
-    // proyección de Mercator (en grados), la misma de las baldosas, para que todo encaje
-    function merc(lat) { var l = clamp(lat, -85, 85) * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + l / 2)) * 180 / Math.PI; }
-    var spanX = Math.max(b.e - b.w, 0.006), spanY = Math.max(merc(b.n) - merc(b.s), 0.006), H = Math.round(W * clamp(spanY / spanX, 0.85, 1.25)), pad = 100, top = 110;
-    var k = Math.min((W - pad * 2) / spanX, (H - pad - top) / spanY), cx = (b.w + b.e) / 2, cy = (merc(b.s) + merc(b.n)) / 2, midY = (H + top - pad) / 2 + 12;
-    function X(lon) { return W / 2 + (lon - cx) * k; }
-    function Y(lat) { return midY - (merc(lat) - cy) * k; }
-    var svg = '<svg class="map-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.title || 'Mapa del viaje') + '">';
-    svg += '<rect class="map-sea" width="' + W + '" height="' + H + '"/>';
-    (o.land || []).forEach(function (r) {
-      // formas suaves y sin detalle: se quitan las islitas y los recortes de la costa
-      // lo que cruza el meridiano 180 (Rusia) daría una franja de lado a lado: se queda el lado mayoritario
-      var east = r.filter(function (c) { return c[0] > 0; }).length * 2 > r.length;
-      var ring = r.some(function (c, i) { return i && Math.abs(c[0] - r[i - 1][0]) > 180; }) ? r.filter(function (c) { return east ? c[0] > 0 : c[0] < 0; }) : r;
-      var q = simplify(ring.map(function (c) { return [X(c[0]), Y(c[1])]; }), 5);
-      var xs = q.map(function (c) { return c[0]; }), ys = q.map(function (c) { return c[1]; });
-      if (q.length < 4 || Math.max.apply(null, xs) - Math.min.apply(null, xs) + Math.max.apply(null, ys) - Math.min.apply(null, ys) < 46) return;
-      svg += '<path class="map-land" d="' + curve(q, true) + '"/>';
-    });
-    // el mapa de fondo: baldosas a la escala justa
-    var z = clamp(Math.ceil(Math.log(k * 360 / 256) / Math.LN2), 1, 16), n2 = Math.pow(2, z), size = k * 360 / n2;
-    var tx0 = Math.floor((cx - W / 2 / k + 180) / 360 * n2), tx1 = Math.floor((cx + W / 2 / k + 180) / 360 * n2);
-    function tileY(py) { var m = cy + (midY - py) / k; return Math.floor((180 - m) / 360 * n2); }
-    var ty0 = Math.max(0, tileY(0)), ty1 = Math.min(n2 - 1, tileY(H)), style = document.documentElement.getAttribute('data-theme') === 'dark' ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
-    svg += '<g class="map-tiles">';
-    for (var tx = tx0; tx <= tx1; tx++) for (var ty = ty0; ty <= ty1; ty++) {
-      var wx = ((tx % n2) + n2) % n2, px = W / 2 + ((tx / n2 * 360 - 180) - cx) * k, py = midY - ((180 - ty / n2 * 360) - cy) * k;
-      svg += '<image x="' + px.toFixed(2) + '" y="' + py.toFixed(2) + '" width="' + (size + 0.6).toFixed(2) + '" height="' + (size + 0.6).toFixed(2) + '" preserveAspectRatio="none" href="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/' + style + '/MapServer/tile/' + z + '/' + ty + '/' + wx + '"/>';
-    }
-    svg += '</g>';
-    // toda la ruta, parada a parada, con cómo se hace cada tramo
-    var seq = [], legs = [];
-    days.forEach(function (d, di) { d.stops.forEach(function (st, si) { seq.push({ s: st, di: di, si: si, x: X(st.lon), y: Y(st.lat), jump: !si && d.jump }); }); });
+  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje', all: 'Ver todo el viaje', start: 'Arrastra la bolita o dale a reproducir para recorrer el viaje' },
+    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', hint: 'Slide the ball along the route', play: 'Play the trip', all: 'See the whole trip', start: 'Drag the ball or press play to travel the trip' } };
+
+  function model(o) {
+    var seq = [], legs = [], scenes = [];
+    o.days.forEach(function (d, di) { d.stops.forEach(function (st, si) { seq.push({ s: st, di: di, si: si, x: wx(st.lon), y: wy(st.lat), jump: !si && d.jump, sight: isSight(st), a: 0 }); }); });
+    if (!seq.length) return null;
     seq.slice(1).forEach(function (q, n) {
-      var a0 = seq[n], len = Math.sqrt(Math.pow(q.x - a0.x, 2) + Math.pow(q.y - a0.y, 2)), m = legMode(a0, q, o.mode);
-      // el avión vuela en arco; lo demás, una curva suave
-      var bulge = m === 'plane' ? Math.max(70, len * 0.32) : len * 0.07, cxx = (a0.x + q.x) / 2 + (q.y - a0.y) / (len || 1) * bulge * (q.x >= a0.x ? -1 : 1), cyy = (a0.y + q.y) / 2 - Math.abs(q.x - a0.x) / (len || 1) * bulge;
-      legs.push({ m: m, ax: a0.x, ay: a0.y, cx: cxx, cy: cyy, bx: q.x, by: q.y, di: q.di, km: kmBetween(a0.s, q.s) });
+      var a = seq[n], dx = q.x - a.x, dy = q.y - a.y, len = Math.sqrt(dx * dx + dy * dy) || 1e-9, m = legMode(a, q, o.mode), km = kmBetween(a.s, q.s);
+      // el avión vuela en arco; lo demás, una curva suave. Siempre hacia arriba
+      var bulge = len * (m === 'plane' ? 0.26 : 0.07), px = dy / len, py = -dx / len; if (py > 0) { px = -px; py = -py; }
+      legs.push({ m: m, km: km, di: q.di, soft: a.di !== q.di && km < 15 && m !== 'train' && m !== 'plane', ax: a.x, ay: a.y, cx: (a.x + q.x) / 2 + px * bulge, cy: (a.y + q.y) / 2 + py * bulge, bx: q.x, by: q.y });
     });
-    legs.forEach(function (l, n) {
-      var col = COLORS[l.di % COLORS.length], d0 = 'M' + l.ax.toFixed(1) + ' ' + l.ay.toFixed(1) + 'Q' + l.cx.toFixed(1) + ' ' + l.cy.toFixed(1) + ' ' + l.bx.toFixed(1) + ' ' + l.by.toFixed(1);
-      // la ruta nunca se corta. De un día al siguiente dentro de la misma zona se duerme, no se viaja: línea fina y discreta
-      if (seq[n].di !== seq[n + 1].di && l.km < 15 && l.m !== 'train' && l.m !== 'plane') {
-        svg += '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-dasharray="0.1 9" stroke-linecap="round" opacity=".55"/>';
-        return;
-      }
-      svg += (
-        l.m === 'plane' ? '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="4" stroke-dasharray="16 11" stroke-linecap="round"/>' :
-        l.m === 'car' ? '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="7.5" stroke-dasharray="0.1 15" stroke-linecap="round"/>' :
-        l.m === 'train' ? '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="6"/><path class="map-rail" d="' + d0 + '" fill="none" stroke-width="3" stroke-dasharray="9 9"/>' :
-        l.m === 'bus' ? '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="5" stroke-dasharray="20 8" stroke-linecap="round"/>' :
-        '<path d="' + d0 + '" fill="none" stroke="' + col + '" stroke-width="4" stroke-dasharray="0.1 8" stroke-linecap="round"/>');
+    // escenas: lo que se ve de una vez. Una ciudad en un día; cambia al viajar lejos, al cambiar de día o en un aeropuerto
+    seq.forEach(function (q, i) {
+      var p = seq[i - 1], neu = !p || p.di !== q.di || legs[i - 1].km > 25 || p.sight !== q.sight;
+      if (neu) scenes.push({ pts: [] });
+      q.sc = scenes.length - 1; scenes[q.sc].pts.push(q);
     });
-    seq.forEach(function (q) { svg += '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="6" fill="' + COLORS[q.di % COLORS.length] + '"/>'; });
-    // pines: se separan para que no se pisen, con una línea hasta su sitio
-    var pins = pickPins(days).map(function (q) { var x = X(q.s.lon), y = Y(q.s.lat); return { s: q.s, di: q.di, ax: x, ay: y, x: x + (rand() - 0.5) * 4, y: y - R - 16 }; });
-    var bw = R * 2 + 10, bh = R * 2 + 10;
-    for (var it = 0; it < 220; it++) {
-      pins.forEach(function (a, ia) {
-        pins.forEach(function (c, ic) {
-          if (ic <= ia) return;
-          var dx = c.x - a.x, dy = c.y - a.y, ox2 = bw - Math.abs(dx), oy2 = bh - Math.abs(dy);
-          if (ox2 > 0 && oy2 > 0) {
-            if (ox2 < oy2) { var m1 = (dx >= 0 ? 1 : -1) * ox2 / 2 + 0.01; a.x -= m1; c.x += m1; }
-            else { var m2 = (dy >= 0 ? 1 : -1) * oy2 / 2 + 0.01; a.y -= m2; c.y += m2; }
-          }
-        });
-        a.x += (a.ax - a.x) * 0.006; a.y += (a.ay - R - 16 - a.y) * 0.006;
-        a.x = clamp(a.x, bw / 2 + 2, W - bw / 2 - 2); a.y = clamp(a.y, R + 8, H - R - 8);
+    // nombres de ciudades: los del viaje, o el lugar de cada parada
+    var cities = [];
+    if (o.cities && o.cities.length) {
+      seq.forEach(function (q) {
+        var best = null, bd = 30;
+        o.cities.forEach(function (c) { var d = kmBetween(q.s, c); if (d < bd) { bd = d; best = c; } });
+        q.city = best ? best.n : '';
+        if (best && !cities.some(function (c) { return c.n === best.n; })) cities.push({ n: best.n, x: wx(best.lon), y: wy(best.lat), c: 0, pts: [] });
       });
+    } else {
+      seq.forEach(function (q) {
+        var n = q.sight ? q.s.pl || '' : ''; q.city = n; if (!n) return;
+        var c = cities.filter(function (z) { return z.n === n; })[0];
+        if (!c) { c = { n: n, c: 0, pts: [] }; cities.push(c); }
+        c.pts.push(q);
+      });
+      cities.forEach(function (c) { c.x = c.pts.reduce(function (a, q) { return a + q.x; }, 0) / c.pts.length; c.y = c.pts.reduce(function (a, q) { return a + q.y; }, 0) / c.pts.length; });
     }
-    pins.forEach(function (q, n) {
-      var col = COLORS[q.di % COLORS.length], clip = id + 'c' + n;
-      svg += '<g class="map-pin" data-mapgo="' + seq.map(function (z) { return z.s; }).indexOf(q.s) + '">' +
-        '<path d="M' + q.ax.toFixed(1) + ' ' + q.ay.toFixed(1) + 'L' + q.x.toFixed(1) + ' ' + q.y.toFixed(1) + '" stroke="' + col + '" stroke-width="2.5"/>' +
-        '<clipPath id="' + clip + '"><circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + (R - 4) + '"/></clipPath>' +
-        '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + R + '" fill="#fbf7ec" stroke="' + col + '" stroke-width="5"/>' +
-        '<svg x="' + (q.x - 27).toFixed(1) + '" y="' + (q.y - 27).toFixed(1) + '" width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#5b5038" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="' + ICONS[iconFor(q.s)] + '"/></svg>' +
-        '<image class="map-sk" data-n="' + n + '" x="' + (q.x - R + 4).toFixed(1) + '" y="' + (q.y - R + 4).toFixed(1) + '" width="' + (R * 2 - 8) + '" height="' + (R * 2 - 8) + '" clip-path="url(#' + clip + ')" preserveAspectRatio="xMidYMid slice" opacity="0"' + (q.s.sk ? ' href="' + q.s.sk + '" style="opacity:1"' : '') + '/></g>';
+    cities.forEach(function (c) {
+      c.pts = seq.filter(function (q) { return q.city === c.n; }); c.c = c.pts.length;
+      c.w = Math.max.apply(null, c.pts.map(function (q) { return q.x; })) - Math.min.apply(null, c.pts.map(function (q) { return q.x; }));
     });
-    svg +=       '<g class="map-ball"><circle class="map-halo" r="28" fill="#e2782f" opacity=".25"/><circle r="22" fill="#e2782f" stroke="#fff" stroke-width="3.5"/><g class="map-veh"><path fill="#fff" fill-rule="evenodd" d=""/></g></g></svg>';
-    return { svg: svg, pins: pins, seq: seq, legs: legs };
+    cities.sort(function (a, b) { return b.c - a.c; });
+    return { seq: seq, legs: legs, scenes: scenes, cities: cities };
   }
 
-  /* ---------- Colocarlo en la página: mapa, slider y ficha de cada sitio ---------- */
+  /* ---------- Cámara ---------- */
+  var SMAX = 256 * Math.pow(2, 16.5);
+  function fit(pts, W, H, top, bot, side, minKm) {
+    var x0 = 2, x1 = -1, y0 = 2, y1 = -1, lat = 0;
+    pts.forEach(function (p) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); lat += p.s ? p.s.lat : 0; });
+    var cosL = Math.max(0.2, Math.cos((pts[0].s ? pts[0].s.lat : lat) * Math.PI / 180)), minW = (minKm || 0.01) / (40075 * cosL);
+    var dx = Math.max(x1 - x0, minW), dy = Math.max(y1 - y0, minW * 0.6), s = Math.min(SMAX, (W - side * 2) / dx, (H - top - bot) / dy);
+    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 - (top + (H - top - bot) / 2 - H / 2) / s, s: s };
+  }
+  function ease(f) { return f * f * (3 - 2 * f); }
+  // de una vista a otra: la escala cambia en proporción y el centro acompaña, sin que parezca que se desliza
+  function mix(a, b, t) {
+    var s = Math.exp(Math.log(a.s) + (Math.log(b.s) - Math.log(a.s)) * t), u = Math.abs(a.s - b.s) < a.s * 0.01 ? t : (1 / s - 1 / a.s) / (1 / b.s - 1 / a.s);
+    return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, s: s };
+  }
+
+  /* ---------- Baldosas y fotos, compartidas entre mapas ---------- */
+  var TILES = {}, nTiles = 0, PHOTOS = {}, ICON2D = {}, wake = [];
+  function repaintAll() { wake.forEach(function (f) { f(); }); }
+  function tileAt(style, z, x, y, load) {
+    var k = style + '/' + z + '/' + y + '/' + x, t = TILES[k];
+    if (t || !load) return t && t.ok ? t.im : null;
+    t = TILES[k] = { im: new Image(), ok: false };
+    t.im.onload = function () { t.ok = true; repaintAll(); };
+    t.im.onerror = function () { delete TILES[k]; };
+    t.im.src = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/' + style + '/MapServer/tile/' + z + '/' + y + '/' + x;
+    if (++nTiles > 320) { var old = Object.keys(TILES).slice(0, 100); old.forEach(function (o) { delete TILES[o]; }); nTiles -= old.length; }
+    return null;
+  }
+  // la foto del sitio, recortada en cuadrado y reducida: dibujarla en cada fotograma no cuesta nada
+  function bubblePhoto(src) {
+    var p = PHOTOS[src]; if (p) return p.cv;
+    p = PHOTOS[src] = { cv: null };
+    var im = new Image();
+    im.onload = function () {
+      var n = 144, cv = document.createElement('canvas'), g = cv.getContext('2d'), k = Math.max(n / im.width, n / im.height), w = im.width * k, h = im.height * k;
+      cv.width = cv.height = n; g.drawImage(im, (n - w) / 2, (n - h) / 2, w, h); p.cv = cv; repaintAll();
+    };
+    im.onerror = function () {};
+    im.src = src;
+    return null;
+  }
+  function path2d(d) { return ICON2D[d] || (ICON2D[d] = new Path2D(d)); }
+  function shorten(g, txt, max) { txt = String(txt); if (g.measureText(txt).width <= max) return txt; while (txt.length > 3 && g.measureText(txt + '…').width > max) txt = txt.slice(0, -1); return txt.replace(/[\s,·]+$/, '') + '…'; }
+
+  /* ---------- El mapa en la página ---------- */
   var MEM = {};   // en qué punto se quedó, aunque la página se vuelva a pintar
+  var SERIF = '"New York","Iowan Old Style",Georgia,serif', SANS = '-apple-system,system-ui,"Segoe UI",sans-serif';
   function mount(el, o) {
     if (!el) return;
-    var H0 = HOW[o.lang === 'en' ? 'en' : 'es'], R0 = null, raf = 0, playing = false, lastInfo = '', key0 = o.id || 'x';
-    function t() { return MEM[key0] || 0; }
-    function posAt(v) {
-      var n = R0.legs.length, i = Math.min(n - 1, Math.floor(v)), f = v - i, l = R0.legs[i];
-      if (!l) return { x: R0.seq[0].x, y: R0.seq[0].y, a: 0, m: 'walk' };
-      var u = 1 - f, x = u * u * l.ax + 2 * u * f * l.cx + f * f * l.bx, y = u * u * l.ay + 2 * u * f * l.cy + f * f * l.by;
-      var dx = 2 * u * (l.cx - l.ax) + 2 * f * (l.bx - l.cx), dy = 2 * u * (l.cy - l.ay) + 2 * f * (l.by - l.cy);
-      return { x: x, y: y, a: Math.atan2(dy, dx) * 180 / Math.PI, m: l.m, right: dx >= 0 };
+    if (el._mapOff) el._mapOff();
+    var H0 = HOW[o.lang === 'en' ? 'en' : 'es'], M = model(o); if (!M) { el.innerHTML = ''; return; }
+    var key0 = o.id || 'x', mem = MEM[key0] || (MEM[key0] = { v: -1, ovr: 0 }), last = M.seq.length - 1;
+    if (mem.v > last) mem.v = last;
+    var W = 0, H = 0, dpr = 1, over = null, cams = [], mids = [], ovrT = mem.ovr, trFrom = null, tr = 1, raf = 0, moved = 0, tm = 0, playing = false, gl = 0, lastT = 0, lastInfo = '', drawn = [], dead = false, landPath = null, lastChip = '';
+    var usedDays = [];
+    M.seq.forEach(function (q, i) { if (!usedDays.some(function (u) { return u.di === q.di; })) usedDays.push({ di: q.di, i: i, title: o.days[q.di].title }); });
+    var track = M.seq.map(function (q, i) { return COLORS[q.di % COLORS.length] + ' ' + ((i + 1) / (last + 1) * 100).toFixed(1) + '%'; });
+    el.innerHTML = '<div class="card map-card">' + (o.heading ? '<div class="eyebrow">' + esc(o.heading) + '</div>' : '') +
+      '<div class="map-wrap"><canvas class="map-cv" role="img" aria-label="' + esc(o.title || 'Mapa del viaje') + '"></canvas><span class="map-where"></span>' +
+      '<button type="button" class="map-all sq" aria-label="' + esc(H0.all) + '" title="' + esc(H0.all) + '"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<small class="map-attr">Esri, HERE, Garmin, © OpenStreetMap</small></div>' +
+      '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="' + esc(H0.play) + '"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>' +
+      '<input class="map-range" type="range" min="-1" max="' + last + '" step="0.005" value="' + mem.v + '" aria-label="' + esc(H0.hint) + '" style="--track:linear-gradient(90deg,' + COLORS[0] + ' 0%,' + track.join(',') + ')"></div>' +
+      '<div class="map-info"></div>' +
+      '<div class="map-leg">' + usedDays.map(function (x) { return '<button type="button" class="map-day" data-mapgo="' + x.i + '" data-di="' + x.di + '"><i style="background:' + COLORS[x.di % COLORS.length] + '"></i>' + esc((o.dayLabel || 'Día') + ' ' + (x.di + 1)) + (x.title ? ' · ' + esc(x.title) : '') + '</button>'; }).join('') + '</div></div>';
+    var wrap = el.querySelector('.map-wrap'), cv = el.querySelector('.map-cv'), g = cv.getContext('2d'), rg = el.querySelector('.map-range'), allBtn = el.querySelector('.map-all'), chip = el.querySelector('.map-where'), box = el.querySelector('.map-info'), playBtn = el.querySelector('.map-play');
+
+    function layout() {
+      var w = wrap.clientWidth; if (!w) return false;
+      if (w === W && cams.length) return true;
+      W = w; H = Math.round(clamp(w * 1.08, 300, 520)); dpr = Math.min(3, window.devicePixelRatio || 1);
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + 'px';
+      var world = M.seq.slice();
+      M.legs.forEach(function (l) { if (l.m === 'plane') world.push({ x: l.cx, y: l.cy }); });
+      over = fit(world, W, H, 100, 42, 46, 0.6);
+      var tripKm = Math.max(kmBetween({ lat: M.seq[0].s.lat, lon: M.seq[0].s.lon }, M.seq[last].s), M.legs.reduce(function (a, l) { return Math.max(a, l.km); }, 0));
+      cams = M.scenes.map(function (sc) { return fit(sc.pts, W, H, 104, 48, 50, sc.pts.length > 1 ? 1.4 : tripKm < 40 ? 3 : 14); });
+      mids = M.legs.map(function (l, i) {
+        var a = M.seq[i], b = M.seq[i + 1]; if (a.sc === b.sc) return null;
+        return fit([a, b, { x: l.cx, y: l.cy }], W, H, 112, 50, 56, 0.1);
+      });
+      return true;
     }
+    function camAt(v) {
+      if (v <= -1) return over;
+      if (v < 0) return mix(over, cams[0], ease(v + 1));
+      var i = Math.min(last - 1, Math.floor(v)), f = v - i;
+      if (i < 0) return cams[M.seq[0].sc];
+      var a = cams[M.seq[i].sc], b = cams[M.seq[i + 1].sc];
+      if (a === b) return a;
+      var m = mids[i];
+      // viaje a otro sitio: se aleja para ver los dos extremos y vuelve a acercarse
+      if (m && m.s < Math.min(a.s, b.s) * 0.8) return f < 0.5 ? mix(a, m, ease(f * 2)) : mix(m, b, ease(f * 2 - 1));
+      return mix(a, b, ease(f));
+    }
+    function posAt(v) {
+      if (v <= 0) return { x: M.seq[0].x, y: M.seq[0].y, a: 0, m: 'walk', right: true };
+      var i = Math.min(M.legs.length - 1, Math.floor(v)), f = v - i, l = M.legs[i];
+      if (!l) return { x: M.seq[0].x, y: M.seq[0].y, a: 0, m: 'walk', right: true };
+      var u = 1 - f, dx = 2 * u * (l.cx - l.ax) + 2 * f * (l.bx - l.cx), dy = 2 * u * (l.cy - l.ay) + 2 * f * (l.by - l.cy);
+      return { x: u * u * l.ax + 2 * u * f * l.cx + f * f * l.bx, y: u * u * l.ay + 2 * u * f * l.cy + f * f * l.by, a: Math.atan2(dy, dx) * 180 / Math.PI, m: l.m, right: dx >= 0 };
+    }
+
+    /* ----- dibujo ----- */
+    function halo(txt, x, y, col, hal, lw) { g.lineJoin = 'round'; g.lineWidth = lw; g.strokeStyle = hal; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); }
+    function drawLeg(l, t1, alpha, sx, sy) {
+      if (t1 <= 0) return;
+      var ax = sx(l.ax), ay = sy(l.ay), cx = sx(l.cx), cy = sy(l.cy), bx = sx(l.bx), by = sy(l.by);
+      if (Math.abs(ax - bx) + Math.abs(ay - by) < 2) return;
+      if (t1 < 1) { var q0x = ax + (cx - ax) * t1, q0y = ay + (cy - ay) * t1, q1x = cx + (bx - cx) * t1, q1y = cy + (by - cy) * t1; bx = q0x + (q1x - q0x) * t1; by = q0y + (q1y - q0y) * t1; cx = q0x; cy = q0y; }
+      var col = COLORS[l.di % COLORS.length];
+      function line(w, dash, c, a) { g.globalAlpha = a; g.lineWidth = w; g.strokeStyle = c; g.setLineDash(dash); g.beginPath(); g.moveTo(ax, ay); g.quadraticCurveTo(cx, cy, bx, by); g.stroke(); }
+      g.lineCap = 'round';
+      if (l.soft) line(2.5, [0.1, 6], col, alpha * 0.6);
+      else if (l.m === 'plane') { line(5, [], 'rgba(255,255,255,.55)', alpha); line(2.6, [9, 7], col, alpha); }
+      else if (l.m === 'car') { line(7, [], 'rgba(255,255,255,.6)', alpha); line(4.6, [0.1, 8.5], col, alpha); }
+      else if (l.m === 'train') { g.lineCap = 'butt'; line(5, [], col, alpha); line(2, [5, 5], '#fff', alpha); g.lineCap = 'round'; }
+      else if (l.m === 'bus') { line(6, [], 'rgba(255,255,255,.6)', alpha); line(3.4, [11, 5], col, alpha); }
+      else { line(5.5, [], 'rgba(255,255,255,.6)', alpha); line(3, [0.1, 5.5], col, alpha); }
+      g.setLineDash([]); g.globalAlpha = 1;
+    }
+    function paint(now) {
+      if (dead || !layout()) return;
+      var dt = Math.min(60, now - (lastT || now)); lastT = now;
+      var again = false, dark = document.documentElement.getAttribute('data-theme') === 'dark', v = mem.v;
+      // cámara
+      if (mem.ovr !== ovrT) { var st = dt / 650; mem.ovr = ovrT > mem.ovr ? Math.min(ovrT, mem.ovr + st) : Math.max(ovrT, mem.ovr - st); again = true; }
+      var cam = camAt(v);
+      if (mem.ovr > 0) cam = mix(cam, over, ease(mem.ovr));
+      if (tr < 1 && trFrom) { tr = Math.min(1, tr + dt / 900); cam = mix(trFrom, cam, ease(tr)); again = true; }
+      var s = cam.s, ox = W / 2 - cam.x * s, oy = H / 2 - cam.y * s;
+      function sx(x) { return x * s + ox; }
+      function sy(y) { return y * s + oy; }
+      el._cam = cam;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.fillStyle = dark ? '#22242a' : '#e4ebe9'; g.fillRect(0, 0, W, H);
+      // la silueta de la tierra, debajo, por si faltan baldosas o no hay conexión
+      if (o.land && o.land.length) {
+        if (!landPath) { landPath = new Path2D(); o.land.forEach(function (r) { if (r.some(function (c, i) { return i && Math.abs(c[0] - r[i - 1][0]) > 180; })) return; r.forEach(function (c, i) { if (i) landPath.lineTo(wx(c[0]), wy(c[1])); else landPath.moveTo(wx(c[0]), wy(c[1])); }); landPath.closePath(); }); }
+        g.save(); g.transform(s, 0, 0, s, ox, oy); g.fillStyle = dark ? '#35383f' : '#ded9cc'; g.fill(landPath); g.restore();
+      }
+      // baldosas: primero las de menos detalle, para que nunca quede un hueco
+      var style = dark ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base', moving = now - moved < 140, zt = clamp(Math.ceil(Math.log(s / 256) / Math.LN2 - (moving ? 1 : 0)), 1, 16);
+      for (var z = Math.max(1, zt - 3); z <= zt; z++) {
+        var n2 = Math.pow(2, z), ts = s / n2, t0x = Math.floor(-ox / ts), t1x = Math.floor((W - ox) / ts), t0y = Math.max(0, Math.floor(-oy / ts)), t1y = Math.min(n2 - 1, Math.floor((H - oy) / ts));
+        for (var tx = t0x; tx <= t1x; tx++) for (var ty = t0y; ty <= t1y; ty++) {
+          var im = tileAt(style, z, ((tx % n2) + n2) % n2, ty, z === zt);
+          if (im) g.drawImage(im, tx * ts + ox, ty * ts + oy, ts + 0.6, ts + 0.6);
+        }
+      }
+      // un tono cálido, el de la app, sobre el gris del mapa
+      if (!dark) { g.globalCompositeOperation = 'multiply'; g.fillStyle = '#f7efe0'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over'; }
+      // la ruta: lo recorrido, con fuerza; lo que falta, suave
+      var iNow = v < 0 ? -1 : Math.min(M.legs.length - 1, Math.floor(v)), fNow = v < 0 ? 0 : v - iNow;
+      var fut = v < 0 ? 0.92 : 0.38;
+      M.legs.forEach(function (l, i) { if (i >= iNow) drawLeg(l, 1, fut, sx, sy); });
+      M.legs.forEach(function (l, i) { if (i < iNow) drawLeg(l, 1, 1, sx, sy); else if (i === iNow) drawLeg(l, fNow, 1, sx, sy); });
+      // paradas
+      M.seq.forEach(function (q, i) {
+        var x = sx(q.x), y = sy(q.y); if (x < -10 || x > W + 10 || y < -10 || y > H + 10) return;
+        g.beginPath(); g.arc(x, y, 4.2, 0, 7); g.fillStyle = v < 0 || i <= v + 0.5 ? COLORS[q.di % COLORS.length] : dark ? '#70737c' : '#a9a69c'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#fff'; g.stroke();
+      });
+      // burbujas con la foto de cada sitio: las que caben, sin pisarse; el resto se suma a la de al lado (+3)
+      var R = clamp(W * 0.065, 20, 27), curI = v >= -0.07 && Math.abs(v - Math.round(v)) < 0.5 ? clamp(Math.round(v), 0, last) : -1, placed = [];
+      var cand = M.seq.filter(function (q) { return q.sight; }).sort(function (a, b) {
+        var ca = M.seq[curI] === a ? 1 : 0, cb = M.seq[curI] === b ? 1 : 0;
+        return cb - ca || (b.a > 0.5) - (a.a > 0.5) || (b.s.must ? 1 : 0) - (a.s.must ? 1 : 0) || (((b.s.src || {}).views || 0) - ((a.s.src || {}).views || 0)) || M.seq.indexOf(a) - M.seq.indexOf(b);
+      });
+      cand.forEach(function (q) {
+        var x = sx(q.x), y = sy(q.y), off = x < -R || x > W + R || y < -4 || y > H + 2 * R + 12, near = null;
+        q.extra = 0;
+        if (!off) placed.some(function (p) { var dx = p.bx - x, dy = p.by - (y - R - 9); if (dx * dx + dy * dy < (R * 2 + 5) * (R * 2 + 5)) { near = p; return true; } return false; });
+        var show = !off && !near;
+        if (near) near.q.extra++;
+        if (show) placed.push({ q: q, bx: x, by: y - R - 9, x: x, y: y });
+        var to = show ? 1 : 0;
+        if (q.a !== to) { var d2 = dt / 240; q.a = to > q.a ? Math.min(1, q.a + d2) : Math.max(0, q.a - d2); again = true; }
+      });
+      drawn = [];
+      cand.slice().reverse().forEach(function (q) {
+        if (q.a <= 0.3) return;
+        var cur = M.seq[curI] === q, x = sx(q.x), y = sy(q.y), k = q.a * (cur ? 1.28 : 1), r = R * k, by = y - r - 9 * k, col = COLORS[q.di % COLORS.length], src = photoOf(q.s, o.photos), ph = src ? bubblePhoto(src) : null;
+        g.save();
+        g.shadowColor = 'rgba(20,20,25,.4)'; g.shadowBlur = 8; g.shadowOffsetY = 3;
+        g.beginPath(); g.moveTo(x, y - 1); g.lineTo(x - r * 0.42, by + r * 0.72); g.lineTo(x + r * 0.42, by + r * 0.72); g.closePath(); g.fillStyle = cur ? '#e2782f' : col; g.fill();
+        g.beginPath(); g.arc(x, by, r, 0, 7); g.fill();
+        g.restore();
+        g.beginPath(); g.arc(x, by, r - 2.5, 0, 7); g.fillStyle = '#fff'; g.fill();
+        g.save(); g.beginPath(); g.arc(x, by, r - 3.5, 0, 7); g.clip();
+        if (ph) g.drawImage(ph, x - r, by - r, r * 2, r * 2);
+        else { g.fillStyle = col; g.fillRect(x - r, by - r, r * 2, r * 2); g.translate(x - r * 0.6, by - r * 0.6); g.scale(r * 1.2 / 24, r * 1.2 / 24); g.strokeStyle = '#fff'; g.lineWidth = 1.7; g.lineCap = g.lineJoin = 'round'; g.stroke(path2d(ICONS[iconFor(q.s)])); }
+        g.restore();
+        if (q.extra && q.a > 0.5) {
+          var tx0 = '+' + q.extra; g.font = '800 11px ' + SANS; var tw = g.measureText(tx0).width + 9, cx0 = x + r * 0.72, cy0 = by - r * 0.72;
+          g.beginPath(); g.arc(cx0, cy0, Math.max(9, tw / 2), 0, 7); g.fillStyle = col; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#fff'; g.stroke();
+          g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(tx0, cx0, cy0 + 0.5);
+        }
+        drawn.push({ q: q, i: M.seq.indexOf(q), x: x, y: by, r: r });
+      });
+      // nombres: de cerca, los sitios; de lejos, las ciudades
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      var txtC = dark ? '#f1efe9' : '#23252b', halC = dark ? 'rgba(20,22,26,.88)' : 'rgba(255,255,255,.92)', boxes = [];
+      function free(x, y, w, h) { var hit = boxes.some(function (b) { return Math.abs(b.x - x) < (b.w + w) / 2 && Math.abs(b.y - y) < (b.h + h) / 2; }); if (!hit) boxes.push({ x: x, y: y, w: w, h: h }); return !hit; }
+      var closeIn = clamp((Math.log(s / over.s) / Math.LN2 - 0.3) / 0.6, 0, 1), onlyOne = M.cities.length < 2;
+      if (closeIn > 0.05 || onlyOne) {
+        g.font = '650 11px ' + SANS;
+        placed.forEach(function (p) {
+          var cur = M.seq[curI] === p.q; if (!cur && closeIn < 0.5) return;
+          var txt = shorten(g, p.q.s.ti, cur ? 150 : 104), w = g.measureText(txt).width + 6, y = p.y + 13;
+          if (p.x < -40 || p.x > W + 40 || y > H - 8 || !free(clamp(p.x, w / 2 + 2, W - w / 2 - 2), y, w, 15)) return;
+          g.globalAlpha = Math.max(cur ? 1 : 0, closeIn) * p.q.a;
+          halo(txt, clamp(p.x, w / 2 + 2, W - w / 2 - 2), y, txtC, halC, 3);
+        });
+        g.globalAlpha = 1;
+      }
+      g.font = '700 ' + clamp(W * 0.044, 14, 18) + 'px ' + SERIF;
+      M.cities.forEach(function (c) {
+        // dentro de la ciudad ya no hace falta su nombre: está arriba, en la etiqueta
+        var span = c.w * s, a = 1 - clamp((span - W * 0.75) / (W * 0.4), 0, 1);
+        if (a <= 0.02) return;
+        var x = sx(c.x), y = sy(c.y) + 17, w = g.measureText(c.n).width + 8;
+        if (x < -w / 2 || x > W + w / 2 || y < 6 || y > H - 4) return;
+        var xx = clamp(x, w / 2 + 2, W - w / 2 - 2);
+        if (!free(xx, y, w, 19)) return;
+        g.globalAlpha = a; halo(c.n, xx, y, txtC, halC, 4);
+      });
+      g.globalAlpha = 1;
+      // la bolita
+      var P = posAt(v), bx = sx(P.x), by2 = sy(P.y), pulse = moving || playing ? 0.22 + Math.sin(now / 240) * 0.08 : 0.24;
+      if (moving || playing) again = true;
+      g.beginPath(); g.arc(bx, by2, 20, 0, 7); g.fillStyle = 'rgba(226,120,47,' + pulse.toFixed(2) + ')'; g.fill();
+      g.save(); g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 7; g.shadowOffsetY = 2; g.beginPath(); g.arc(bx, by2, 13.5, 0, 7); g.fillStyle = '#e2782f'; g.fill(); g.restore();
+      g.lineWidth = 2.4; g.strokeStyle = '#fff'; g.stroke();
+      g.save(); g.translate(bx, by2);
+      if (P.m === 'plane') g.rotate(P.a * Math.PI / 180); else if (P.m === 'car' && !P.right) g.scale(-1, 1);
+      g.scale(0.72, 0.72); g.translate(-12, -12); g.fillStyle = '#fff'; g.fill(path2d(VEH[P.m]), 'evenodd'); g.restore();
+      if (again) invalidate();
+      clearTimeout(tm); if (moving) tm = setTimeout(invalidate, 160);
+    }
+    function invalidate() { if (dead || raf) return; raf = requestAnimationFrame(function (t) { raf = 0; paint(t); }); }
+
+    /* ----- ficha y etiqueta ----- */
     function info(v) {
-      var box = el.querySelector('.map-info'), near = Math.round(v), at = Math.abs(v - near) < 0.07, q = R0.seq[near], key = at ? 's' + near : 'l' + Math.floor(v);
+      var near = Math.round(v), at = v > -0.07 && Math.abs(v - near) < 0.07, q = M.seq[clamp(near, 0, last)], key = v <= -0.07 ? 'start' : at ? 's' + near : 'l' + Math.floor(v);
       if (key === lastInfo) return; lastInfo = key;
+      if (key === 'start') { box.className = 'map-info hint'; box.innerHTML = '<span>' + esc(H0.start) + '</span>'; return; }
       if (at) {
         var s0 = q.s, src = s0.ph && o.photos && o.photos[s0.ph] ? ' style="background-image:url(&quot;' + esc(o.photos[s0.ph]) + '&quot;)"' : '', cls = s0.ph && !src ? ' ph ph-' + s0.ph : '';
         box.className = 'map-info on';
         box.innerHTML = (s0.ph ? '<div class="map-ph' + cls + '"' + src + '></div>' : '') + '<div class="map-tx"><small style="color:' + COLORS[q.di % COLORS.length] + '">' + esc((o.dayLabel || 'Día') + ' ' + (q.di + 1)) + (s0.pl ? ' · ' + esc(s0.pl) : '') + '</small><b>' + esc(s0.ti) + '</b>' +
           (s0.lead ? '<p>' + esc(s0.lead) + '</p>' : '') + (s0.id ? '<button type="button" class="btn ghost sq" data-goto="' + (q.di + 1) + ':' + esc(s0.id) + '">' + esc(H0.see) + '</button>' : '') + '</div>';
       } else {
-        var l = R0.legs[Math.floor(v)], to = R0.seq[Math.floor(v) + 1];
+        var i = clamp(Math.floor(v), 0, M.legs.length - 1), l = M.legs[i], to = M.seq[i + 1];
         box.className = 'map-info leg';
         box.innerHTML = l && to ? '<svg viewBox="0 0 24 24" class="map-li"><path fill="currentColor" fill-rule="evenodd" d="' + VEH[l.m] + '"/></svg><span>' + esc(H0.to) + ' <b>' + esc(to.s.ti) + '</b> · ' + (l.km >= 10 ? Math.round(l.km) : l.km.toFixed(1).replace('.', o.lang === 'en' ? '.' : ',')) + ' km ' + esc(H0[l.m]) + '</span>' : '';
       }
     }
+    function top(v) {
+      var overview = v <= -0.5 || ovrT === 1, q = M.seq[clamp(Math.round(v), 0, last)], where = q.city || (q.sight ? '' : q.s.ti) || '', txt = overview ? (o.title || '') : (o.dayLabel || 'Día') + ' ' + (q.di + 1) + (where ? ' · ' + where : '');
+      if (txt !== lastChip) { lastChip = txt; chip.textContent = txt; chip.hidden = !txt; }
+      allBtn.classList.toggle('on', !overview);
+      Array.prototype.forEach.call(el.querySelectorAll('.map-day'), function (b) { b.classList.toggle('on', !overview && +b.getAttribute('data-di') === q.di); });
+    }
     function set(v, skipSlider) {
-      v = clamp(v, 0, R0.seq.length - 1); MEM[key0] = v;
-      var P = posAt(v), ball = el.querySelector('.map-ball'), veh = el.querySelector('.map-veh'), path = veh.firstChild;
-      ball.setAttribute('transform', 'translate(' + P.x.toFixed(1) + ' ' + P.y.toFixed(1) + ')');
-      if (path.getAttribute('d') !== VEH[P.m]) path.setAttribute('d', VEH[P.m]);
-      // el avión apunta adonde va; el coche y el resto, mirando hacia su lado
-      veh.setAttribute('transform', P.m === 'plane' ? 'rotate(' + P.a.toFixed(0) + ') translate(-14 -14) scale(1.17)' : P.m === 'car' && !P.right ? 'scale(-1 1) translate(-14 -14) scale(1.17)' : 'translate(-14 -14) scale(1.17)');
-      if (!skipSlider) el.querySelector('.map-range').value = v;
-      info(v);
+      mem.v = v = clamp(v, -1, last); moved = performance.now();
+      if (!skipSlider) rg.value = v;
+      info(v); top(v); invalidate();
     }
     function glide(to, ms, done) {
-      cancelAnimationFrame(raf);
-      var from = t(), t0 = performance.now();
+      cancelAnimationFrame(gl);
+      var from = mem.v, t0 = performance.now();
       if (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches) { set(to); if (done) done(); return; }
       (function step(now) {
         var f = clamp((now - t0) / ms, 0, 1), e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
         set(from + (to - from) * e);
-        if (f < 1) raf = requestAnimationFrame(step); else if (done) done();
+        if (f < 1) gl = requestAnimationFrame(step); else if (done) done();
       })(t0);
     }
-    function stop() { playing = false; var b = el.querySelector('.map-play'); if (b) { b.classList.remove('on'); } clearTimeout(el._pt); cancelAnimationFrame(raf); }
+    // salto a un sitio lejano: la cámara vuela directa, sin recorrer todas las paradas de en medio
+    function goTo(i) {
+      stop(); ovrT = 0;
+      if (Math.abs(i - mem.v) <= 1.5) { glide(i, 700); return; }
+      cancelAnimationFrame(gl);
+      var c0 = el._cam; mem.ovr = 0;
+      if (c0) { trFrom = c0; tr = 0; }
+      set(i);
+    }
+    function stop() { playing = false; playBtn.classList.remove('on'); clearTimeout(el._pt); cancelAnimationFrame(gl); }
+    function legMs(n) {
+      if (n <= 0) return 1700;
+      var a = M.seq[n - 1], b = M.seq[n]; return a.sc === b.sc ? 1100 : 2600;
+    }
     function play() {
-      var n = Math.round(t()); if (n >= R0.seq.length - 1) { set(0); n = 0; }
-      playing = true; el.querySelector('.map-play').classList.add('on');
+      ovrT = 0; var n = Math.round(mem.v); if (n >= last) { mem.ovr = 0; set(-1); n = -1; }
+      playing = true; playBtn.classList.add('on');
       (function next() {
         if (!playing) return;
-        if (n >= R0.seq.length - 1) { stop(); return; }
-        n++; glide(n, 1100, function () { el._pt = setTimeout(next, 1700); });
+        if (n >= last) { el._pt = setTimeout(function () { stop(); ovrT = 1; top(mem.v); invalidate(); }, 1400); return; }
+        n++; glide(n, legMs(n), function () { el._pt = setTimeout(next, 1500); });
       })();
     }
-    function paint() {
-      var r = draw(o); if (!r) { el.innerHTML = ''; return; }
-      R0 = r; lastInfo = '';
-      var last = r.seq.length - 1, used = [], stops = r.seq.map(function (q, i) { return COLORS[q.di % COLORS.length] + ' ' + (last ? (i / last * 100).toFixed(1) : 0) + '%'; });
-      r.seq.forEach(function (q, i) { if (!used.some(function (u) { return u.di === q.di; })) used.push({ di: q.di, i: i, title: o.days[q.di].title }); });
-      el.innerHTML = '<div class="card map-card">' + (o.heading ? '<div class="eyebrow">' + esc(o.heading) + '</div>' : '') + '<div class="map-wrap">' + r.svg + '<small class="map-attr">Esri, HERE, Garmin, © OpenStreetMap</small></div>' +
-        '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="' + esc(H0.play) + '"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>' +
-        '<input class="map-range" type="range" min="0" max="' + last + '" step="0.005" value="' + t() + '" aria-label="' + esc(H0.hint) + '" style="--track:linear-gradient(90deg,' + (stops.length > 1 ? stops.join(',') : COLORS[0] + ',' + COLORS[0]) + ')"></div>' +
-        '<div class="map-info"></div>' +
-        '<div class="map-leg">' + used.map(function (x) { return '<button type="button" class="map-day" data-mapgo="' + x.i + '"><i style="background:' + COLORS[x.di % COLORS.length] + '"></i>' + esc((o.dayLabel || 'Día') + ' ' + (x.di + 1)) + (x.title ? ' · ' + esc(x.title) : '') + '</button>'; }).join('') + '</div></div>';
-      r.pins.forEach(function (q, n) {
-        if (q.s.sk) return;
-        var src = photoOf(q.s, o.photos); if (!src) return;
-        sketch(src).then(function (u) { var im = el.querySelector('.map-sk[data-n="' + n + '"]'); if (im) { im.setAttribute('href', u); im.style.opacity = 1; } }).catch(function () {});
-      });
-      var rg = el.querySelector('.map-range');
-      rg.addEventListener('input', function () { stop(); cancelAnimationFrame(raf); set(+rg.value, true); });
-      // al soltar, se asienta en el sitio más cercano
-      rg.addEventListener('change', function () { glide(Math.round(+rg.value), 280); });
-      el.querySelector('.map-play').addEventListener('click', function () { if (playing) stop(); else play(); });
-      set(Math.min(t(), last));
-    }
-    paint();
-    el.onclick = function (e) {
-      var g = e.target.closest && e.target.closest('[data-mapgo]'); if (!g) return;
-      stop(); glide(+g.getAttribute('data-mapgo'), 700);
-    };
+    rg.addEventListener('input', function () { stop(); ovrT = 0; set(+rg.value, true); });
+    // al soltar, se asienta en el sitio más cercano; al principio del todo, en la vista completa
+    rg.addEventListener('change', function () { var x = +rg.value; glide(x < -0.5 ? -1 : Math.round(x), 300); });
+    playBtn.addEventListener('click', function () { if (playing) stop(); else play(); });
+    allBtn.addEventListener('click', function () { stop(); ovrT = 1; top(mem.v); invalidate(); });
+    cv.addEventListener('click', function (e) {
+      var r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, hit = null;
+      drawn.forEach(function (b) { var d = Math.sqrt(Math.pow(b.x - x, 2) + Math.pow(b.y - y, 2)); if (d < b.r + 5) hit = b; });
+      if (hit) goTo(hit.i);
+    });
+    el.onclick = function (e) { var b = e.target.closest && e.target.closest('[data-mapgo]'); if (b) goTo(+b.getAttribute('data-mapgo')); };
+    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (layout()) invalidate(); }) : null;
+    if (ro) ro.observe(wrap);
+    wake.push(invalidate);
+    el._mapOff = function () { dead = true; stop(); cancelAnimationFrame(raf); clearTimeout(tm); if (ro) ro.disconnect(); wake.splice(wake.indexOf(invalidate), 1); };
+    set(mem.v);
+    paint(performance.now());
     // la silueta se descarga una vez y se recuerda para verla sin conexión
     if (!o.land) {
       var key = 'guia-land:' + (o.id || ''), cached = null;
       try { cached = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
-      if (cached) { o.land = cached; paint(); }
+      if (cached) { o.land = cached; invalidate(); }
       else landFor(o.days).then(function (l) {
         if (!l || !l.length) return;
         o.land = l; try { localStorage.setItem(key, JSON.stringify(l)); } catch (e) {}
-        paint();
+        invalidate();
       }).catch(function () {});
     }
   }
-  return { mount: mount, corsUrl: corsUrl, isStop: isStop, fromTrip: fromTrip, landFor: landFor, sketch: sketch, pickPins: pickPins, photoOf: photoOf };
+  return { mount: mount, corsUrl: corsUrl, isStop: isStop, isSight: isSight, fromTrip: fromTrip, landFor: landFor, atlas: atlas, photoOf: photoOf, kmBetween: kmBetween };
 })();

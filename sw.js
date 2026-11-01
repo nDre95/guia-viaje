@@ -1,6 +1,6 @@
 // Guarda la app para usarla sin conexión. build.py pone la versión en el nombre de la caché.
-var CACHE = 'guia-v15', IMG = 'guia-img';
-var FILES = ['./', './index.html', './guia.html', './viajes.html', './app.js', './styles.css', './viajes.js', './album.js', './album.css', './motor.js', './asistente.js', './mapa.js', './lang.js', './manifest.webmanifest',
+var CACHE = 'guia-2.0', IMG = 'guia-img';
+var FILES = ['./', './index.html', './guia.html', './viajes.html', './app.js', './styles.css', './viajes.js', './album.js', './album.css', './motor.js', './asistente.js', './mapa.js', './mundo.js', './lang.js', './manifest.webmanifest',
   './icon-180.png', './icon-192.png', './icon-512.png', './trips/index.json'];
 
 self.addEventListener('install', function (e) {
@@ -31,8 +31,8 @@ self.addEventListener('fetch', function (e) {
     // la guía y los viajes, desde la caché; las páginas, por su nombre sin parámetros
     var key = req.mode === 'navigate' ? (/guia\.html$/.test(u.pathname) ? './guia.html' : /viajes\.html$/.test(u.pathname) ? './viajes.html' : './index.html') : null;
     e.respondWith(fromCache(CACHE, req, key));
-  } else if (/(^|\.)(wikimedia\.org|arcgisonline\.com)$/.test(u.hostname)) {
-    // fotos de los viajes creados con el asistente: se guardan al verlas para tenerlas sin conexión
+  } else if (/(^|\.)(wikimedia\.org|arcgisonline\.com|jsdelivr\.net)$/.test(u.hostname)) {
+    // fotos, mapa y atlas de países: se guardan al verlos para tenerlos sin conexión
     e.respondWith(fromCache(IMG, req));
   }
   // el resto (tiempo, mapas, búsquedas): a la red

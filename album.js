@@ -39,6 +39,11 @@ window.Album = (function () {
     list.forEach(function (c, n) { c.n = n + 1; c.got = alb[t.id + '|' + c.id] || null; });
     return list;
   }
+  // lo que encuentra el buscador: títulos, ciudades y países
+  function searchText(t) {
+    var m = t.b.meta, g = m.generated || {}, cc = window.Mundo ? Mundo.cached(t) || [] : [];
+    return [(m.title || {}).es, (m.title || {}).en, (m.dest || {}).es, (m.dest || {}).en].concat(g.cities || [], g.countries || [], (m.mapCities || []).map(function (c) { return c.es + ' ' + c.en; }), cc.map(Mundo ? Mundo.name : String), t.b.trip.defaultStart ? [t.b.trip.defaultStart.slice(0, 4)] : []).join(' ');
+  }
   // foto: en la web es una dirección; en el HTML único, una clase con la foto incrustada
   function phCls(c) { return !c.img && c.ph ? ' ph-' + c.ph : ''; }
   function phStyle(c) { return c.img ? ' style="background-image:url(&quot;' + esc(c.img) + '&quot;)"' : ''; }
@@ -49,7 +54,41 @@ window.Album = (function () {
     var m = /^url\(["']?([\s\S]*?)["']?\)$/.exec(u); return m ? m[1] : '';
   }
 
-  var openT = null;   // viaje abierto en el álbum
+  /* ---------- Lista larga: buscador, filtros y «Mostrar más» ----------
+     Album.listBox(caja, { key, placeholder, chips: [[id, texto, prueba]], select: { all, options }, text(item), selectVal(item), render(item), size, empty, items })
+     El buscador no se vuelve a pintar al escribir, para no perder el foco; el estado se recuerda mientras dure la página. */
+  var LST = {};
+  function listBox(box, o) {
+    var st = LST[o.key] || (LST[o.key] = { q: '', chip: 'all', sel: '', n: o.size || 5 });
+    if (box._lst !== o.key || !box.querySelector('.lst-res')) {
+      box._lst = o.key;
+      box.innerHTML = '<div class="lst-bar"><label class="lst-q"><svg class="ic" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg><input type="search" enterkeyhint="search" placeholder="' + esc(o.placeholder) + '" aria-label="' + esc(o.placeholder) + '" value="' + esc(st.q) + '"></label></div>' +
+        '<div class="lst-row"><div class="lst-chips"></div><select class="lst-sel" hidden></select></div><div class="lst-res"></div><button type="button" class="lst-more sq" hidden></button>';
+      $('input', box).addEventListener('input', function () { st.q = this.value; st.n = box._lo.size || 5; paintList(box); });
+      $('.lst-sel', box).addEventListener('change', function () { st.sel = this.value; st.n = box._lo.size || 5; paintList(box); });
+      $('.lst-chips', box).addEventListener('click', function (e) { var c = e.target.closest('[data-lc]'); if (!c) return; st.chip = c.getAttribute('data-lc'); st.n = box._lo.size || 5; paintList(box); });
+      $('.lst-more', box).addEventListener('click', function () { st.n += box._lo.size || 5; paintList(box); });
+    }
+    box._lo = o; box._st = st;
+    paintList(box);
+  }
+  function plain(x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function paintList(box) {
+    var o = box._lo, st = box._st, q = plain(st.q).trim(), few = o.items.length < 2;
+    $('.lst-bar', box).hidden = few; $('.lst-row', box).hidden = few;
+    // lo elegido en el desplegable puede haber dejado de existir (viaje borrado)
+    var sel = $('.lst-sel', box), opts = o.select ? o.select.options() : [];
+    if (st.sel && !opts.some(function (x) { return x[0] === st.sel; })) st.sel = '';
+    sel.hidden = !(opts.length > 1);
+    if (opts.length > 1) sel.innerHTML = '<option value="">' + esc(o.select.all) + '</option>' + opts.map(function (x) { return '<option value="' + esc(x[0]) + '"' + (x[0] === st.sel ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('');
+    var base = o.items.filter(function (it) { return (!q || q.split(/\s+/).every(function (w) { return plain(o.text(it)).indexOf(w) >= 0; })) && (!st.sel || o.selectVal(it).indexOf(st.sel) >= 0); });
+    $('.lst-chips', box).innerHTML = o.chips.map(function (c) { var n = base.filter(c[2]).length; return '<button type="button" class="opt' + (st.chip === c[0] ? ' on' : '') + '" data-lc="' + c[0] + '">' + esc(c[1]) + ' <i>' + n + '</i></button>'; }).join('');
+    var ch = o.chips.filter(function (c) { return c[0] === st.chip; })[0] || o.chips[0], all = base.filter(ch[2]), shown = all.slice(0, st.n), more = $('.lst-more', box);
+    $('.lst-res', box).innerHTML = shown.map(o.render).join('') || '<p class="note">' + esc(o.items.length ? 'Nada coincide con la búsqueda.' : o.empty) + '</p>';
+    more.hidden = all.length <= shown.length;
+    if (!more.hidden) more.textContent = 'Mostrar más (' + (all.length - shown.length) + ')';
+  }
+  var openT = null, crFilter = 'all';   // viaje abierto en el álbum y qué cromos se ven
   function coverOf(t) {
     var bt = t.b.trip, ph = t.b.photos || {}, c = bt.cover;
     if (c && ph[c]) return { st: ' style="background-image:url(&quot;' + esc(ph[c]) + '&quot;)"', cl: '' };
@@ -66,18 +105,29 @@ window.Album = (function () {
         openT = null;
         var pb = $('#postBox'); if (pb) pb.hidden = true;
         // al principio, solo los viajes: compacto
-        box.innerHTML = withC.map(function (t) {
-          var cs = cromosOf(t, alb), got = cs.filter(function (c) { return c.got; }).length, cv = coverOf(t);
-          return '<button type="button" class="card alb-row sq" data-albopen="' + esc(t.id) + '"><span class="alb-ph' + cv.cl + '"' + cv.st + '></span><span class="alb-m"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + ' cromos</small>' +
-            '<span class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></span></span><svg class="ic alb-go" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
-        }).join('') || '<p class="note">Aún no hay viajes.</p>';
+        var rows = withC.map(function (t) { var cs = cromosOf(t, alb); return { t: t, total: cs.length, got: cs.filter(function (c) { return c.got; }).length }; });
+        function albumList() {
+          listBox(box, { key: 'album', size: 5, placeholder: 'Buscar por viaje o país', empty: 'Aún no hay viajes.', items: rows,
+            chips: [['all', 'Todos', function () { return true; }], ['part', 'Empezados', function (r) { return r.got && r.got < r.total; }], ['full', 'Completos', function (r) { return r.total && r.got === r.total; }], ['none', 'Sin empezar', function (r) { return !r.got; }]],
+            text: function (r) { return searchText(r.t); }, select: null,
+            render: function (r) {
+              var cv = coverOf(r.t);
+              return '<button type="button" class="card alb-row sq" data-albopen="' + esc(r.t.id) + '"><span class="alb-ph' + cv.cl + '"' + cv.st + '></span><span class="alb-m"><b>' + esc(tripTitle(r.t)) + '</b><small>' + r.got + ' de ' + r.total + ' cromos</small>' +
+                '<span class="alb-bar"><i style="width:' + (r.total ? Math.round(r.got / r.total * 100) : 0) + '%"></i></span></span><svg class="ic alb-go" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
+            } });
+        }
+        albumList();
+        if (window.Mundo) Mundo.detect(withC).then(function (ch) { if (ch && !openT) albumList(); }).catch(function () {});
         return;
       }
       var t = cur, cs = cromosOf(t, alb), got = cs.filter(function (c) { return c.got; }).length;
+      box._lst = '';
+      var seen = cs.filter(function (c) { return crFilter === 'got' ? c.got : crFilter === 'miss' ? !c.got : crFilter === 'must' ? c.must : true; });
       box.innerHTML = (cfg.single ? '' : '<button type="button" class="alb-back sq" data-albback><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg><span>Todos los viajes</span></button>') +
         '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
           '<div class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></div>' +
-          '<div class="crs">' + cs.map(function (c) {
+          (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Pegados', got], ['miss', 'Faltan', cs.length - got], ['must', '★', cs.filter(function (c) { return c.must; }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
+          '<div class="crs">' + seen.map(function (c) {
             return '<button type="button" class="cr' + (c.got ? ' got' : '') + (c.must ? ' must' : '') + phCls(c) + '" data-cr="' + esc(t.id + '|' + c.id) + '"' + phStyle(c) + '>' +
               (c.got ? '<i class="sheen"></i>' : '') + '<i class="no">#' + c.n + '</i>' + (c.must ? '<i class="cst">★</i>' : '') + (c.got ? '<i class="stamp">Visto · ' + esc(shortDate(c.got.at)) + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
           }).join('') + '</div>' +
@@ -272,18 +322,20 @@ window.Album = (function () {
     var box = $('#profBox'); if (!box) return Promise.resolve();
     return overview().then(function (O) {
       var B = O.badges, S = { past: 'Hecho', now: 'En curso', next: 'Próximo' };
+      var sorted = O.trips.slice().sort(function (a, b) { return String(b.start).localeCompare(String(a.start)); });
       box.innerHTML = '<div class="pstats">' +
         [[O.trips.length, O.trips.length === 1 ? 'viaje' : 'viajes'], [O.totalDays, 'días de viaje'], [O.got + ' / ' + O.all, 'cromos'], [O.mustGot + ' / ' + O.must, 'imprescindibles']].map(function (s) {
           return '<div class="card stat2"><b>' + s[0] + '</b><small>' + s[1] + '</small></div>';
-        }).join('') + '</div>' +
-        '<div class="pf-h">Mis viajes</div>' + (O.trips.length ? O.trips.slice().sort(function (a, b) { return String(b.start).localeCompare(String(a.start)); }).map(function (t) {
+        }).join('') + '</div><div id="pfWorld"></div>' +
+        '<div class="pf-h">Mis viajes</div>' + (sorted.length ? sorted.slice(0, 3).map(function (t) {
           return '<div class="card pf-trip">' + (t.cover ? '<div class="pf-ph" style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"></div>' : '<div class="pf-ph"></div>') +
             '<div class="pf-m"><span class="pf-st ' + t.status + '">' + S[t.status] + '</span><b>' + esc(t.title) + '</b><small>' + esc(shortRange(t)) + ' · ' + t.days + (t.days === 1 ? ' día' : ' días') + '</small>' +
             '<div class="alb-bar"><i style="width:' + (t.total ? Math.round(t.got / t.total * 100) : 0) + '%"></i></div><small>' + t.got + ' de ' + t.total + ' cromos · ' + t.mustGot + ' de ' + t.must + ' imprescindibles</small>' +
             (cfg.single ? '' : '<div class="btn-row"><button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button></div>') + '</div></div>';
-        }).join('') : '<p class="note">Aún no hay viajes.</p>') +
+        }).join('') + (sorted.length > 3 ? '<button type="button" class="lst-more sq" data-go="trips">Ver todos (' + sorted.length + ')</button>' : '') : '<p class="note">Aún no hay viajes.</p>') +
         '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + B.length + '</div><div class="card"><div class="badges">' +
         B.map(function (b) { return '<div class="bdg' + (b[2] ? '' : ' off') + '"><i>' + b[0] + '</i>' + esc(b[1]) + '</div>'; }).join('') + '</div></div>';
+      if (window.Mundo && window.Mapa) Mundo.mount($('#pfWorld'), O.trips);
     });
   }
   function albImport(f) {
@@ -304,7 +356,9 @@ window.Album = (function () {
       var t = e.target; if (!t.closest) return;
       if (t.closest('#crView')) { viewerClick(e); return; }
       var c = t.closest('[data-cr]'), pb = t.closest('[data-post]'), ao = t.closest('[data-albopen]');
-      if (ao) { openT = ao.getAttribute('data-albopen'); renderAlbum(); window.scrollTo(0, 0); return; }
+      var crf = t.closest('[data-crf]');
+      if (crf) { crFilter = crf.getAttribute('data-crf'); renderAlbum(); return; }
+      if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
       if (c) openCromo(c.getAttribute('data-cr'));
       else if (pb) makePostcard(pb.getAttribute('data-post'));
@@ -319,5 +373,5 @@ window.Album = (function () {
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('#crView.on')) closeCromo(); });
   }
 
-  return { init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf };
+  return { init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf, trips: trips, listBox: listBox, searchText: searchText };
 })();

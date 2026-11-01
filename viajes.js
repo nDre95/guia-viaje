@@ -46,7 +46,6 @@
   })();
 
   /* ---------- Lista de viajes ---------- */
-  var builtIn = [];
   function tripCard(t, user) {
     var title = (t.title && (t.title[Lang.get()] || t.title.es || t.title.en)) || t.id, days = t.days || 0;
     var dates = t.start ? dateLbl(t.start) + ' – ' + dateLbl(addDays(t.start, Math.max(0, days - 1))) : '';
@@ -58,16 +57,25 @@
       (user ? '<button type="button" class="btn ghost sq" data-del="' + esc(t.id) + '">Borrar</button>' : '') + '</div></div></div>';
   }
   function renderList() {
-    var a = fetch('trips/index.json').then(function (r) { return r.json(); }).catch(function () { return []; });
-    var b = DB.all().catch(function () { return []; });
-    return Promise.all([a, b]).then(function (r) {
-      builtIn = r[0] || [];
-      var users = (r[1] || []).map(function (x) {
-        var bd = x.bundle, ph = bd.photos || {};
-        return { id: x.id, title: bd.meta.title, start: bd.trip.defaultStart, days: bd.trip.days.length, cover: ph[bd.trip.cover] || '', gen: !!(bd.meta.generated) };
-      });
-      $('#list').innerHTML = builtIn.map(function (t) { return tripCard(t, false); }).join('') + users.map(function (t) { return tripCard(t, true); }).join('') ||
-        '<p class="note">Aún no hay viajes.</p>';
+    return Album.trips().then(function (list) {
+      var now = new Date().toISOString().slice(0, 10);
+      var rows = list.map(function (t) {
+        var bd = t.b, ph = bd.photos || {}, start = bd.trip.defaultStart, days = bd.trip.days.length, user = /^u-/.test(t.id), end = start ? addDays(start, Math.max(0, days - 1)) : '';
+        return { id: t.id, title: bd.meta.title, start: start, days: days, cover: ph[bd.trip.cover] || '', gen: !!bd.meta.generated, user: user, ref: t, past: !!start && end < now };
+      }).sort(function (a, b) { return (a.past ? 1 : 0) - (b.past ? 1 : 0) || (a.past ? String(b.start).localeCompare(String(a.start)) : String(a.start).localeCompare(String(b.start))); });
+      function paint() {
+        Album.listBox($('#list'), { key: 'trips', size: 5, placeholder: 'Buscar por destino, ciudad, país o año', empty: 'Aún no hay viajes.', items: rows,
+          chips: [['all', 'Todos', function () { return true; }], ['next', 'Próximos', function (r) { return !r.past; }], ['past', 'Hechos', function (r) { return r.past; }]],
+          text: function (r) { return Album.searchText(r.ref); },
+          select: { all: 'Todos los países', options: function () {
+            var seen = {}; rows.forEach(function (r) { (Mundo.cached(r.ref) || []).forEach(function (c) { seen[c] = 1; }); });
+            return Object.keys(seen).map(function (c) { return [c, (Mundo.flag(c) ? Mundo.flag(c) + ' ' : '') + Mundo.name(c)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
+          } },
+          selectVal: function (r) { return Mundo.cached(r.ref) || []; },
+          render: function (r) { return tripCard(r, r.user); } });
+      }
+      paint();
+      Mundo.detect(list).then(function (ch) { if (ch) paint(); }).catch(function () {});
     });
   }
   function openTrip(id) {
