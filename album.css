@@ -116,6 +116,7 @@
 .pf-share:active{transform:scale(.88)}
 .pf-share svg{width:17px;height:17px}
 .pf-lv,.pf-world{grid-column:1/-1;display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:rgba(255,255,255,.78);white-space:nowrap}
+.pf-lv .nm{text-decoration:none}
 .pf-lv{margin-top:12px}.pf-lv b{color:#fff}
 .pf-world{margin-top:10px}
 .pf-bar{grid-column:1/-1;display:block;height:6px;margin-top:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.14)}

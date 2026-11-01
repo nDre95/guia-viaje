@@ -177,7 +177,7 @@ window.Mundo = (function () {
     var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100;
     return '<div class="pf-hero"><button type="button" class="pf-share sq" id="pfShare" aria-label="Compartir mi tarjeta" title="Compartir mi tarjeta"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
       '<span class="pf-badge">' + (T ? T.ico : '🧭') + '</span><div class="pf-hm"><small>Tu perfil viajero</small><b>' + esc(T ? T.t : 'Por descubrir') + '</b></div>' +
-      '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · ' + esc(L.name) + '</span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' pts' : L.pts + ' pts') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
+      '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · <u class="nm">' + esc(L.name) + '</u></span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' pts' : L.pts + ' pts') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
       '<div class="pf-world"><span>🌍 Vuelta al mundo</span><span>' + (pc < 10 ? pc.toFixed(1).replace('.', lg() === 'en' ? '.' : ',') : Math.round(pc)) + ' % · ' + fmtN(S.km) + ' km</span></div><span class="pf-bar w"><i style="width:' + Math.min(100, pc).toFixed(1) + '%"></i></span></div>';
   }
   // tarjeta de 1080×1350 para guardar o compartir: sin fotos externas, siempre se puede generar
