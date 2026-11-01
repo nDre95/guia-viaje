@@ -861,7 +861,19 @@ window.Motor = (function () {
       return overpass('[out:json][timeout:20];(' + parts.join('') + ');out center tags 700;').then(function (j) {
         var food = (j.elements || []).map(function (el) { var p = el.center || el; return { tg: el.tags || {}, n: nameOf(el.tags || {}), lat: p.lat, lon: p.lon }; }).filter(function (f) { return f.n && f.lat != null; });
         s6.ok(food.length + ' sitios para comer'); return { plan: plan, food: food };
-      }).catch(function () { s6.warn('OpenStreetMap no responde ahora: las comidas llevan un enlace para buscar sitio cerca'); return { plan: plan, food: [] }; });
+      }).catch(function () {
+        // Overpass caído (pasa a menudo): se buscan restaurantes en Nominatim, cerca de algunas paradas
+        var picks = seen.slice(0, 6), food = [];
+        return pool(picks, 1, function (p) {
+          var b = 0.006, box = (p.lon - b).toFixed(4) + ',' + (p.lat + b).toFixed(4) + ',' + (p.lon + b).toFixed(4) + ',' + (p.lat - b).toFixed(4);
+          return nominatim('limit=10&bounded=1&viewbox=' + box + '&q=restaurant').then(function (r) {
+            (r || []).forEach(function (h) { if (h.name && h.category === 'amenity') food.push({ tg: Object.assign({ amenity: h.type }, h.extratags || {}), n: h.name, lat: +h.lat, lon: +h.lon }); });
+          }).catch(function () {});
+        }).then(function () {
+          if (food.length) s6.ok(food.length + ' sitios para comer'); else s6.warn('OpenStreetMap no responde ahora: las comidas llevan un enlace para buscar sitio cerca');
+          return { plan: plan, food: food };
+        });
+      });
     }).then(function (R) {
       var s7 = step('Descripciones y fotos (Wikipedia)'), used = [];
       R.plan.forEach(function (d) { d.stops.forEach(function (s) { used.push(s); }); (d.extras || []).forEach(function (s) { used.push(s); }); });

@@ -145,7 +145,41 @@ window.Mundo = (function () {
     { id: 'natu', ico: '🏔️', t: 'Viajes de naturaleza', kinds: ['nature', 'garden'], re: /parque|park|jard[ií]n|garden|lago|loch|lake|monte|mount|glen|cascada|falls|mirador|viewpoint|playa|beach/i },
     { id: 'urbe', ico: '🏙️', t: 'Viajes de ciudad', kinds: ['square', 'quarter', 'market', 'family'], re: /plaza|piazza|square|barrio|quarter|mercado|market|calle|street|paseo/i }
   ];
-  var LEVELS = [[0, 'Principiante'], [5, 'Viajero'], [15, 'Viajero habitual'], [30, 'Viajero experto'], [60, 'Veterano']];
+  var LEVELS = [[0, 'Principiante'], [40, 'Viajero'], [120, 'Viajero habitual'], [300, 'Viajero experto'], [700, 'Veterano']];
+  // bordes del perfil: se desbloquean con aciertos en los quizzes
+  var BORDERS = [['none', 'Sin borde', 0], ['bronze', 'Bronce', 10], ['silver', 'Plata', 30], ['gold', 'Oro', 60], ['plat', 'Platino', 100], ['diam', 'Diamante', 160], ['master', 'Maestro', 250]];
+  // colores del metal: sombra, medio, luz, brillo
+  var BD = { bronze: ['#4a2710', '#a8693a', '#e6a874', '#ffe2c4'], silver: ['#4d5560', '#9aa4b0', '#e4e9ee', '#ffffff'], gold: ['#5c3f06', '#c4942a', '#ffdf85', '#fff8d8'], plat: ['#14574a', '#49ad97', '#b4f2e0', '#f0fffa'], diam: ['#1b2f7a', '#4f7df0', '#aed4ff', '#f2fbff'], master: ['#5a1038', '#d03c74', '#ffc35c', '#fff6d0'] };
+  var bdN = 0;
+  // una voluta: sale del aro, se dobla y acaba en espiral; se repite alrededor y en espejo
+  var CURL = 'M1 -45 C4 -52 13 -54 17 -49 C20 -45 16 -40 12 -42 C9 -44 11 -48 14 -46.5';
+  var CURL2 = 'M0 -46 C-1 -53 3 -59 8 -57 C11 -55 10 -51 7 -52';
+  function borderSVG(id) {
+    var c = BD[id]; if (!c) return '';
+    var rank = ['bronze', 'silver', 'gold', 'plat', 'diam', 'master'].indexOf(id), n = [4, 6, 6, 8, 8, 10][rank], u = 'bd' + (++bdN);
+    function metal(d, w) {
+      // relieve: sombra debajo, el metal y un filo de luz encima
+      return '<path d="' + d + '" stroke="' + c[0] + '" stroke-width="' + (w + 1.5) + '" transform="translate(.5 .9)"/><path d="' + d + '" stroke="url(#' + u + 'm)" stroke-width="' + w + '"/><path d="' + d + '" stroke="' + c[3] + '" stroke-width="' + (w * 0.28).toFixed(2) + '" stroke-opacity=".85" transform="translate(-.25 -.35)"/>';
+    }
+    var curls = '';
+    for (var i = 0; i < n; i++) {
+      var a = (360 / n * i + 180 / n).toFixed(1);
+      curls += '<g transform="rotate(' + a + ')">' + metal(CURL, 2.1) + '<g transform="scale(-1 1)">' + metal(CURL, 2.1) + '</g>' + (rank >= 3 ? metal(CURL2, 1.5) : '') + '</g>';
+    }
+    // alas a los lados, en los bordes más altos
+    var wing = 'M46 -8 C56 -14 63 -7 60 0 C58 5 52 4 52 0 C52 -3 56 -3 56 -1 M46 8 C56 13 62 8 60 3';
+    var wings = rank >= 4 ? metal(wing, 2.2) + '<g transform="scale(-1 1)">' + metal(wing, 2.2) + '</g>' : '';
+    // remate arriba: en los altos, una gema con su reflejo
+    var crest = rank >= 2 ? '<path d="M0 -60 L7 -50 L0 -42 L-7 -50 Z" fill="url(#' + u + 'm)" stroke="' + c[0] + '" stroke-width="1"/><path d="M0 -58 L3.5 -50 L0 -50 L-3.5 -50 Z" fill="' + c[3] + '" fill-opacity=".85"/>' : '';
+    var foot = rank >= 3 ? '<path d="M0 60 L6 51 L0 44 L-6 51 Z" fill="url(#' + u + 'm)" stroke="' + c[0] + '" stroke-width="1"/>' : '';
+    var spin = rank >= 4 ? '<animateTransform attributeName="gradientTransform" type="rotate" from="0 .5 .5" to="360 .5 .5" dur="7s" repeatCount="indefinite"/>' : '';
+    return '<svg class="bd-svg" viewBox="-66 -66 132 132" aria-hidden="true"><defs><linearGradient id="' + u + 'm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c[3] + '"/><stop offset=".3" stop-color="' + c[1] + '"/><stop offset=".52" stop-color="' + c[2] + '"/><stop offset=".75" stop-color="' + c[1] + '"/><stop offset="1" stop-color="' + c[2] + '"/>' + spin + '</linearGradient></defs>' +
+      '<g fill="none" stroke-linecap="round" stroke-linejoin="round">' + curls + wings + '</g>' +
+      // el aro, con canto de luz arriba y sombra abajo
+      '<circle r="42" fill="none" stroke="' + c[0] + '" stroke-width="7.5" transform="translate(.4 .9)"/><circle r="42" fill="none" stroke="url(#' + u + 'm)" stroke-width="6"/><circle r="44.6" fill="none" stroke="' + c[3] + '" stroke-width=".9" stroke-opacity=".8"/><circle r="39.3" fill="none" stroke="' + c[0] + '" stroke-width="1.1"/>' + crest + foot + '</svg>';
+  }
+  function borderNow() { var S = quizStore(), b = S.border || 'none', ok = BORDERS.filter(function (x) { return x[0] === b && (S.right || 0) >= x[2]; })[0]; return ok ? ok[0] : 'none'; }
+  function nextBorder(right) { return BORDERS.filter(function (x) { return right < x[2]; })[0] || null; }
   var EARTH_KM = 40075;
   function travelType(list) {
     var score = {}; TYPES.forEach(function (T) { score[T.id] = 0; });
@@ -156,7 +190,8 @@ window.Mundo = (function () {
     return TYPES.slice().sort(function (a, b) { return score[b.id] - score[a.id]; })[0];
   }
   function levelOf(S, got) {
-    var pts = Object.keys(S.V).length * 3 + S.done.length * 2 + Math.floor((got || 0) / 2), i = 0;
+    // la experiencia solo sale de viajar; los quizzes desbloquean bordes
+    var pts = Object.keys(S.V).length * 15 + S.done.length * 10 + (got || 0) * 2, i = 0;
     LEVELS.forEach(function (l, k) { if (pts >= l[0]) i = k; });
     var next = LEVELS[i + 1];
     return { n: i + 1, name: LEVELS[i][1], pts: pts, next: next, pc: next ? Math.round((pts - LEVELS[i][0]) / (next[0] - LEVELS[i][0]) * 100) : 100 };
@@ -176,8 +211,8 @@ window.Mundo = (function () {
   function heroHTML(trips, base) {
     var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100;
     return '<div class="pf-hero"><button type="button" class="pf-share sq" id="pfShare" aria-label="Compartir mi tarjeta" title="Compartir mi tarjeta"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
-      '<span class="pf-badge">' + (T ? T.ico : '🧭') + '</span><div class="pf-hm"><small>Tu estilo de viaje</small><b>' + esc(T ? T.t : 'Sin viajes aún') + '</b></div>' +
-      '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · <u class="nm">' + esc(L.name) + '</u></span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' pts' : L.pts + ' pts') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
+      '<button type="button" class="pf-badge sq" id="pfBorder" aria-label="Elegir borde" title="Elegir borde">' + borderSVG(borderNow()) + '<span>' + (T ? T.ico : '🧭') + '</span></button><div class="pf-hm"><small>Tu estilo de viaje</small><b>' + esc(T ? T.t : 'Sin viajes aún') + '</b></div>' +
+      '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · <u class="nm">' + esc(L.name) + '</u></span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' XP' : L.pts + ' XP') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
       '<div class="pf-world"><span>🌍 Vuelta al mundo</span><span>' + (pc < 10 ? pc.toFixed(1).replace('.', lg() === 'en' ? '.' : ',') : Math.round(pc)) + ' % · ' + fmtN(S.km) + ' km</span></div><span class="pf-bar w"><i style="width:' + Math.min(100, pc).toFixed(1) + '%"></i></span></div>';
   }
   // tarjeta de 1080×1350 para guardar o compartir: sin fotos externas, siempre se puede generar
@@ -228,6 +263,121 @@ window.Mundo = (function () {
     }, 'image/png');
   }
 
+  /* ---------- Quiz: preguntas con los sitios de tus viajes, sin conexión ni servicios externos ---------- */
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
+  function quizStore(o) {
+    try { if (o) localStorage.setItem('guia-quiz', JSON.stringify(o)); return JSON.parse(localStorage.getItem('guia-quiz') || '{}') || {}; } catch (e) { return o || {}; }
+  }
+  // los sitios de todos los viajes generados, desde que existen
+  function quizPool(trips) {
+    var out = [], seen = {};
+    trips.forEach(function (t) {
+      var b = t.ref.b, en = lg() === 'en' ? (b.trip_en || {}).items || {} : {};
+      b.trip.days.forEach(function (d) { d.items.forEach(function (it) {
+        if (!Mapa.isSight(it)) return;
+        var o = en[it.id] || {}, ti = o.ti || it.ti; if (seen[ti]) return; seen[ti] = 1;
+        out.push({ ti: ti, lead: o.lead || it.lead || '', img: Mapa.photoOf({ ph: it.ph }, b.photos), lat: it.lat, trip: t.id });
+      }); });
+    });
+    return { list: out };
+  }
+  // quita el nombre del sitio de su descripción, para no regalar la respuesta
+  function maskName(lead, ti) {
+    var r = lead;
+    ti.split(/[\s,.'’()-]+/).filter(function (w) { return w.length > 3; }).forEach(function (w) {
+      r = r.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '···');
+    });
+    return r.length > 170 ? r.slice(0, 170).replace(/\s+\S*$/, '') + '…' : r;
+  }
+  function quizQuestions(P) {
+    var L = P.list, used = {}, qs = [];
+    function others(q, n) {
+      var same = shuffle(L.filter(function (x) { return x !== q && x.trip === q.trip; })), rest = shuffle(L.filter(function (x) { return x !== q && x.trip !== q.trip; }));
+      return same.concat(rest).slice(0, n);
+    }
+    function ask(type, q) {
+      used[q.ti] = 1;
+      qs.push({ type: type, q: q, ok: q.ti, opts: shuffle([q].concat(others(q, 3))).map(function (x) { return x.ti; }) });
+    }
+    var withPh = shuffle(L.filter(function (x) { return x.img; })), withTx = shuffle(L.filter(function (x) { return x.lead.length >= 25; }));
+    withPh.slice(0, 2).forEach(function (q) { ask('photo', q); });
+    withTx.filter(function (q) { return !used[q.ti]; }).slice(0, 2).forEach(function (q) { ask('text', q); });
+    // cuál está más al norte: dos sitios claramente separados
+    var pairs = shuffle(L), a = pairs[0], b = pairs.filter(function (x) { return Math.abs(x.lat - a.lat) > 0.02; })[0];
+    if (b) qs.push({ type: 'north', q: a.lat > b.lat ? a : b, ok: a.lat > b.lat ? a.ti : b.ti, opts: shuffle([a.ti, b.ti]) });
+    withPh.concat(withTx).forEach(function (q) { if (qs.length < 5 && !used[q.ti]) ask(q.img ? 'photo' : 'text', q); });
+    return shuffle(qs).slice(0, 5);
+  }
+  function quizCardHTML(trips) {
+    var P = quizPool(trips); if (P.list.length < 4) return '';
+    var S = quizStore(), sub = S.played ? 'Mejor: ' + (S.best || 0) + '/5 · ' + S.played + (S.played === 1 ? ' partida' : ' partidas') : '5 preguntas sobre tus sitios';
+    return '<button type="button" class="card qz-card sq" id="pfQuiz"><span class="qz-ic">?</span><span class="qz-m"><b>Quiz de mis viajes</b><small>' + esc(sub) + '</small></span><svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
+  }
+  function openQuiz(trips, onEnd) {
+    var old = document.getElementById('qzBox'); if (old) old.remove();
+    var P = quizPool(trips), Q = quizQuestions(P), i = 0, hits = 0, box = document.createElement('div');
+    if (!Q.length) return;
+    box.id = 'qzBox'; box.className = 'qz'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+    function close() { box.remove(); if (onEnd) onEnd(); }
+    function paint() {
+      var q = Q[i], title = q.type === 'photo' ? '¿Qué sitio es este?' : q.type === 'text' ? '¿De qué sitio habla?' : '¿Cuál está más al norte?';
+      box.innerHTML = '<div class="qz-in"><div class="qz-top"><span>Pregunta ' + (i + 1) + ' de ' + Q.length + '</span><button type="button" class="qz-x sq" data-qz="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
+        '<span class="qz-bar"><i style="width:' + (i / Q.length * 100) + '%"></i></span><h3>' + esc(title) + '</h3>' +
+        (q.type === 'photo' ? '<div class="qz-ph" style="background-image:url(&quot;' + esc(q.q.img) + '&quot;)"></div>' : q.type === 'text' ? '<p class="qz-tx">' + esc(maskName(q.q.lead, q.q.ti)) + '</p>' : '') +
+        '<div class="qz-opts">' + q.opts.map(function (o, k) { return '<button type="button" class="qz-o sq" data-o="' + k + '">' + esc(o) + '</button>'; }).join('') + '</div><div class="qz-next" hidden></div></div>';
+    }
+    function result() {
+      var S = quizStore(); S.played = (S.played || 0) + 1; S.best = Math.max(S.best || 0, hits);
+      // los aciertos desbloquean bordes; solo cuentan las 3 primeras partidas de cada día
+      var d0 = new Date().toISOString().slice(0, 10), before = S.right || 0; if (S.day !== d0) { S.day = d0; S.games = 0; }
+      S.games = (S.games || 0) + 1; if (S.games <= 3) S.right = before + hits;
+      quizStore(S);
+      var won = BORDERS.filter(function (x) { return x[2] > before && x[2] <= (S.right || 0); }).pop(), nb = nextBorder(S.right || 0);
+      if (window.Juego) Juego.onQuiz(hits);
+      box.innerHTML = '<div class="qz-in qz-end"><b class="qz-score">' + hits + '<i>/' + Q.length + '</i></b><h3>' + esc(hits === Q.length ? 'Perfecto' : hits * 2 >= Q.length ? 'Bien' : 'Hay que repasar') + '</h3><p class="qz-tx">Has acertado ' + hits + ' de ' + Q.length + '</p><p class="qz-xp">' + (won ? 'Borde desbloqueado: ' + esc(won[1]) : S.games > 3 ? 'Hoy ya no cuentan más aciertos' : nb ? 'Faltan ' + (nb[2] - S.right) + ' aciertos para el borde ' + esc(nb[1]) : 'Tienes todos los bordes') + '</p>' +
+        '<div class="btn-row"><button type="button" class="btn navy sq" data-qz="again">Otra vez</button><button type="button" class="btn ghost sq" data-qz="close">Cerrar</button></div></div>';
+    }
+    box.addEventListener('click', function (e) {
+      var o = e.target.closest('[data-o]'), a = e.target.closest('[data-qz]');
+      if (a) {
+        var w = a.getAttribute('data-qz');
+        if (w === 'close') close();
+        else if (w === 'again') { Q = quizQuestions(P); i = 0; hits = 0; paint(); }
+        else if (w === 'next') { i++; if (i < Q.length) paint(); else result(); }
+        return;
+      }
+      if (e.target === box) { close(); return; }
+      if (!o || box.querySelector('.qz-o.ok')) return;
+      var q = Q[i], pick = q.opts[+o.getAttribute('data-o')], good = pick === q.ok;
+      if (good) hits++;
+      Array.prototype.forEach.call(box.querySelectorAll('.qz-o'), function (b, k) { b.disabled = true; if (q.opts[k] === q.ok) b.classList.add('ok'); else if (b === o) b.classList.add('no'); });
+      var nx = box.querySelector('.qz-next');
+      nx.hidden = false;
+      nx.innerHTML = '<p class="qz-tx">' + esc(q.type === 'north' ? '' : q.q.lead.length > 150 ? q.q.lead.slice(0, 150).replace(/\s+\S*$/, '') + '…' : q.q.lead) + '</p><button type="button" class="btn navy sq" data-qz="next">' + (i + 1 < Q.length ? 'Siguiente' : 'Ver resultado') + '</button>';
+    });
+    paint();
+    if (window.Lang) Lang.watch(box);
+    document.body.appendChild(box);
+  }
+
+  function openBorders(onEnd) {
+    var old = document.getElementById('qzBox'); if (old) old.remove();
+    var S = quizStore(), right = S.right || 0, box = document.createElement('div'), T0 = 'Bordes del perfil';
+    box.id = 'qzBox'; box.className = 'qz';
+    box.innerHTML = '<div class="qz-in"><div class="qz-top"><span>' + right + (right === 1 ? ' acierto' : ' aciertos') + '</span><button type="button" class="qz-x sq" data-b="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div><h3>' + T0 + '</h3><p class="qz-tx">Se desbloquean acertando preguntas en los quizzes.</p><div class="bd-grid">' + BORDERS.map(function (x) {
+      var open = right >= x[2], cur = borderNow() === x[0];
+      return '<button type="button" class="bd-o sq' + (cur ? ' on' : '') + (open ? '' : ' lock') + '" data-b="' + x[0] + '"' + (open ? '' : ' disabled') + '><span class="pf-badge">' + borderSVG(x[0]) + '<span>' + (open ? '' : '🔒') + '</span></span><b>' + esc(x[1]) + '</b><small>' + (open ? (cur ? 'En uso' : 'Disponible') : x[2] + ' aciertos') + '</small></button>';
+    }).join('') + '</div></div>';
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-b]');
+      if (e.target === box || (b && b.getAttribute('data-b') === 'close')) { box.remove(); if (onEnd) onEnd(); return; }
+      if (!b) return;
+      var q = quizStore(); q.border = b.getAttribute('data-b'); quizStore(q); box.remove(); if (onEnd) onEnd();
+    });
+    if (window.Lang) Lang.watch(box);
+    document.body.appendChild(box);
+  }
+
   /* ---------- Mapa y lista ---------- */
   // el mapa se ve con esta proporción; la vista es la zona del mapa que entra en él: [x, y, ancho, alto]
   var A = 1.5, WMIN = 70, ST = { filter: 'all', region: 'mine', year: '', sel: '', more: false, stats: false, names: true, view: null };
@@ -269,7 +419,7 @@ window.Mundo = (function () {
       var S = statsOf(tf()), unk = trips.some(function (t) { return !cached(t.ref); }), yl = Object.keys(years).sort().reverse();
       var ic = function (d) { return '<svg viewBox="0 0 24 24"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; };
       levelAll = trips;
-      el.innerHTML = heroHTML(trips, opt.base) + (yl.length ? '<div class="mw-chips mw-years" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') + statsHTML(S) + '<div id="mwStamps">' + stampsHTML(S) + '</div>' +
+      el.innerHTML = heroHTML(trips, opt.base) + (yl.length ? '<div class="mw-chips mw-years" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') + statsHTML(S) + '<div id="pfQuizBox">' + quizCardHTML(trips) + '</div><div id="mwStamps">' + stampsHTML(S) + '</div>' +
         '<div class="pf-h">Mi mapa del mundo</div><div class="card mw">' +
         '<div class="mw-chips" data-mw="filter">' + [['all', 'Todos'], ['one', 'Visitados'], ['rep', 'Repetidos'], ['next', 'Por visitar']].map(function (f) { return '<button type="button" class="opt' + (ST.filter === f[0] ? ' on' : '') + '" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' +
         '<div class="mw-chips" data-mw="region"><button type="button" class="opt' + (ST.region === 'mine' ? ' on' : '') + '" data-v="mine">Mis países</button><button type="button" class="opt' + (ST.region === 'world' ? ' on' : '') + '" data-v="world">Mundo</button>' + Object.keys(REGION).map(function (r) { return '<button type="button" class="opt' + (ST.region === r ? ' on' : '') + '" data-v="' + r + '">' + REGION[r][0] + '</button>'; }).join('') + '</div>' +
@@ -278,7 +428,7 @@ window.Mundo = (function () {
         '<button type="button" class="sq' + (ST.names ? ' on' : '') + '" data-mt="names" aria-label="Nombres de países" title="Nombres de países" aria-pressed="' + ST.names + '"><b>Aa</b></button></div></div>' +
         '<div class="mw-rec" id="mwRec" hidden><div class="mw-rec-h">Resumen por año</div>' +
         (yl.length ? '<div class="mw-chips mw-rec-y" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') +
-        '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#f2b27c,#e2782f)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
+        '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="Reproducir mis viajes"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><input class="map-range" type="range" min="-1" max="1" step="0.005" value="-1" aria-label="Mueve la bolita por tus viajes" style="--track:linear-gradient(90deg,#c9ccd4,#6c7079)"></div><div class="mw-rec-info tx" id="mwRecInfo"></div></div>' +
         '<div class="mw-legend"><span><i class="c1"></i>1 vez</span><span><i class="c2"></i>2 veces</span><span><i class="c3"></i>3 o más</span><span><i class="cn"></i>Por visitar</span></div>' +
         '<div class="mw-info" id="mwInfo"></div></div>' +
         '<div id="mwList"></div>';
@@ -349,8 +499,8 @@ window.Mundo = (function () {
       var rg = bar.querySelector('.map-range'); rg.max = R.seq.length; rg.value = -1;
       var route = R.seq.map(function (q, i) { return i ? 'Q' + q.cx.toFixed(1) + ' ' + q.cy.toFixed(1) + ' ' + q.x.toFixed(1) + ' ' + q.y.toFixed(1) : 'M' + q.x.toFixed(1) + ' ' + q.y.toFixed(1); }).join('');
       g.innerHTML = '<defs><clipPath id="mwClip"><circle cy="-25" r="17"/></clipPath></defs><path class="mw-rt" d="' + route + '"/><path class="mw-rt-done" d=""/>' +
-        R.seq.map(function (q, i) { return '<g class="mw-pin" data-i="' + i + '" style="display:none"><path d="M0 0L-8 -13A19 19 0 1 1 8 -13Z" fill="#e2782f"/><circle cy="-25" r="17" fill="#fff"/>' + (q.t.cover ? '<image href="' + esc(q.t.cover) + '" x="-17" y="-42" width="34" height="34" preserveAspectRatio="xMidYMid slice" clip-path="url(#mwClip)"/>' : '') + '</g>'; }).join('') +
-        '<g class="mw-ball" style="display:none"><circle r="13" fill="#e2782f" stroke="#fff" stroke-width="2.4"/><path fill="#fff" fill-rule="evenodd" transform="scale(.72) translate(-12 -12)" d="' + Mapa.plane + '"/></g>';
+        R.seq.map(function (q, i) { return '<g class="mw-pin" data-i="' + i + '" style="display:none"><path d="M0 0L-8 -13A19 19 0 1 1 8 -13Z" fill="#14161b"/><circle cy="-25" r="17" fill="#fff"/>' + (q.t.cover ? '<image href="' + esc(q.t.cover) + '" x="-17" y="-42" width="34" height="34" preserveAspectRatio="xMidYMid slice" clip-path="url(#mwClip)"/>' : '') + '</g>'; }).join('') +
+        '<g class="mw-ball" style="display:none"><circle r="13" fill="#14161b" stroke="#fff" stroke-width="2.4"/><path fill="#fff" fill-rule="evenodd" transform="scale(.72) translate(-12 -12)" d="' + Mapa.plane + '"/></g>';
       recInfo();
     }
     function recPaint() {
@@ -589,6 +739,8 @@ window.Mundo = (function () {
     el.onclick = function (e) {
       var t = e.target, yb = t.closest('[data-y]'), ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
       if (t.closest('#mwRec .map-play')) { if (R.playing) recStop(); else recPlay(); return; }
+      if (t.closest('#pfQuiz')) { openQuiz(trips, function () { var qb = el.querySelector('#pfQuizBox'); if (qb) qb.innerHTML = quizCardHTML(trips); var hb = el.querySelector('.pf-hero'); if (hb) { var tmp = document.createElement('div'); tmp.innerHTML = heroHTML(trips, opt.base); hb.replaceWith(tmp.firstChild); } }); return; }
+      if (t.closest('#pfBorder')) { openBorders(function () { var hb = el.querySelector('.pf-hero'); if (hb) { var tmp = document.createElement('div'); tmp.innerHTML = heroHTML(trips, opt.base); hb.replaceWith(tmp.firstChild); } }); return; }
       if (t.closest('#pfShare')) { openShare(shareCard(tf(), ST.year, opt.base), 'mis-viajes' + (ST.year ? '-' + ST.year : '') + '.png'); return; }
       if (yb) {
         recStop(); R.limit = null; R.v = -1;
@@ -641,5 +793,5 @@ window.Mundo = (function () {
     el._mwOff = recStop;
     draw();
   }
-  return { mount: mount, detect: detect, cached: cached, name: name, flag: flag };
+  return { openQuiz: openQuiz, mount: mount, detect: detect, cached: cached, name: name, flag: flag };
 })();

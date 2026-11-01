@@ -8,6 +8,7 @@
    Mapa.mount(el, { days, land, title, id, mode, photos, dayLabel, heading, lang, cities }); cada día puede llevar `date` */
 window.Mapa = (function () {
   'use strict';
+  var BALL = '#14161b';   // el punto actual: distinto de los colores de los días
   var COLORS = ['#d9622b', '#2b6ea3', '#3f8f5b', '#9b4fa8', '#c2962a', '#c0394b', '#1f8a8a', '#6b7fb3', '#8a5a2b', '#444c5e'];
   var ATLAS = 'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json';
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -130,8 +131,8 @@ window.Mapa = (function () {
     if (mode === 'car') return d > 1.5 ? 'car' : 'walk';
     return d > 3.5 ? 'bus' : 'walk';
   }
-  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', fin: 'Fin del viaje', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje', all: 'Ver todo el viaje', start: 'Arrastra la bolita o dale a reproducir para recorrer el viaje', end: 'Este es el viaje completo. Arrastra la bolita hacia atrás para volver a cualquier sitio' },
-    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', fin: 'End of the trip', hint: 'Slide the ball along the route', play: 'Play the trip', all: 'See the whole trip', start: 'Drag the ball or press play to travel the trip', end: 'This is the whole trip. Drag the ball back to return to any place' } };
+  var HOW = { es: { plane: 'en avión', car: 'en coche', train: 'en tren o autobús', bus: 'en transporte público', walk: 'a pie', to: 'Hacia', see: 'Ver en el día', fin: 'Fin del viaje', vid: 'Guardar vídeo de la ruta', rec: 'Grabando… no cierres esta pantalla', novid: 'Este navegador no puede grabar el mapa', hint: 'Mueve la bolita por la ruta', play: 'Reproducir el viaje', all: 'Ver todo el viaje', start: 'Arrastra la bolita o dale a reproducir para recorrer el viaje', end: 'Este es el viaje completo. Arrastra la bolita hacia atrás para volver a cualquier sitio' },
+    en: { plane: 'by plane', car: 'by car', train: 'by train or coach', bus: 'by public transport', walk: 'on foot', to: 'To', see: 'See in the day', fin: 'End of the trip', vid: 'Save route video', rec: 'Recording… keep this screen open', novid: "This browser can't record the map", hint: 'Slide the ball along the route', play: 'Play the trip', all: 'See the whole trip', start: 'Drag the ball or press play to travel the trip', end: 'This is the whole trip. Drag the ball back to return to any place' } };
 
   var LEG_KM = 3.5, ZONE_KM = 6, ZONE_MAX = 5;
   function model(o) {
@@ -211,6 +212,7 @@ window.Mapa = (function () {
     var k = style + '/' + z + '/' + y + '/' + x, t = TILES[k];
     if (t || !load) return t && t.ok ? t.im : null;
     t = TILES[k] = { im: new Image(), ok: false };
+    t.im.crossOrigin = 'anonymous';   // para poder grabar el mapa en vídeo
     t.im.onload = function () { t.ok = true; repaintAll(); };
     t.im.onerror = function () { delete TILES[k]; };
     t.im.src = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/' + style + '/MapServer/tile/' + z + '/' + y + '/' + x;
@@ -221,14 +223,20 @@ window.Mapa = (function () {
   function bubblePhoto(src) {
     var p = PHOTOS[src]; if (p) return p.cv;
     p = PHOTOS[src] = { cv: null };
-    var im = new Image();
+    var im = new Image(), anon = !/^data:/.test(src);
+    if (anon) im.crossOrigin = 'anonymous';
     im.onload = function () {
       var n = 144, cv = document.createElement('canvas'), g = cv.getContext('2d'), k = Math.max(n / im.width, n / im.height), w = im.width * k, h = im.height * k;
       cv.width = cv.height = n; g.drawImage(im, (n - w) / 2, (n - h) / 2, w, h); p.cv = cv; repaintAll();
     };
     // si falla (sin conexión, por ejemplo), se reintenta más tarde en vez de quedarse con el icono
-    im.onerror = function () { setTimeout(function () { delete PHOTOS[src]; repaintAll(); }, 4000); };
-    im.src = src;
+    // sin permiso de lectura, se pide normal: se ve la foto, aunque ese mapa ya no se pueda grabar
+    im.onerror = function () {
+      if (anon) { anon = false; im.removeAttribute('crossorigin'); im.src = src; return; }
+      setTimeout(function () { delete PHOTOS[src]; repaintAll(); }, 4000);   // sin conexión, por ejemplo: se reintenta más tarde
+    };
+    if (anon && /commons\.wikimedia\.org\/wiki\/Special:FilePath/.test(src)) corsUrl(src).then(function (u) { im.src = u; }, function () { im.src = src; });
+    else im.src = src;
     return null;
   }
   function path2d(d) { return ICON2D[d] || (ICON2D[d] = new Path2D(d)); }
@@ -254,7 +262,7 @@ window.Mapa = (function () {
       '<div class="map-ctl"><button type="button" class="map-play sq" aria-label="' + esc(H0.play) + '"><svg viewBox="0 0 24 24"><path class="pl" fill="currentColor" d="M7 4v16l13-8z"/><path class="pa" fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>' +
       '<input class="map-range" type="range" min="-1" max="' + (last + 1) + '" step="0.005" value="' + mem.v + '" aria-label="' + esc(H0.hint) + '" style="--track:linear-gradient(90deg,' + COLORS[0] + ' 0%,' + track.join(',') + ')"></div>' +
       '<div class="map-info"></div>' +
-      '<div class="map-leg">' + usedDays.map(function (x) { return '<button type="button" class="map-day" data-mapgo="' + x.i + '" data-di="' + x.di + '"><i style="background:' + COLORS[x.di % COLORS.length] + '"></i>' + esc((o.dayLabel || 'Día') + ' ' + (x.di + 1)) + (x.title ? ' · ' + esc(x.title) : '') + '</button>'; }).join('') + '</div></div>';
+      '<div class="map-leg">' + usedDays.map(function (x) { return '<button type="button" class="map-day" data-mapgo="' + x.i + '" data-di="' + x.di + '"><i style="background:' + COLORS[x.di % COLORS.length] + '"></i>' + esc((o.dayLabel || 'Día') + ' ' + (x.di + 1)) + (x.title ? ' · ' + esc(x.title) : '') + '</button>'; }).join('') + '</div><button type="button" class="map-vid" hidden>' + esc(H0.vid) + '</button></div>';
     var wrap = el.querySelector('.map-wrap'), cv = el.querySelector('.map-cv'), g = cv.getContext('2d'), rg = el.querySelector('.map-range'), allBtn = el.querySelector('.map-all'), box = el.querySelector('.map-info'), playBtn = el.querySelector('.map-play');
 
     function layout() {
@@ -409,7 +417,7 @@ window.Mapa = (function () {
         var cur = M.seq[curI] === q, x = sx(q.x), y = sy(q.y), k = q.a * (cur ? 1.28 : 1), r = R * k, by = y - r - 9 * k, col = COLORS[q.di % COLORS.length], src = photoOf(q.s, o.photos), ph = src ? bubblePhoto(src) : null;
         g.save();
         g.shadowColor = 'rgba(20,20,25,.4)'; g.shadowBlur = 8; g.shadowOffsetY = 3;
-        g.beginPath(); g.moveTo(x, y - 1); g.lineTo(x - r * 0.42, by + r * 0.72); g.lineTo(x + r * 0.42, by + r * 0.72); g.closePath(); g.fillStyle = cur ? '#e2782f' : col; g.fill();
+        g.beginPath(); g.moveTo(x, y - 1); g.lineTo(x - r * 0.42, by + r * 0.72); g.lineTo(x + r * 0.42, by + r * 0.72); g.closePath(); g.fillStyle = cur ? BALL : col; g.fill();
         g.beginPath(); g.arc(x, by, r, 0, 7); g.fill();
         g.restore();
         g.beginPath(); g.arc(x, by, r - 2.5, 0, 7); g.fillStyle = '#fff'; g.fill();
@@ -455,13 +463,17 @@ window.Mapa = (function () {
       // la bolita
       var P = posAt(v), bx = sx(P.x), by2 = sy(P.y), pulse = moving || playing ? 0.22 + Math.sin(now / 240) * 0.08 : 0.24;
       if (moving || playing) again = true;
-      g.beginPath(); g.arc(bx, by2, 20, 0, 7); g.fillStyle = 'rgba(226,120,47,' + pulse.toFixed(2) + ')'; g.fill();
-      g.save(); g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 7; g.shadowOffsetY = 2; g.beginPath(); g.arc(bx, by2, 13.5, 0, 7); g.fillStyle = '#e2782f'; g.fill(); g.restore();
+      g.beginPath(); g.arc(bx, by2, 20, 0, 7); g.fillStyle = 'rgba(20,22,27,' + pulse.toFixed(2) + ')'; g.fill();
+      g.save(); g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 7; g.shadowOffsetY = 2; g.beginPath(); g.arc(bx, by2, 13.5, 0, 7); g.fillStyle = BALL; g.fill(); g.restore();
       g.lineWidth = 2.4; g.strokeStyle = '#fff'; g.stroke();
       g.save(); g.translate(bx, by2);
       if (P.m === 'plane') g.rotate(P.a * Math.PI / 180); else if (P.m === 'car' && !P.right) g.scale(-1, 1);
       g.scale(0.72, 0.72); g.translate(-12, -12); g.fillStyle = '#fff'; g.fill(path2d(VEH[P.m]), 'evenodd'); g.restore();
-      if (again) invalidate();
+      if (recording && cityEl && cityEl.classList.contains('on')) {
+        var nowT = cityEl.querySelector('.mc-now');
+        if (nowT) { g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'italic 700 ' + (cityEl.classList.contains('big') ? 34 : 23) + 'px ' + SERIF; halo(nowT.querySelector('b').getAttribute('aria-label') || '', W / 2, cityEl.classList.contains('big') ? H * 0.2 : 26, txtC, halC, 5); g.font = '750 13px ' + SANS; halo(nowT.querySelector('small').textContent, W / 2, cityEl.classList.contains('big') ? H * 0.2 + 28 : 48, '#e2782f', halC, 3); }
+      }
+      if (again || recording) invalidate();
       clearTimeout(tm); if (moving) tm = setTimeout(invalidate, 160);
     }
     function invalidate() { if (dead || raf) return; raf = requestAnimationFrame(function (t) { raf = 0; paint(t); }); }
@@ -528,6 +540,27 @@ window.Mapa = (function () {
       if (c0) { trFrom = c0; tr = 0; }
       set(i);
     }
+    // vídeo de la ruta: se graba el propio mapa mientras se reproduce entero
+    var recMime = window.MediaRecorder && cv.captureStream ? ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].filter(function (m) { return MediaRecorder.isTypeSupported(m); })[0] : '', vidBtn = el.querySelector('.map-vid'), recording = false, playEnd = null;
+    if (recMime) vidBtn.hidden = false;
+    function recordVideo() {
+      if (recording) return;
+      var stream; try { stream = cv.captureStream(30); } catch (e) { vidBtn.textContent = H0.novid; return; }
+      var parts = [], rc = new MediaRecorder(stream, { mimeType: recMime });
+      rc.ondataavailable = function (e) { if (e.data && e.data.size) parts.push(e.data); };
+      rc.onstop = function () {
+        recording = false; vidBtn.textContent = H0.vid;
+        var ext = /mp4/.test(recMime) ? 'mp4' : 'webm', bl = new Blob(parts, { type: recMime.split(';')[0] }), name = 'ruta-' + (o.id || 'viaje') + '.' + ext, f = null;
+        try { f = new File([bl], name, { type: bl.type }); } catch (e) {}
+        if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: name }).catch(function () {}); return; }
+        var a = document.createElement('a'), u = URL.createObjectURL(bl); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+      };
+      recording = true; vidBtn.textContent = H0.rec; mem.ovr = 0; ovrT = 0; set(-1);
+      rc.start(500);
+      playEnd = function () { playEnd = null; setTimeout(function () { rc.stop(); }, 1800); };
+      setTimeout(play, 700);
+    }
+    vidBtn.addEventListener('click', recordVideo);
     function stop() { playing = false; playBtn.classList.remove('on'); clearTimeout(el._pt); cancelAnimationFrame(gl); }
     function legMs(n) {
       if (n <= 0 || n > last) return 1700;
@@ -540,7 +573,7 @@ window.Mapa = (function () {
       playing = true; playBtn.classList.add('on');
       (function next() {
         if (!playing) return;
-        if (n > last) { stop(); return; }
+        if (n > last) { stop(); if (playEnd) playEnd(); return; }
         n++; glide(n, legMs(n), function () { el._pt = setTimeout(next, 1500); });
       })();
     }

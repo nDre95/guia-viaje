@@ -39,7 +39,7 @@ var I18N = (function () {
       nojs2: 'Horas de sol calculadas para el día 1 = <b>{0}</b>.',
       nojs3: 'Para la versión completa, ábrela desde una URL en Safari (por ejemplo, subida a Netlify Drop) y añádela a la pantalla de inicio.',
       coverEyebrow: 'Guía de viaje · {ndays} días', coverTitle: '{dest}', coverSub: '{0} – {1}', coverAria: '{dest}',
-      ftcastles: 'castillos', ftpalace: 'castillos y palacios', ftruins: 'ruinas e historia', ftsacred: 'templos e iglesias', ftmuseum: 'museos', ftpark: 'parques y naturaleza', ftcity: 'plazas y monumentos', ftphoto: 'miradores', ftstops: 'sitios que ver', featT: '{0} {1} en el viaje', readMore: 'Ver más', readLess: 'Ver menos', theRoute: 'La ruta', routeHint: 'Toca un punto para ver el resumen', kmByCar: 'km en coche', castles: 'castillos', lightPerDay: 'de luz al día',
+      ftcastles: 'castillos', ftpalace: 'castillos y palacios', ftruins: 'ruinas e historia', ftsacred: 'templos e iglesias', ftmuseum: 'museos', ftpark: 'parques y naturaleza', ftcity: 'plazas y monumentos', ftphoto: 'miradores', ftstops: 'sitios que ver', featT: '{0} {1} en el viaje', quizT: 'Quiz de este viaje', quizS: '5 preguntas sobre sus sitios', cromoGps: 'Estoy aquí', cromoMine: 'Mi foto', gpsFar: 'Estás a {0} km de {1}', gpsNo: 'No se ha podido saber dónde estás', photoOk: 'Foto guardada en tu cromo', readMore: 'Ver más', readLess: 'Ver menos', theRoute: 'La ruta', routeHint: 'Toca un punto para ver el resumen', kmByCar: 'km en coche', castles: 'castillos', lightPerDay: 'de luz al día',
       date1: 'Fecha del día 1', recalc: 'Recalcula sol y horarios', sunsetW: 'Puesta', mustSee: 'No te lo pierdas', seeInDay: 'Ver en el día {0}',
       beforeLeaving: 'Antes de salir', whatToPack: 'Qué llevar', doneOf: '{0} de {1}', ready: 'listo', essential: 'imprescindible', reset: 'Reiniciar',
       rSee: 'Qué ver', rEat: 'Comer', rRoad: 'En ruta', rTip: 'Consejo', rPhoto: 'La foto', rBook: 'Entradas',
@@ -173,7 +173,7 @@ var I18N = (function () {
       nojs2: 'Sun times calculated for Day 1 = <b>{0}</b>.',
       nojs3: 'For the full version, open it from a URL in Safari (for example, uploaded to Netlify Drop) and add it to your Home Screen.',
       coverEyebrow: 'Travel guide · {ndays} days', coverTitle: '{dest}', coverSub: '{0} – {1}', coverAria: '{dest}',
-      ftcastles: 'castles', ftpalace: 'castles and palaces', ftruins: 'ruins and history', ftsacred: 'temples and churches', ftmuseum: 'museums', ftpark: 'parks and nature', ftcity: 'squares and monuments', ftphoto: 'viewpoints', ftstops: 'places to see', featT: '{0} {1} on the trip', readMore: 'Read more', readLess: 'Read less', theRoute: 'The route', routeHint: 'Tap a stop to see the summary', kmByCar: 'km by car', castles: 'castles', lightPerDay: 'daylight a day',
+      ftcastles: 'castles', ftpalace: 'castles and palaces', ftruins: 'ruins and history', ftsacred: 'temples and churches', ftmuseum: 'museums', ftpark: 'parks and nature', ftcity: 'squares and monuments', ftphoto: 'viewpoints', ftstops: 'places to see', featT: '{0} {1} on the trip', quizT: 'Quiz about this trip', quizS: '5 questions about its places', cromoGps: "I'm here", cromoMine: 'My photo', gpsFar: "You're {0} km from {1}", gpsNo: "Couldn't get your location", photoOk: 'Photo saved on your card', readMore: 'Read more', readLess: 'Read less', theRoute: 'The route', routeHint: 'Tap a stop to see the summary', kmByCar: 'km by car', castles: 'castles', lightPerDay: 'daylight a day',
       date1: 'Day 1 date', recalc: 'Recalculates sun and times', sunsetW: 'Sunset', mustSee: 'Don’t miss', seeInDay: 'Show in day {0}',
       beforeLeaving: 'Before you go', whatToPack: 'What to pack', doneOf: '{0} of {1}', ready: 'ready', essential: 'essential', reset: 'Reset',
       rSee: 'What to see', rEat: 'Eat', rRoad: 'On the road', rTip: 'Tip', rPhoto: 'The photo', rBook: 'Tickets',
@@ -992,6 +992,7 @@ var View = (function () {
           '<div class="hm-stat sq" style="--d:0" data-sheet="drives:all" role="button" tabindex="0"><span class="hm-i n">' + ic('car') + '</span><b data-count="' + km + '" data-fmt="km">≈ ' + km + '</b><span>' + L('kmByCar') + '</span>' + ic('chev') + '</div>') +
         '<div class="hm-stat sq" style="--d:1" data-sheet="feat:' + ft.k + '" role="button" tabindex="0"><span class="hm-i g">' + ic(ft.ic) + '</span><b data-count="' + ft.n + '">' + ft.n + '</b><span>' + L('ft' + ft.k) + '</span>' + ic('chev') + '</div>' +
         '<div class="hm-stat sq" style="--d:2" data-sheet="light:0" role="button" tabindex="0"><span class="hm-i o">' + ic('sun') + '</span><b data-count="' + Math.round(light) + '" data-fmt="hm">' + hshort(light) + '</b><span>' + L('lightPerDay') + '</span>' + ic('chev') + '</div></div>' +
+      (window.Mundo ? '<button type="button" class="card qz-card sq rv" data-quiz><span class="qz-ic">?</span><span class="qz-m"><b>' + L('quizT') + '</b><small>' + L('quizS') + '</small></span>' + ic('chev') + '</button>' : '') +
       // los días
       '<div class="dcx"><div class="dcx-st"><div class="hm-h"><h3>' + L('hmDays', plans.length) + '</h3><span>' + L('hmSwipe') + '</span></div>' +
       '<div class="dcar" id="dcar">' + cards + '</div></div></div>' +
@@ -1641,7 +1642,9 @@ var View = (function () {
   function cromoKey(id) { return ((window.TRIP_META || {}).id || 'guia') + '|' + id; }
   function cromoBtn(it) {
     var got = ALB[cromoKey(it.id)];
-    return '<button type="button" class="btn sq cromo-b' + (got ? ' got' : '') + '" data-cromo="' + it.id + '">' + ic(got ? 'check' : 'camera') + (got ? L('cromoGot') : L('cromoAdd')) + '</button>';
+    return '<span class="cromo-x" data-cromox="' + it.id + '"><button type="button" class="btn sq cromo-b' + (got ? ' got' : '') + '" data-cromo="' + it.id + '">' + ic(got ? 'check' : 'camera') + (got ? L('cromoGot') + (got.gps ? ' · GPS' : '') : L('cromoAdd')) + '</button>' +
+      (window.Juego && !got && it.lat != null ? '<button type="button" class="btn ghost sq" data-cromogps="' + it.id + '">' + ic('pin') + L('cromoGps') + '</button>' : '') +
+      (window.Juego && got ? '<label class="btn ghost sq cromo-ph">' + ic('camera') + L('cromoMine') + '<input type="file" accept="image/*" data-myph="' + it.id + '" hidden></label>' : '') + '</span>';
   }
   var BC = [['ticket', 'ticket', 'bTickets'], ['food', 'food', 'bFood'], ['fuel', 'fuel', 'bFuel'], ['parking', 'car', 'bParking'], ['shop', 'shop', 'bShop'], ['hotel', 'bed', 'bHotel'], ['other', 'card', 'bOther']];
   function setBudget(list, payers) { BUD.list = list || []; if (payers) BUD.payers = payers; }
@@ -3207,6 +3210,20 @@ var View = (function () {
     if (t.closest('[data-album]')) { openAlbum(); return; }
     var abt = t.closest('[data-albtab]');
     if (abt) { albumTab(abt.getAttribute('data-albtab')); haptic(); return; }
+    if (t.closest('.cromo-ph')) return;
+    if (t.closest('[data-quiz]')) {
+      if (window.Mundo) Mundo.openQuiz([{ id: META.id || 'guia', status: 'now', ref: { id: META.id, b: { meta: META, trip: window.TRIP || T, trip_en: window.TRIP_EN || {}, photos: window.TRIP_PHOTOS || {} } } }]);
+      return;
+    }
+    var gpsb = t.closest('[data-cromogps]');
+    if (gpsb) {
+      var gi = cromoItem(gpsb.getAttribute('data-cromogps'));
+      if (gi) Juego.locate(gi.it.lat, gi.it.lon).then(function (km0) {
+        if (km0 <= 0.5) toggleCromo(gi.it.id, true, true);
+        else notify({ ico: 'pin', tone: 'o', ms: 4000, title: L('gpsFar', km0 < 10 ? km0.toFixed(1) : Math.round(km0), gi.it.ti) });
+      }, function () { notify({ ico: 'pin', tone: 'o', ms: 4000, title: L('gpsNo') }); });
+      return;
+    }
     var crb = t.closest('[data-cromo]');
     if (crb) { toggleCromo(crb.getAttribute('data-cromo')); return; }
     var bpy = t.closest('[data-bpay]');
@@ -3670,17 +3687,27 @@ var View = (function () {
   function cromoItem(id) { var f = null; plans.forEach(function (p, di) { p.ev.forEach(function (e) { if (e.it.id === id) f = { it: e.it, di: di }; }); }); return f; }
   // como el álbum: todos los sitios del viaje, también los que hoy no van en el plan
   function cromoCount() { var n = 0, all = 0; (window.TRIP || T).days.forEach(function (d) { d.items.forEach(function (it) { if (V.isCromo(it)) { all++; if (album[V.cromoKey(it.id)]) n++; } }); }); return [n, all]; }
-  function toggleCromo(id, force) {
+  function toggleCromo(id, force, gps) {
     var f = cromoItem(id); if (!f) return;
     album = albumGet(); var k = V.cromoKey(id), had = !!album[k];
     if (had && force) return;
-    if (had) delete album[k]; else album[k] = { at: phoneISO(), ti: f.it.ti, ph: f.it.ph || '', day: f.di + 1 };
+    if (had) delete album[k]; else { album[k] = { at: phoneISO(), ti: f.it.ti, ph: f.it.ph || '', day: f.di + 1 }; if (gps) album[k].gps = 1; }
     try { localStorage.setItem('guia-album', JSON.stringify(album)); } catch (_) {}
     V.setAlbum(album);
-    $$('[data-cromo="' + id + '"]').forEach(function (b) { b.outerHTML = V.cromoBtn(f.it); });
+    $$('[data-cromox="' + id + '"]').forEach(function (b) { b.outerHTML = V.cromoBtn(f.it); });
+    if (!had && window.Juego) {
+      var lst = []; (window.TRIP || T).days.forEach(function (d) { d.items.forEach(function (it) { if (V.isCromo(it)) lst.push({ id: it.id, must: it.must }); }); });
+      Juego.onVisit(META.id || 'guia', lst, album, gps);
+    }
     if (!had) { var c = cromoCount(); notify({ ico: 'camera', tone: 'o', title: L('cromoDone', f.it.ti), body: L('cromoDoneB', c[0], c[1]), ms: 3200, onTap: openAlbum }); }
     hubRefresh(); haptic();
   }
+  // tu foto en el cromo
+  document.addEventListener('change', function (e) {
+    var id = e.target.getAttribute && e.target.getAttribute('data-myph'); if (!id || !e.target.files[0] || !window.Juego) return;
+    Juego.savePhoto(V.cromoKey(id), e.target.files[0]).then(function () { notify({ ico: 'camera', tone: 'o', ms: 3000, title: L('photoOk') }); }, function () { notify({ ico: 'alert', tone: 'o', ms: 3000, title: L('gpsNo') }); });
+    e.target.value = '';
+  });
   // álbum: en la web está en «Mis viajes»; en el HTML único, en una hoja (album.js)
   function openAlbum() {
     if (window.GUIA_WEB || !window.Album) { location.href = 'index.html#album'; return; }
@@ -3699,7 +3726,7 @@ var View = (function () {
     // pegado o quitado desde el visor 3D: botones de la guía y losa al día
     onChange: function () {
       album = albumGet(); V.setAlbum(album);
-      $$('[data-cromo]').forEach(function (b) { var f = cromoItem(b.getAttribute('data-cromo')); if (f) b.outerHTML = V.cromoBtn(f.it); });
+      $$('[data-cromox]').forEach(function (b) { var f = cromoItem(b.getAttribute('data-cromox')); if (f) b.outerHTML = V.cromoBtn(f.it); });
       hubRefresh();
     }
   });

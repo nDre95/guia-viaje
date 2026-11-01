@@ -211,7 +211,8 @@
     var u = DB.all().catch(function () { return []; }).then(function (l) { return (l || []).map(function (x) { return { id: x.id, b: x.bundle }; }); });
     return Promise.all([a, u]).then(function (r) { return r[0].filter(Boolean).concat(r[1]); });
   }
-  Album.init({ trips: allTrips, onChange: function () { var t = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (t && t.getAttribute('data-vt') === 'home') renderHome(); } });
+  Album.init({ trips: allTrips, backupTrips: function () { return DB.all().then(function (l) { return (l || []).map(function (x) { return { id: x.id, at: x.at, bundle: x.bundle }; }); }).catch(function () { return []; }); },
+    restoreTrips: function (list) { return Promise.all(list.map(function (x) { return x && x.id && x.bundle && /^u-/.test(x.id) ? DB.put({ id: x.id, at: x.at || Date.now(), bundle: x.bundle }) : null; })); }, onChange: function () { var t = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (t && t.getAttribute('data-vt') === 'home') renderHome(); } });
   function renderProfile() {
     return Album.renderProfile().then(function () {
       var th = 'auto'; try { th = localStorage.getItem('guia-theme') || 'auto'; } catch (e) {}
@@ -246,6 +247,24 @@
       } else {
         h += '<button type="button" class="hm-next empty rv-h" data-new><span class="hm-ey">Sin viajes a la vista</span><b>¿A dónde vamos?</b><small>Crea una guía nueva en un par de minutos, con datos reales.</small><span class="hm-go">Crear un viaje' + ic('chev') + '</span></button>';
       }
+      if (window.Juego) {
+        Juego.claimDaily();
+        trips.forEach(function (t) { Juego.reward('trip:' + t.id, 'g', t.title); });
+        var G = Juego.get(), nP = Juego.total(G), kP = G.packs.i ? 'i' : G.packs.g ? 'g' : 'n';
+        if (nP) h += '<button type="button" class="card hm-row sq rv-h" data-go="album" style="--d:30ms"><span class="hm-pk k-' + kP + '"><span class="pk-foil"></span></span><span><b>' + (nP === 1 ? 'Tienes 1 sobre' : 'Tienes ' + nP + ' sobres') + '</b><small>Ábrelo en tu álbum</small></span>' + ic('chev') + '</button>';
+        // durante un viaje: los retos de hoy
+        if (nextT && nextT.status === 'now') h += '<div class="card hm-ret rv-h"><b>Retos de hoy</b><ul>' + Juego.challenges().map(function (c) { return '<li class="' + (c.done ? 'ok' : '') + '">' + esc(c.t) + '</li>'; }).join('') + '</ul></div>';
+        // recuerdos: un viaje de estas fechas en otros años
+        var nowD = new Date(), mem = trips.filter(function (t) {
+          if (t.status !== 'past' || !t.start) return false;
+          var d0 = new Date(t.start + 'T12:00:00Z'), same = new Date(Date.UTC(nowD.getFullYear(), d0.getUTCMonth(), d0.getUTCDate(), 12));
+          return Math.abs(same - nowD) < 8 * 864e5 && d0.getUTCFullYear() < nowD.getFullYear();
+        })[0];
+        if (mem) {
+          var yrs = nowD.getFullYear() - +mem.start.slice(0, 4);
+          h += '<button type="button" class="card hm-row sq rv-h" data-open="' + esc(mem.id) + '"><span class="hm-ph"' + (mem.cover ? ' style="background-image:url(&quot;' + esc(mem.cover) + '&quot;)"' : '') + '></span><span><b>' + (yrs === 1 ? 'Hace 1 año' : 'Hace ' + yrs + ' años') + '</b><small>' + esc(mem.title) + '</small></span>' + ic('chev') + '</button>';
+        }
+      }
       // perfil y álbum, uno al lado del otro
       var fan = O.recent.slice(0, 3);
       h += '<div class="hm-two">' +
@@ -256,15 +275,24 @@
       // del próximo viaje: imprescindibles y preparativos
       if (nextT) {
         var T = nextT.ref, must = Album.cromosOf(T, Album.get()).filter(function (c) { return c.must; }).slice(0, 10), st = checklistStat(T), pc = st.all ? Math.round(st.done / st.all * 100) : 0;
+        if (window.Juego && st.all && st.done === st.all) Juego.reward('ready:' + nextT.id, 'g', 'Todo listo');
         if (must.length) h += '<div class="hm-sec rv-h" style="--d:160ms"><div class="hm-h"><b>Imprescindibles</b><small>' + must.filter(function (c) { return c.got; }).length + ' de ' + must.length + '</small></div><div class="hm-scroll">' + must.map(function (c) {
           return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(T.id + '|' + c.id) + '"' + (c.img ? ' style="background-image:url(&quot;' + esc(c.img) + '&quot;)"' : '') + '><span>' + esc(c.ti) + '</span></button>';
         }).join('') + '</div></div>';
         h += '<div class="hm-two">' +
-          '<button type="button" class="card hm-t rv-h" data-open="' + esc(nextT.id) + '" style="--d:200ms"><span class="hm-tt">' + ic('check') + 'Preparativos</span><span class="hm-big">' + pc + '<i>%</i></span><span class="hm-prog"><i style="width:' + pc + '%"></i></span><small>' + st.done + ' de ' + st.all + ' tareas</small></button>' +
+          '<button type="button" class="card hm-t rv-h" data-open="' + esc(nextT.id) + '" style="--d:200ms"><span class="hm-tt">' + ic('check') + 'Listo para salir</span><span class="hm-big">' + pc + '<i>%</i></span><span class="hm-prog"><i style="width:' + pc + '%"></i></span><small>' + st.done + ' de ' + st.all + ' tareas</small></button>' +
           '<div class="card hm-t rv-h" id="hmWx" style="--d:240ms"><span class="hm-tt">' + ic('cloud') + 'Tiempo</span><span class="hm-big">–</span><small>' + esc((T.b.trip.wx[0] || {}).n || '') + '</small></div></div>';
       }
       // siguiente insignia y crear
       if (O.nextBadge) h += '<div class="card hm-b rv-h" style="--d:280ms"><i>' + O.nextBadge[0] + '</i><span><small>Siguiente insignia</small><b>' + esc(O.nextBadge[1]) + '</b></span></div>';
+      if (window.Juego && window.Mundo) {
+        var known = {}; trips.forEach(function (t) { (Mundo.cached(t.ref) || []).forEach(function (c) { known[c] = 1; }); });
+        var idea = Juego.suggest(known);
+        if (idea) h += '<button type="button" class="card hm-row sq rv-h" data-new style="--d:300ms"><span class="hm-tt" style="margin:0;font-size:22px">' + (Mundo.flag(idea.cc) || '🌍') + '</span><span><b>¿Y ahora ' + esc(idea.name) + '?</b><small>País nuevo para tu pasaporte</small></span>' + ic('chev') + '</button>';
+        // copia de seguridad: los datos solo están en este dispositivo
+        var GB = Juego.get(), hasData = O.got > 0 || trips.some(function (t) { return /^u-/.test(t.id); });
+        if (hasData && Date.now() - (GB.backup || 0) > 30 * 864e5) h += '<button type="button" class="card hm-row sq rv-h" data-go="profile" style="--d:310ms"><span class="hm-tt" style="margin:0">' + ic('check') + '</span><span><b>Haz una copia de seguridad</b><small>Tus viajes solo están en este dispositivo</small></span>' + ic('chev') + '</button>';
+      }
       h += '<button type="button" class="btn navy sq big-btn rv-h" data-new style="--d:320ms">' + ic('plus') + 'Nuevo viaje</button>';
       box.innerHTML = h;
       if (nextT) homeWeather(nextT);
@@ -280,6 +308,7 @@
       .then(function (r) { return r.json(); }).then(function (j) { big.innerHTML = Math.round(j.daily.temperature_2m_max[0]) + '<i>°</i>'; el.lastChild.textContent = w.n + ' · mín. ' + Math.round(j.daily.temperature_2m_min[0]) + '°'; }).catch(typical);
   }
 
+  document.addEventListener('juego:change', function () { var v = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (v && v.getAttribute('data-vt') === 'home') renderHome(); });
   renderList();
   completeEnglish();
   var t0 = location.hash.slice(1);

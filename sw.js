@@ -1,6 +1,6 @@
 // Guarda la app para usarla sin conexión. build.py pone la versión en el nombre de la caché.
-var CACHE = 'guia-2.14', IMG = 'guia-img';
-var FILES = ['./', './index.html', './guia.html', './viajes.html', './app.js', './styles.css', './viajes.js', './album.js', './album.css', './motor.js', './asistente.js', './mapa.js', './mundo.js', './lang.js', './manifest.webmanifest',
+var CACHE = 'guia-3.0', IMG = 'guia-img';
+var FILES = ['./', './index.html', './guia.html', './viajes.html', './app.js', './styles.css', './viajes.js', './album.js', './album.css', './motor.js', './asistente.js', './mapa.js', './mundo.js', './juego.js', './lang.js', './manifest.webmanifest',
   './icon-180.png', './icon-192.png', './icon-512.png', './trips/index.json'];
 
 self.addEventListener('install', function (e) {
@@ -17,7 +17,9 @@ self.addEventListener('activate', function (e) {
 
 function fromCache(cacheName, req, key) {
   return caches.match(key || req, { ignoreSearch: true }).then(function (hit) {
-    return hit || fetch(req).then(function (res) {
+    // lo guardado sin permiso de lectura no vale para quien lo pide con él (vídeo de la ruta): se vuelve a pedir
+    if (hit && !(req.mode === 'cors' && hit.type === 'opaque')) return hit;
+    return fetch(req).then(function (res) {
       if (res.ok || res.type === 'opaque') { var copy = res.clone(); caches.open(cacheName).then(function (c) { c.put(key || req, copy); }); }
       return res;
     });

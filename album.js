@@ -24,19 +24,20 @@ window.Album = (function () {
   function albumGet() { try { return JSON.parse(localStorage.getItem('guia-album') || '{}') || {}; } catch (e) { return {}; } }
   function albumSet(a) { try { localStorage.setItem('guia-album', JSON.stringify(a)); } catch (e) {} }
   function isCromo(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole && !/aeropuerto|airport/i.test(it.ti); }
-  function trips() { return TRIPS ? Promise.resolve(TRIPS) : cfg.trips().then(function (t) { TRIPS = t || []; return TRIPS; }); }
+  function trips() { var ph = window.Juego ? Juego.ready() : Promise.resolve(); return ph.then(function () { return TRIPS || cfg.trips().then(function (t) { TRIPS = t || []; return TRIPS; }); }); }
   function lg() { return window.Lang ? Lang.get() : 'es'; }
   function tr(s) { return window.Lang ? Lang.t(s) : s; }
   function tripTitle(t) { var m = t.b.meta.title || {}; return m[lg()] || m.es || t.id; }
   // cromos de un viaje: sus sitios, por días; ★ = imprescindible (o, si el viaje no marca ninguno, el 20 % más famoso)
   function cromosOf(t, alb) {
     var b = t.b, ph = b.photos || {}, list = [];
-    b.trip.days.forEach(function (d, k) { d.items.forEach(function (it) { if (isCromo(it)) list.push({ id: it.id, ti: lg() === 'en' && ((t.b.trip_en || {}).items || {})[it.id] && t.b.trip_en.items[it.id].ti || it.ti, day: k + 1, ph: it.ph || '', img: it.ph ? ph[it.ph] || '' : '', must: !!it.must, links: (it.src || {}).links || 0 }); }); });
+    b.trip.days.forEach(function (d, k) { d.items.forEach(function (it) { if (!isCromo(it)) return; var en = lg() === 'en' ? ((t.b.trip_en || {}).items || {})[it.id] || {} : {}, mine = window.Juego ? Juego.photo(t.id + '|' + it.id) : ''; list.push({ id: it.id, ti: en.ti || it.ti, lead: en.lead || it.lead || '', day: k + 1, ph: it.ph || '', img: mine || (it.ph ? ph[it.ph] || '' : ''), must: !!it.must, links: (it.src || {}).links || 0, raw: it }); }); });
     if (!list.some(function (c) { return c.must; })) {
       var cut = list.map(function (c) { return c.links; }).sort(function (x, y) { return y - x; })[Math.max(0, Math.ceil(list.length * 0.2) - 1)] || 1e9;
       list.forEach(function (c) { c.must = c.links > 0 && c.links >= cut; });
     }
-    list.forEach(function (c, n) { c.n = n + 1; c.got = alb[t.id + '|' + c.id] || null; });
+    var own = window.Juego ? Juego.get().own : {};
+    list.forEach(function (c, n) { c.n = n + 1; c.key = t.id + '|' + c.id; c.got = alb[c.key] || null; c.own = own[c.key] || null; if (window.Juego) c.rate = Juego.rate(c.raw.must || !c.must ? c.raw : Object.assign({}, c.raw, { must: 1 })); });
     return list;
   }
   // lo que encuentra el buscador: títulos, ciudades y países
@@ -58,6 +59,45 @@ window.Album = (function () {
      Album.listBox(caja, { key, placeholder, chips: [[id, texto, prueba]], select: { all, options }, text(item), selectVal(item), render(item), size, empty, items })
      El buscador no se vuelve a pintar al escribir, para no perder el foco; el estado se recuerda mientras dure la página. */
   var LST = {};
+  // todas las cartas de todos los viajes: de aquí salen los sobres y las colecciones
+  function allCards() {
+    return trips().then(function (list) {
+      var alb = albumGet(), out = [];
+      list.forEach(function (t) { cromosOf(t, alb).forEach(function (c) { c.trip = t.id; c.url = phUrl(c); out.push(c); }); });
+      return out;
+    });
+  }
+  var SETS = [['hist', 'Historia', ['CAS', 'RUI', 'MON', 'TEM']], ['arte', 'Arte y espectáculos', ['MUS', 'ESP']], ['natu', 'Naturaleza y miradores', ['NAT', 'JAR', 'MIR']], ['urbe', 'Ciudad', ['PLZ', 'BAR', 'MER', 'PAS', 'FAM']]];
+  function packsHTML(cards) {
+    var g = Juego.get(), kinds = ['i', 'g', 'n'].filter(function (k) { return g.packs[k] > 0; }), d = Juego.dups(g);
+    var head = '<div class="pk-row">' + (kinds.length ? kinds.map(function (k) {
+      return '<button type="button" class="pk-mini k-' + k + ' sq" data-pkopen="' + k + '"><span class="pk-foil"></span><b>' + g.packs[k] + '</b><small>' + esc(Juego.PACK[k]) + '</small></button>';
+    }).join('') : '<p class="pk-none">Hoy no te quedan sobres. Mañana hay otro, y también se ganan con el quiz, los retos y visitando sitios.</p>') +
+      (d >= 5 ? '<button type="button" class="pk-ex sq" data-pkex>Cambiar 5 repetidas por un sobre</button>' : '') + '</div>';
+    // colecciones
+    var sets = SETS.map(function (S) {
+      var all = cards.filter(function (c) { return S[2].indexOf(c.rate.pos) >= 0; }), have = all.filter(function (c) { return c.own || c.got; }).length;
+      if (all.length && have === all.length) Juego.reward('set:' + S[0], 'g', 'Colección completa');
+      return all.length ? { n: S[1], have: have, all: all.length } : null;
+    }).filter(Boolean);
+    var tops = cards.filter(function (c) { return c.rate.r >= 80; });
+    if (tops.length) sets.push({ n: 'Oro y superiores', have: tops.filter(function (c) { return c.own || c.got; }).length, all: tops.length });
+    return head + (sets.length ? '<div class="pf-h">Colecciones</div><div class="set-row">' + sets.map(function (x) {
+      return '<div class="card set-c"><b>' + esc(x.n) + '</b><small>' + x.have + ' de ' + x.all + '</small><span class="alb-bar"><i style="width:' + Math.round(x.have / x.all * 100) + '%"></i></span></div>';
+    }).join('') + '</div><div class="pf-h">Mis viajes</div>' : '');
+  }
+  function paintPacks(on) {
+    var box = $('#albumBox'); if (!box || !window.Juego) return Promise.resolve();
+    var el = $('#packBox');
+    if (!el) { el = document.createElement('div'); el.id = 'packBox'; box.parentNode.insertBefore(el, box); }
+    if (!on) { el.innerHTML = ''; return Promise.resolve(); }
+    Juego.claimDaily();
+    return allCards().then(function (cards) {
+      // un sobre de oro de regalo por cada viaje, una sola vez
+      (TRIPS || []).forEach(function (t) { Juego.reward('trip:' + t.id, 'g', tripTitle(t)); });
+      el.innerHTML = packsHTML(cards);
+    });
+  }
   function listBox(box, o) {
     var st = LST[o.key] || (LST[o.key] = { q: '', chip: 'all', sel: '', year: '', n: o.size || 5 });
     if (box._lst !== o.key || !box.querySelector('.lst-res')) {
@@ -107,6 +147,7 @@ window.Album = (function () {
       var alb = albumGet(), withC = list.filter(function (t) { return cromosOf(t, alb).length; });
       if (cfg.single && withC[0]) openT = withC[0].id;
       var cur = withC.filter(function (t) { return t.id === openT; })[0];
+      paintPacks(!cur || !!cfg.single);
       if (!cur) {
         openT = null;
         var pb = $('#postBox'); if (pb) pb.hidden = true;
@@ -128,16 +169,17 @@ window.Album = (function () {
       }
       var t = cur, cs = cromosOf(t, alb), got = cs.filter(function (c) { return c.got; }).length;
       box._lst = '';
-      var seen = cs.filter(function (c) { return crFilter === 'got' ? c.got : crFilter === 'miss' ? !c.got : crFilter === 'must' ? c.must : true; });
+      var seen = cs.filter(function (c) { return crFilter === 'got' ? c.got : crFilter === 'miss' ? !c.got : crFilter === 'top' ? c.rate && (c.rate.r >= 80) : true; });
       box.innerHTML = (cfg.single ? '' : '<button type="button" class="alb-back sq" data-albback><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg><span>Todos los viajes</span></button>') +
         '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
           '<div class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></div>' +
-          (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Pegados', got], ['miss', 'Faltan', cs.length - got], ['must', '★', cs.filter(function (c) { return c.must; }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
+          (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Pegados', got], ['miss', 'Faltan', cs.length - got], ['top', 'Oro o más', cs.filter(function (c) { return c.rate && (c.rate.r >= 80); }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
           '<div class="crs">' + seen.map(function (c) {
-            return '<button type="button" class="cr' + (c.got ? ' got' : '') + (c.must ? ' must' : '') + phCls(c) + '" data-cr="' + esc(t.id + '|' + c.id) + '"' + phStyle(c) + '>' +
-              (c.got ? '<i class="sheen"></i>' : '') + '<i class="no">#' + c.n + '</i>' + (c.must ? '<i class="cst">★</i>' : '') + (c.got ? '<i class="stamp">Visto · ' + esc(shortDate(c.got.at)) + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
+            var R = c.rate || { r: '', pos: '', tier: 'copper' };
+            return '<button type="button" class="cr fc t-' + R.tier + (c.got ? ' got' : '') + (c.own ? ' own' : '') + phCls(c) + '" data-cr="' + esc(t.id + '|' + c.id) + '"' + phStyle(c) + '>' +
+              '<i class="fc-b"></i>' + (c.got ? '<i class="sheen"></i>' : '') + '<i class="fc-r">' + R.r + '</i><i class="fc-p">' + R.pos + '</i>' + (c.own && c.own.n > 1 ? '<i class="fc-x">×' + c.own.n + '</i>' : '') + (c.got ? '<i class="fc-v">' + (c.got.gps ? '✓ GPS' : '✓') + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
           }).join('') + '</div>' +
-          '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">Crear postal</button>' : '') +
+          '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">' + (reelMime() ? 'Crear vídeo' : 'Crear postal') + '</button>' : '') +
           (cfg.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button>') + '</div></div>';
     });
   }
@@ -152,15 +194,15 @@ window.Album = (function () {
   }
   function openCromo(key) {
     var f = cromoByKey(key); if (!f) return;
-    var c = f.c, cls = (c.must ? ' gold' : '') + (c.got ? '' : ' miss');
+    var c = f.c, R = c.rate || { r: '', pos: '', tier: 'copper', st: [] }, have = c.got || c.own, top = R.r >= 80, cls = ' fc t-' + R.tier + (have ? '' : ' miss');
     cv3.key = key; cv3.rx = 0; cv3.ry = 0;
     $('#crView').innerHTML =
-      '<div class="hv-wrap"><div class="hv-halo' + (c.got ? (c.must ? ' gold' : '') : ' miss') + '"></div>' +
+      '<div class="hv-wrap"><div class="hv-halo' + (have ? (top ? ' gold' : '') : ' miss') + '"></div>' +
         '<div class="holo' + cls + '">' +
           '<div class="hf"><div class="hp' + phCls(c) + '"' + phStyle(c) + '></div><div class="foil"></div><div class="glit"></div>' +
-            (c.must ? '<span class="star">★ Imprescindible</span>' : '') +
-            (c.got ? '<span class="stamp2">Visto · ' + esc(shortDate(c.got.at)) + '</span>' : '<span class="lock">Aún no lo tienes</span>') +
-            '<div class="cap"><b>' + esc(c.ti) + '</b><i>#' + c.n + '</i></div><div class="glare"></div></div>' +
+            '<span class="fc-frame"></span><span class="fc-glit"></span><span class="fc-top"><b>' + R.r + '</b><i>' + R.pos + '</i></span>' +
+            (c.got ? '<span class="fc-seen">' + (c.got.gps ? '✓ GPS · ' : '✓ ') + esc(shortDate(c.got.at)) + '</span>' : have ? '' : '<span class="lock">Aún no la tienes</span>') +
+            '<div class="cap"><b>' + esc(c.ti) + '</b><i>' + esc(window.Juego ? Juego.TIER[R.tier] : '') + '</i></div><div class="fc-st">' + (R.st || []).map(function (x) { return '<i><b>' + x[1] + '</b>' + x[0] + '</i>'; }).join('') + '</div><div class="glare"></div></div>' +
           '<div class="hb"><span class="seal">' + (c.got ? 'Visto<br>' + esc(shortDate(c.got.at)) : 'Por<br>pegar') + '</span><b>' + esc(tripTitle(f.t)) + '</b><small>Cromo #' + c.n + ' de ' + f.total + ' · Día ' + c.day + '</small></div>' +
         '</div></div>' +
       '<p class="hv-hint">Arrastra para girarlo · dale la vuelta para ver el reverso</p>' +
@@ -214,7 +256,7 @@ window.Album = (function () {
     } else if (a === 'toggle') {
       var alb = albumGet(), k = cv3.key, f = cromoByKey(k); if (!f) return;
       if (alb[k]) { if (!confirm('¿Quitar este cromo del álbum?')) return; delete alb[k]; }
-      else alb[k] = { at: today(), ti: f.c.ti };
+      else { alb[k] = { at: today(), ti: f.c.ti }; if (window.Juego) Juego.onVisit(f.t.id, cromosOf(f.t, alb), alb, false); }
       albumSet(alb); if (cfg.onChange) cfg.onChange(k);
       renderAlbum().then(function () {
         var was = !!alb[k]; openCromo(k);
@@ -282,8 +324,68 @@ window.Album = (function () {
       cv.toBlob(function (bl) {
         postBlob = bl; postName = 'postal-' + id + '.jpg';
         var box = $('#postBox'); if (!box) return;
+        var v0 = $('#postVid'); if (v0) v0.hidden = true; $('#postImg').hidden = false;
         $('#postImg').src = URL.createObjectURL(bl); box.hidden = false; box.scrollIntoView({ behavior: 'smooth' });
       }, 'image/jpeg', 0.9);
+    });
+  }
+  /* ---------- Vídeo del viaje: en vertical, con tus sitios uno a uno; sin grabador, la postal de siempre ---------- */
+  function reelMime() {
+    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return '';
+    return ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].filter(function (m) { return MediaRecorder.isTypeSupported(m); })[0] || '';
+  }
+  function makeReel(id, btn) {
+    var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t) return;
+    var mime = reelMime(); if (!mime) { makePostcard(id); return; }
+    var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return (b.rate ? b.rate.r : 0) - (a.rate ? a.rate.r : 0); }).slice(0, 7);
+    if (btn) { btn.disabled = true; btn.textContent = 'Creando vídeo…'; }
+    function restore() { if (btn) { btn.disabled = false; btn.textContent = 'Crear vídeo'; } }
+    Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
+      var W0 = 720, H0 = 1280, cv = document.createElement('canvas'), g = cv.getContext('2d'), serif = '"New York","Iowan Old Style",Georgia,serif', sans = '-apple-system,"Segoe UI",Roboto,sans-serif';
+      cv.width = W0; cv.height = H0; cv.style.cssText = 'position:fixed;left:-9999px;top:0;width:10px;height:18px'; document.body.appendChild(cv);
+      var shots = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; }), INTRO = 1.6, SHOT = 2.1, OUTRO = 2.8, total = INTRO + shots.length * SHOT + OUTRO, title = tripTitle(t), stream;
+      function ease(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+      function bg() { var b = g.createLinearGradient(0, 0, W0, H0); b.addColorStop(0, '#2b2d36'); b.addColorStop(1, '#14151a'); g.fillStyle = b; g.fillRect(0, 0, W0, H0); }
+      function cover(im, z, dx) { var r = Math.max(W0 / im.width, H0 / im.height) * z, w = im.width * r, h = im.height * r; g.drawImage(im, (W0 - w) / 2 + dx, (H0 - h) / 2, w, h); }
+      function frame(sec) {
+        g.globalAlpha = 1; g.textAlign = 'center'; bg();
+        if (sec < INTRO) {
+          var a = ease(sec / 0.6); g.globalAlpha = a; g.fillStyle = '#ffc48f'; g.font = '800 26px ' + sans; g.fillText(tr('Recuerdos de').toUpperCase(), W0 / 2, 560 + (1 - a) * 24);
+          g.fillStyle = '#fff'; g.font = 'italic 700 66px ' + serif; wrap(g, title, W0 / 2, 640 + (1 - a) * 24, 620, 74); return;
+        }
+        var s0 = sec - INTRO, i = Math.floor(s0 / SHOT);
+        if (i < shots.length) {
+          var f = (s0 - i * SHOT) / SHOT, x = shots[i], R = x.c.rate;
+          cover(x.im, 1.05 + f * 0.12, (i % 2 ? 1 : -1) * f * 26);
+          var sh = g.createLinearGradient(0, H0 * 0.55, 0, H0); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.82)'); g.fillStyle = sh; g.fillRect(0, 0, W0, H0);
+          var t0 = ease(f / 0.22), o = ease((1 - f) / 0.1); g.globalAlpha = t0 * o; g.textAlign = 'left';
+          g.fillStyle = '#ffc48f'; g.font = '800 25px ' + sans; g.fillText((tr('Día') + ' ' + x.c.day).toUpperCase(), 50, H0 - 180 + (1 - t0) * 22);
+          g.fillStyle = '#fff'; g.font = '700 52px ' + serif; wrap(g, x.c.ti, 50, H0 - 122 + (1 - t0) * 22, 620, 58);
+          if (R) { g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(50, 70, 96, 96); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = '800 46px ' + serif; g.fillText(String(R.r), 98, 128); g.font = '800 17px ' + sans; g.fillText(R.pos, 98, 154); }
+          g.globalAlpha = 1 - ease(f / 0.12); bg(); g.globalAlpha = 1; return;
+        }
+        var e = ease((s0 - shots.length * SHOT) / 0.6), col = 3, sz = 190; g.globalAlpha = e;
+        shots.slice(0, 6).forEach(function (x, k) { var X = 60 + (k % col) * (sz + 15), Y = 300 + Math.floor(k / col) * (sz + 15); g.save(); g.beginPath(); g.rect(X, Y, sz, sz); g.clip(); var r = Math.max(sz / x.im.width, sz / x.im.height), w = x.im.width * r, h = x.im.height * r; g.drawImage(x.im, X + (sz - w) / 2, Y + (sz - h) / 2, w, h); g.restore(); });
+        g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = 'italic 700 58px ' + serif; g.fillText(title.length > 22 ? title.slice(0, 21) + '…' : title, W0 / 2, 800);
+        g.fillStyle = '#ffc48f'; g.font = '700 31px ' + sans; g.fillText(lg() === 'en' ? got.length + ' of ' + cs.length + ' cards' : got.length + ' de ' + cs.length + ' cromos', W0 / 2, 860);
+        g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '600 24px ' + sans; g.fillText(tr('Guía de viaje'), W0 / 2, 1190);
+      }
+      try { frame(0); stream = cv.captureStream(30); } catch (e) { cv.remove(); restore(); makePostcard(id); return; }
+      var parts = [], rc = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 3500000 });
+      rc.ondataavailable = function (e) { if (e.data && e.data.size) parts.push(e.data); };
+      rc.onstop = function () {
+        cv.remove(); restore();
+        postBlob = new Blob(parts, { type: mime.split(';')[0] }); postName = 'viaje-' + id + (/mp4/.test(mime) ? '.mp4' : '.webm');
+        var box = $('#postBox'); if (!box) return;
+        var img = $('#postImg'), vid = $('#postVid'); if (img) img.hidden = true;
+        if (!vid) { vid = document.createElement('video'); vid.id = 'postVid'; vid.controls = true; vid.loop = true; vid.muted = true; vid.setAttribute('playsinline', ''); img.parentNode.insertBefore(vid, img); }
+        vid.hidden = false; vid.src = URL.createObjectURL(postBlob); box.hidden = false; box.scrollIntoView({ behavior: 'smooth' }); vid.play().catch(function () {});
+      };
+      rc.start(500);
+      var t0 = performance.now(), tick = setInterval(function () {
+        var sec = (performance.now() - t0) / 1000; frame(Math.min(sec, total));
+        if (sec >= total) { clearInterval(tick); rc.stop(); }
+      }, 33);
     });
   }
   function fit(g, txt, max) { txt = String(txt); while (txt.length > 3 && g.measureText(txt).width > max) txt = txt.slice(0, -2) + '…'; return txt.replace(/……$/, '…'); }
@@ -293,7 +395,7 @@ window.Album = (function () {
     if (line) g.fillText(line, x, y + n * lh);
   }
   function postSave() {
-    if (!postBlob) return; var f = null; try { f = new File([postBlob], postName, { type: 'image/jpeg' }); } catch (e) {}
+    if (!postBlob) return; var f = null; try { f = new File([postBlob], postName, { type: postBlob.type || 'image/jpeg' }); } catch (e) {}
     if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: postName }).catch(function () {}); return; }
     var a = document.createElement('a'); a.href = URL.createObjectURL(postBlob); a.download = postName; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 2000);
   }
@@ -341,12 +443,15 @@ window.Album = (function () {
       if (window.Mundo && window.Mapa) Mundo.mount($('#pfWorld'), O.trips, { base: O, single: cfg.single });
     });
   }
+  function reset0() { TRIPS = null; }
   function albImport(f) {
     var r = new FileReader(); r.onload = function () {
       var o = null; try { o = JSON.parse(r.result); } catch (e) {}
       if (!o || o.app !== 'guia-album' || !o.album) { alert('Ese archivo no es una copia del álbum.'); return; }
       var a = albumGet(); Object.keys(o.album).forEach(function (k) { if (!a[k]) a[k] = o.album[k]; });   // se suman, no se pisan
-      albumSet(a); if (cfg.onChange) cfg.onChange(''); renderAlbum(); renderProfile(); alert('Álbum cargado.');
+      albumSet(a);
+      if (o.game && window.Juego) { var g1 = Juego.get(), g2 = o.game; ['n', 'g', 'i'].forEach(function (k) { g1.packs[k] = Math.max(g1.packs[k], (g2.packs || {})[k] || 0); }); Object.keys(g2.own || {}).forEach(function (k) { if (!g1.own[k]) g1.own[k] = g2.own[k]; }); Object.keys(g2.claimed || {}).forEach(function (k) { g1.claimed[k] = 1; }); Juego.save(g1); }
+      (cfg.restoreTrips && o.trips ? cfg.restoreTrips(o.trips) : Promise.resolve()).then(function () { reset0(); if (cfg.onChange) cfg.onChange(''); renderAlbum(); renderProfile(); alert('Copia cargada.'); });
     }; r.readAsText(f);
   }
 
@@ -363,11 +468,17 @@ window.Album = (function () {
       if (crf) { crFilter = crf.getAttribute('data-crf'); renderAlbum(); return; }
       if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
+      var po = t.closest('[data-pkopen]');
+      if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), cards, function () { renderAlbum(); }); }); return; }
+      if (t.closest('[data-pkex]')) { Juego.exchange(); renderAlbum(); return; }
       if (c) openCromo(c.getAttribute('data-cr'));
-      else if (pb) makePostcard(pb.getAttribute('data-post'));
+      else if (pb) makeReel(pb.getAttribute('data-post'), pb);
       else if (t.closest('#postSave')) postSave();
       else if (t.closest('#postClose')) $('#postBox').hidden = true;
-      else if (t.closest('#albExp')) download({ app: 'guia-album', at: new Date().toISOString(), album: albumGet() }, 'album-' + today() + '.json');
+      else if (t.closest('#albExp')) (cfg.backupTrips ? cfg.backupTrips() : Promise.resolve([])).then(function (tr0) {
+        var g0 = window.Juego ? Juego.get() : null; if (g0) { g0.backup = Date.now(); Juego.save(g0); }
+        download({ app: 'guia-album', at: new Date().toISOString(), album: albumGet(), game: g0, trips: tr0 }, 'guia-viaje-copia-' + today() + '.json');
+      });
     });
     document.addEventListener('change', function (e) {
       if (e.target.id !== 'albImp') return;
@@ -376,5 +487,5 @@ window.Album = (function () {
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('#crView.on')) closeCromo(); });
   }
 
-  return { init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf, trips: trips, listBox: listBox, searchText: searchText };
+  return { init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf, trips: trips, listBox: listBox, searchText: searchText, allCards: allCards };
 })();
