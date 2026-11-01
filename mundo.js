@@ -310,10 +310,30 @@ window.Mundo = (function () {
   }
   function quizCardHTML(trips) {
     var P = quizPool(trips); if (P.list.length < 4) return '';
-    var S = quizStore(), sub = S.played ? 'Mejor: ' + (S.best || 0) + '/5 · ' + S.played + (S.played === 1 ? ' partida' : ' partidas') : '5 preguntas sobre tus sitios';
+    var S = quizStore(), sub = 'Elige un viaje y gana sobres y bordes';
     return '<button type="button" class="card qz-card sq" id="pfQuiz"><span class="qz-ic">?</span><span class="qz-m"><b>Quiz de mis viajes</b><small>' + esc(sub) + '</small></span><svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
   }
-  function openQuiz(trips, onEnd) {
+  // la página para elegir de qué viaje es el quiz, con el récord de cada uno
+  function openQuizPicker(trips, onEnd) {
+    var old = document.getElementById('qzBox'); if (old) old.remove();
+    var S = quizStore(), box = document.createElement('div'), rec = S.trips || {};
+    box.id = 'qzBox'; box.className = 'qz';
+    var rows = trips.filter(function (t) { return quizPool([t]).list.length >= 4; }).slice().sort(function (a, b) { return String(b.start || '').localeCompare(String(a.start || '')); });
+    box.innerHTML = '<div class="qz-in"><div class="qz-top"><span>Quiz de mis viajes</span><button type="button" class="qz-x sq" data-qp="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div><h3>Elige un viaje</h3><p class="qz-tx">5 preguntas sobre sus sitios. Con 4 aciertos ganas un sobre, y cada acierto te acerca a un borde nuevo.</p><div class="qz-trips">' + rows.map(function (t) {
+      var r = rec[t.id];
+      return '<button type="button" class="qz-trip sq" data-qp="' + esc(t.id) + '"><span class="qz-tph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '></span><span class="qz-tm"><b>' + esc(t.title) + '</b><small>' + (r ? 'Récord: ' + r.best + '/5' : 'Sin jugar') + '</small></span><svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
+    }).join('') + '</div></div>';
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-qp]');
+      if (e.target === box || (b && b.getAttribute('data-qp') === 'close')) { box.remove(); if (onEnd) onEnd(); return; }
+      if (!b) return;
+      var t = rows.filter(function (x) { return x.id === b.getAttribute('data-qp'); })[0];
+      if (t) openQuiz([t], onEnd, function () { openQuizPicker(trips, onEnd); });
+    });
+    if (window.Lang) Lang.watch(box);
+    document.body.appendChild(box);
+  }
+  function openQuiz(trips, onEnd, back) {
     var old = document.getElementById('qzBox'); if (old) old.remove();
     var P = quizPool(trips), Q = quizQuestions(P), i = 0, hits = 0, box = document.createElement('div');
     if (!Q.length) return;
@@ -331,17 +351,19 @@ window.Mundo = (function () {
       // los aciertos desbloquean bordes; solo cuentan las 3 primeras partidas de cada día
       var d0 = new Date().toISOString().slice(0, 10), before = S.right || 0; if (S.day !== d0) { S.day = d0; S.games = 0; }
       S.games = (S.games || 0) + 1; if (S.games <= 3) S.right = before + hits;
+      var tid = trips[0].id; S.trips = S.trips || {}; var tr0 = S.trips[tid] || { best: 0, played: 0 }; tr0.best = Math.max(tr0.best, hits); tr0.played++; S.trips[tid] = tr0;
       quizStore(S);
+      var pack = window.Juego ? Juego.onQuiz(hits, tid) : false;
       var won = BORDERS.filter(function (x) { return x[2] > before && x[2] <= (S.right || 0); }).pop(), nb = nextBorder(S.right || 0);
-      if (window.Juego) Juego.onQuiz(hits);
-      box.innerHTML = '<div class="qz-in qz-end"><b class="qz-score">' + hits + '<i>/' + Q.length + '</i></b><h3>' + esc(hits === Q.length ? 'Perfecto' : hits * 2 >= Q.length ? 'Bien' : 'Hay que repasar') + '</h3><p class="qz-tx">Has acertado ' + hits + ' de ' + Q.length + '</p><p class="qz-xp">' + (won ? 'Borde desbloqueado: ' + esc(won[1]) : S.games > 3 ? 'Hoy ya no cuentan más aciertos' : nb ? 'Faltan ' + (nb[2] - S.right) + ' aciertos para el borde ' + esc(nb[1]) : 'Tienes todos los bordes') + '</p>' +
-        '<div class="btn-row"><button type="button" class="btn navy sq" data-qz="again">Otra vez</button><button type="button" class="btn ghost sq" data-qz="close">Cerrar</button></div></div>';
+      box.innerHTML = '<div class="qz-in qz-end"><b class="qz-score">' + hits + '<i>/' + Q.length + '</i></b><h3>' + esc(hits === Q.length ? 'Perfecto' : hits * 2 >= Q.length ? 'Bien' : 'Hay que repasar') + '</h3><p class="qz-tx">Has acertado ' + hits + ' de ' + Q.length + '</p><div class="qz-rew"><p class="' + (pack ? 'on' : '') + '">' + (pack ? 'Sobre conseguido' : hits >= 4 ? 'Hoy ya ganaste el sobre de este viaje' : 'Con 4 aciertos ganas un sobre') + '</p><p class="' + (won ? 'on' : '') + '">' + (won ? 'Borde desbloqueado: ' + esc(won[1]) : S.games > 3 ? 'Hoy ya no cuentan más aciertos' : nb ? 'Faltan ' + (nb[2] - S.right) + ' aciertos para el borde ' + esc(nb[1]) : 'Tienes todos los bordes') + '</p></div>' +
+        '<div class="btn-row"><button type="button" class="btn navy sq" data-qz="again">Otra vez</button>' + (back ? '<button type="button" class="btn ghost sq" data-qz="back">Otro viaje</button>' : '') + '<button type="button" class="btn ghost sq" data-qz="close">Cerrar</button></div></div>';
     }
     box.addEventListener('click', function (e) {
       var o = e.target.closest('[data-o]'), a = e.target.closest('[data-qz]');
       if (a) {
         var w = a.getAttribute('data-qz');
         if (w === 'close') close();
+        else if (w === 'back') { box.remove(); back(); }
         else if (w === 'again') { Q = quizQuestions(P); i = 0; hits = 0; paint(); }
         else if (w === 'next') { i++; if (i < Q.length) paint(); else result(); }
         return;
@@ -739,7 +761,7 @@ window.Mundo = (function () {
     el.onclick = function (e) {
       var t = e.target, yb = t.closest('[data-y]'), ch = t.closest('.mw-chips .opt'), tool = t.closest('[data-mt]');
       if (t.closest('#mwRec .map-play')) { if (R.playing) recStop(); else recPlay(); return; }
-      if (t.closest('#pfQuiz')) { openQuiz(trips, function () { var qb = el.querySelector('#pfQuizBox'); if (qb) qb.innerHTML = quizCardHTML(trips); var hb = el.querySelector('.pf-hero'); if (hb) { var tmp = document.createElement('div'); tmp.innerHTML = heroHTML(trips, opt.base); hb.replaceWith(tmp.firstChild); } }); return; }
+      if (t.closest('#pfQuiz')) { openQuizPicker(trips, function () { var qb = el.querySelector('#pfQuizBox'); if (qb) qb.innerHTML = quizCardHTML(trips); var hb = el.querySelector('.pf-hero'); if (hb) { var tmp = document.createElement('div'); tmp.innerHTML = heroHTML(trips, opt.base); hb.replaceWith(tmp.firstChild); } }); return; }
       if (t.closest('#pfBorder')) { openBorders(function () { var hb = el.querySelector('.pf-hero'); if (hb) { var tmp = document.createElement('div'); tmp.innerHTML = heroHTML(trips, opt.base); hb.replaceWith(tmp.firstChild); } }); return; }
       if (t.closest('#pfShare')) { openShare(shareCard(tf(), ST.year, opt.base), 'mis-viajes' + (ST.year ? '-' + ST.year : '') + '.png'); return; }
       if (yb) {

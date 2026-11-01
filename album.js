@@ -177,7 +177,7 @@ window.Album = (function () {
           '<div class="crs">' + seen.map(function (c) {
             var R = c.rate || { r: '', pos: '', tier: 'copper' };
             return '<button type="button" class="cr fc t-' + R.tier + (c.got ? ' got' : '') + (c.own ? ' own' : '') + phCls(c) + '" data-cr="' + esc(t.id + '|' + c.id) + '"' + phStyle(c) + '>' +
-              '<i class="fc-b"></i>' + (c.got ? '<i class="sheen"></i>' : '') + '<i class="fc-r">' + R.r + '</i><i class="fc-p">' + R.pos + '</i>' + (c.own && c.own.n > 1 ? '<i class="fc-x">×' + c.own.n + '</i>' : '') + (c.got ? '<i class="fc-v">' + (c.got.gps ? '✓ GPS' : '✓') + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
+              '<i class="fc-b"></i>' + (c.got ? '<i class="sheen"></i>' : '') + (c.own && c.own.n > 1 ? '<i class="fc-x">×' + c.own.n + '</i>' : '') + (c.got ? '<i class="fc-v">' + (c.got.gps ? '✓ GPS' : '✓') + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
           }).join('') + '</div>' +
           '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">' + (reelMime() ? 'Crear vídeo' : 'Crear postal') + '</button>' : '') +
           (cfg.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button>') + '</div></div>';
@@ -200,9 +200,9 @@ window.Album = (function () {
       '<div class="hv-wrap"><div class="hv-halo' + (have ? (top ? ' gold' : '') : ' miss') + '"></div>' +
         '<div class="holo' + cls + '">' +
           '<div class="hf"><div class="hp' + phCls(c) + '"' + phStyle(c) + '></div><div class="foil"></div><div class="glit"></div>' +
-            '<span class="fc-frame"></span><span class="fc-glit"></span><span class="fc-top"><b>' + R.r + '</b><i>' + R.pos + '</i></span>' +
+            '<span class="fc-frame"></span><span class="fc-glit"></span>' +
             (c.got ? '<span class="fc-seen">' + (c.got.gps ? '✓ GPS · ' : '✓ ') + esc(shortDate(c.got.at)) + '</span>' : have ? '' : '<span class="lock">Aún no la tienes</span>') +
-            '<div class="cap"><b>' + esc(c.ti) + '</b><i>' + esc(window.Juego ? Juego.TIER[R.tier] : '') + '</i></div><div class="fc-st">' + (R.st || []).map(function (x) { return '<i><b>' + x[1] + '</b>' + x[0] + '</i>'; }).join('') + '</div><div class="glare"></div></div>' +
+            '<div class="cap"><b>' + esc(c.ti) + '</b></div><div class="fc-kind"><u>' + esc(R.type || '') + '</u> · <u>' + esc(window.Juego ? Juego.TIER[R.tier] : '') + '</u></div><div class="glare"></div></div>' +
           '<div class="hb"><span class="seal">' + (c.got ? 'Visto<br>' + esc(shortDate(c.got.at)) : 'Por<br>pegar') + '</span><b>' + esc(tripTitle(f.t)) + '</b><small>Cromo #' + c.n + ' de ' + f.total + ' · Día ' + c.day + '</small></div>' +
         '</div></div>' +
       '<p class="hv-hint">Arrastra para girarlo · dale la vuelta para ver el reverso</p>' +
@@ -355,13 +355,12 @@ window.Album = (function () {
         }
         var s0 = sec - INTRO, i = Math.floor(s0 / SHOT);
         if (i < shots.length) {
-          var f = (s0 - i * SHOT) / SHOT, x = shots[i], R = x.c.rate;
+          var f = (s0 - i * SHOT) / SHOT, x = shots[i];
           cover(x.im, 1.05 + f * 0.12, (i % 2 ? 1 : -1) * f * 26);
           var sh = g.createLinearGradient(0, H0 * 0.55, 0, H0); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.82)'); g.fillStyle = sh; g.fillRect(0, 0, W0, H0);
           var t0 = ease(f / 0.22), o = ease((1 - f) / 0.1); g.globalAlpha = t0 * o; g.textAlign = 'left';
           g.fillStyle = '#ffc48f'; g.font = '800 25px ' + sans; g.fillText((tr('Día') + ' ' + x.c.day).toUpperCase(), 50, H0 - 180 + (1 - t0) * 22);
           g.fillStyle = '#fff'; g.font = '700 52px ' + serif; wrap(g, x.c.ti, 50, H0 - 122 + (1 - t0) * 22, 620, 58);
-          if (R) { g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(50, 70, 96, 96); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = '800 46px ' + serif; g.fillText(String(R.r), 98, 128); g.font = '800 17px ' + sans; g.fillText(R.pos, 98, 154); }
           g.globalAlpha = 1 - ease(f / 0.12); bg(); g.globalAlpha = 1; return;
         }
         var e = ease((s0 - shots.length * SHOT) / 0.6), col = 3, sz = 190; g.globalAlpha = e;

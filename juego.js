@@ -17,8 +17,7 @@ window.Juego = (function () {
 
   /* ---------- La carta: media, categoría, posición y estadísticas ---------- */
   var POS = { palace: 'CAS', ruins: 'RUI', monument: 'MON', sacred: 'TEM', museum: 'MUS', square: 'PLZ', quarter: 'BAR', market: 'MER', show: 'ESP', garden: 'JAR', nature: 'NAT', family: 'FAM' };
-  var BONUS = { CAS: [0, 8, 0, -8, 3, 0], RUI: [0, 10, 0, -6, 2, -2], MON: [0, 6, 2, -8, 5, 0], TEM: [0, 6, 6, -10, 2, 0], MUS: [0, 2, 10, -14, -6, 2], PLZ: [0, 0, 0, -12, 4, 6], BAR: [0, 0, 0, -8, 4, 8], MER: [0, -6, -4, -14, 0, 8], ESP: [0, 0, 10, -14, -2, 4], JAR: [0, -8, 0, 8, 4, 2], NAT: [0, -12, -10, 12, 8, 0], FAM: [0, -10, -6, 0, 0, 8], MIR: [0, -8, -6, 8, 10, 0], PAS: [0, 0, -2, 0, 2, 6] };
-  var LABELS = ['FAM', 'HIS', 'ART', 'NAT', 'FOT', 'VIS'];
+  var TYPE = { CAS: 'Castillo o palacio', RUI: 'Ruinas', MON: 'Monumento', TEM: 'Templo', MUS: 'Museo', PLZ: 'Plaza', BAR: 'Barrio', MER: 'Mercado', ESP: 'Espectáculo', JAR: 'Jardín', NAT: 'Naturaleza', FAM: 'En familia', MIR: 'Mirador', PAS: 'Paseo' };
   function hash(s) { var h = 7; s = String(s); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100003; return h; }
   function posOf(it) {
     if (POS[it.k]) return POS[it.k];
@@ -36,19 +35,18 @@ window.Juego = (function () {
   function rate(it) {
     var src = it.src || {}, h = hash(it.id + '|' + it.ti), r;
     if (src.views) r = 58 + 13 * (Math.log(src.views + 1) / Math.LN10 - 3) + Math.min(10, (src.links || 0) / 12) + (it.must ? 6 : 0);
-    else r = it.must ? 84 + h % 8 : 62 + h % 18;
+    // sin datos de visitas (Escocia): imprescindibles arriba; los castillos, por encima de un sitio cualquiera
+    else r = it.must ? 84 + h % 8 : (posOf(it) === 'CAS' ? 78 + h % 8 : 62 + h % 18);
     r = Math.max(45, Math.min(99, Math.round(r)));
-    var pos = posOf(it), b = BONUS[pos] || BONUS.PAS;
-    return { r: r, tier: r >= 91 ? 'ruby' : r >= 86 ? 'emerald' : r >= 80 ? 'gold' : r >= 70 ? 'silver' : 'copper', pos: pos,
-      st: LABELS.map(function (l, i) { return [l, Math.max(20, Math.min(99, r + b[i] + (i ? (h >> i) % 9 - 4 : 0)))]; }) };
+    var pos = posOf(it);
+    // la media no se enseña: solo decide el material del borde
+    return { r: r, tier: r >= 91 ? 'ruby' : r >= 86 ? 'emerald' : r >= 80 ? 'gold' : r >= 70 ? 'silver' : 'copper', pos: pos, type: TYPE[pos] };
   }
   var TIER = { copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' };
   function cardHTML(c, extra) {
     var R = c.rate;
     return '<div class="pk-card t-' + R.tier + '"><span class="fc-b"></span><span class="pk-ph"' + (c.url ? ' style="background-image:url(&quot;' + esc(c.url) + '&quot;)"' : '') + '></span>' +
-      '<span class="pk-top"><b>' + R.r + '</b><i>' + R.pos + '</i></span>' + (extra || '') +
-      '<span class="pk-n">' + esc(c.ti) + '</span><span class="pk-tier">' + esc(TIER[R.tier]) + '</span>' +
-      '<span class="pk-st">' + R.st.map(function (s) { return '<i><b>' + s[1] + '</b>' + s[0] + '</i>'; }).join('') + '</span></div>';
+      (extra || '') + '<span class="pk-n">' + esc(c.ti) + '</span><span class="pk-tier"><u>' + esc(R.type) + '</u> · <u>' + esc(TIER[R.tier]) + '</u></span></div>';
   }
 
   /* ---------- Avisos ---------- */
@@ -82,7 +80,8 @@ window.Juego = (function () {
     if (g.packs.n < DAILY_MAX) g.packs.n++;
     save(g); return true;
   }
-  function onQuiz(hits) { if (hits >= 4) reward('quiz:' + today(), 'n', 'Quiz aprobado'); }
+  // un sobre por viaje y día, con 4 aciertos o más
+  function onQuiz(hits, tripId) { return hits >= 4 ? reward('quiz:' + today() + ':' + (tripId || ''), 'n', 'Quiz aprobado') : false; }
   // al pegar un cromo: cada 3 visitas, un sobre; imprescindibles o viaje completos, sobres mejores
   function onVisit(tripId, list, album, gps) {
     var g = get(); g.visits = (g.visits || 0) + 1; if (gps) g.gps = (g.gps || 0) + 1;
