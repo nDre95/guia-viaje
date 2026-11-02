@@ -3755,6 +3755,7 @@ var View = (function () {
   }
   // el álbum y su visor están escritos en español: en la guía de un solo archivo se traducen al aparecer
   if (window.Lang && !window.GUIA_WEB) { Lang.watch($('#shBody')); Lang.watch($('#crView')); }
+  if (window.Album && window.GUIA_WEB && Album.webTrips) Album.init({ trips: Album.webTrips });
   if (window.Album && !window.GUIA_WEB) Album.init({
     single: true,
     trips: function () { return Promise.resolve([{ id: (META.id || 'guia'), b: { meta: META, trip: window.TRIP || T, trip_en: window.TRIP_EN, photos: {} } }]); },

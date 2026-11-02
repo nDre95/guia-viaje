@@ -900,5 +900,41 @@ window.Mundo = (function () {
     el._mwOff = recStop;
     draw();
   }
-  return { seal: seal, quizLeft: quizLeft, openQuiz: openQuiz, mount: mount, detect: detect, cached: cached, name: name, flag: flag };
+  /* ---------- Subida de nivel: se recuerda el último nivel (guia-nivel); si sube, se celebra a pantalla completa,
+     con el icono del perfil cambiando de borde ---------- */
+  var lvT = 0;
+  function checkLevel() {
+    clearTimeout(lvT);
+    lvT = setTimeout(function () {
+      if (!window.Album || !Album.overview || (Album.ready && !Album.ready())) return;
+      Album.overview().then(function (O) {
+        var S = statsOf(O.trips), L = levelOf(S, O.got), was = 0;
+        try { was = +(localStorage.getItem('guia-nivel') || 0); localStorage.setItem('guia-nivel', String(L.n)); } catch (e) { return; }
+        if (was && L.n > was) levelUp(was, L, S.done.length ? travelType(S.done) : null);
+      }).catch(function () {});
+    }, 700);
+  }
+  function levelUp(from, L, T) {
+    var old = document.getElementById('lvuBox'); if (old) old.remove();
+    var b0 = BORDERS[from - 1], b1 = BORDERS[L.n - 1], c = BD[b1] || BD.gold, MAT = { copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' }, sp = '';
+    for (var k = 0; k < 18; k++) sp += '<i style="--a:' + (k * 20 + Math.random() * 12).toFixed(0) + 'deg;--d:' + (110 + Math.random() * 80).toFixed(0) + 'px;--t:' + (1.1 + Math.random() * 1.4).toFixed(2) + 's;--s:' + (0.6 + Math.random() * 0.8).toFixed(2) + '"></i>';
+    var box = document.createElement('div'); box.id = 'lvuBox'; box.className = 'lvu';
+    box.style.setProperty('--pa', c[2]); box.style.setProperty('--pb', c[1]);
+    box.innerHTML = '<div class="lvu-stage"><span class="lvu-rays"></span><span class="lvu-ring"></span><span class="lvu-sp">' + sp + '</span>' +
+      '<span class="lvu-badge"><span class="lvu-bd old">' + borderSVG(b0) + '</span><span class="lvu-bd new">' + borderSVG(b1) + '</span><span class="lvu-ic">' + (T ? T.ico : '🧭') + '</span></span></div>' +
+      '<div class="lvu-txt"><small>¡Subes de nivel!</small><b class="lvu-n"><span><u>Nivel ' + from + '</u><u>Nivel ' + L.n + '</u></span></b><b class="lvu-name">' + esc(L.name) + '</b>' +
+      '<p class="lvu-bdr"><span>Nuevo borde</span> · <span>' + esc(MAT[b1] || '') + '</span></p>' +
+      '<span class="pf-bar lvu-bar"><i style="width:0"></i></span><small class="lvu-xp">' + (L.next ? L.pts + ' / ' + L.next[0] + ' XP' : L.pts + ' XP') + '</small>' +
+      '<button type="button" class="btn sq lvu-ok">Genial</button></div>';
+    box.addEventListener('click', function (e) { if (e.target.closest('.lvu-ok')) { box.classList.add('out'); setTimeout(function () { box.remove(); }, 300); } });
+    if (window.Lang) Lang.watch(box);
+    document.body.appendChild(box);
+    // la barra se llena cuando ya ha cambiado el borde
+    setTimeout(function () { var i = box.querySelector('.lvu-bar i'); if (i) i.style.width = L.pc + '%'; }, 2300);
+    try { if (navigator.vibrate) navigator.vibrate([30, 60, 30]); } catch (e) {}
+  }
+  document.addEventListener('juego:change', checkLevel);
+  window.addEventListener('load', function () { setTimeout(checkLevel, 1500); });
+
+  return { checkLevel: checkLevel, levelUp: levelUp, seal: seal, quizLeft: quizLeft, openQuiz: openQuiz, mount: mount, detect: detect, cached: cached, name: name, flag: flag };
 })();

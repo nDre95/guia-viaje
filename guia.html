@@ -158,7 +158,7 @@
 <script>
 /* ===== Versión web: carga el viaje elegido y después el motor (app.js) ===== */
 window.GUIA_WEB = true;
-window.GUIDE_VER = '3.11 · 2 nov 2026';
+window.GUIDE_VER = '3.12 · 2 nov 2026';
 (function () {
   'use strict';
   var id = null, m = /[?&]trip=([\w-]+)/.exec(location.search);
@@ -179,7 +179,7 @@ window.GUIDE_VER = '3.11 · 2 nov 2026';
     if (b.meta && b.meta.title) document.title = (b.meta.title.es || b.meta.title.en || document.title) + ' · Guía de viaje';
     window.TRIP_PHOTOS = ph;
     var lk = document.createElement('link'); lk.rel = 'stylesheet'; lk.href = 'album.css'; document.head.appendChild(lk);
-    ['lang.js', 'juego.js', 'mapa.js', 'mundo.js', 'app.js'].forEach(function (f) { var sc = document.createElement('script'); sc.src = f; sc.async = false; document.body.appendChild(sc); });
+    ['lang.js', 'juego.js', 'album.js', 'mapa.js', 'mundo.js', 'app.js'].forEach(function (f) { var sc = document.createElement('script'); sc.src = f; sc.async = false; document.body.appendChild(sc); });
     // todas las fotos del viaje a la caché, para verlas sin cobertura (el service worker las sirve desde ahí)
     if (window.caches && /^https?:$/.test(location.protocol)) setTimeout(function () {
       caches.open('guia-img').then(function (c) {

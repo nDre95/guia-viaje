@@ -701,5 +701,19 @@ window.Album = (function () {
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('#crView.on')) closeCromo(); });
   }
 
-  return { postcard: function (id) { trips().then(function () { makePostcard(id); }); }, init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf, trips: trips, listBox: listBox, searchText: searchText, allCards: allCards };
+  // todos los viajes en la web: los de la app y los creados (IndexedDB guia-trips)
+  function webTrips() {
+    var a = fetch('trips/index.json').then(function (r) { return r.json(); }).catch(function () { return []; }).then(function (idx) {
+      return Promise.all(idx.map(function (t) { return fetch('trips/' + t.id + '.json').then(function (r) { return r.json(); }).then(function (b) { return { id: t.id, b: b }; }).catch(function () { return null; }); }));
+    });
+    var u = new Promise(function (res) {
+      if (!window.indexedDB) return res([]);
+      var q = indexedDB.open('guia-trips', 1);
+      q.onupgradeneeded = function () { q.result.createObjectStore('trips', { keyPath: 'id' }); };
+      q.onerror = function () { res([]); };
+      q.onsuccess = function () { try { var g = q.result.transaction('trips').objectStore('trips').getAll(); g.onsuccess = function () { res((g.result || []).map(function (x) { return { id: x.id, b: x.bundle }; })); }; g.onerror = function () { res([]); }; } catch (e) { res([]); } };
+    });
+    return Promise.all([a, u]).then(function (r) { return r[0].filter(Boolean).concat(r[1]); });
+  }
+  return { ready: function () { return !!cfg.trips; }, webTrips: webTrips, postcard: function (id) { trips().then(function () { makePostcard(id); }); }, init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf, trips: trips, listBox: listBox, searchText: searchText, allCards: allCards };
 })();
