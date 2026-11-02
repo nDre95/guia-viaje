@@ -231,6 +231,8 @@
       var th = 'auto'; try { th = localStorage.getItem('guia-theme') || 'auto'; } catch (e) {}
       $$('#themeOpts .opt').forEach(function (o) { o.classList.toggle('on', o.getAttribute('data-th') === th); });
       var ho = $('#homeOpts'); if (ho) ho.innerHTML = styleChips();
+      var pjOff = false; try { pjOff = localStorage.getItem('guia-pj') === 'off'; } catch (e) {}
+      $$('[data-pjo]').forEach(function (b) { b.classList.toggle('on', (b.getAttribute('data-pjo') === 'off') === pjOff); });
       var bk = $('#bkNote'), at = window.Juego ? Juego.get().backup : 0;
       if (bk) bk.textContent = at ? tx('Última copia: ', 'Last backup: ') + sd(new Date(at).toISOString().slice(0, 10)) + '. ' + tx('Tus viajes y cromos solo están en este dispositivo.', 'Your trips and cards are only on this device.') : tx('Aún no has guardado ninguna. Tus viajes y cromos solo están en este dispositivo.', 'You haven’t saved one yet. Your trips and cards are only on this device.');
     });
@@ -556,6 +558,45 @@
   window.addEventListener('pageshow', function () { var x = $('#recBox'); if (x) x.remove(); });
 
   document.addEventListener('juego:change', function () { var v = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (v && v.getAttribute('data-vt') === 'home') renderHome(); });
+
+  /* ---------- Bienvenida de la primera vez (guia-bienvenida): qué es la app y ayuda a crear el primer viaje ---------- */
+  function showWelcome() {
+    var old = document.getElementById('welBox'); if (old) old.remove();
+    var S = [['maleta', tx('Tu guía de viaje', 'Your travel guide'), tx('Cada viaje con su plan día a día, el mapa, los horarios, el tiempo y lo que no te puedes perder.', 'Each trip with its day-by-day plan, the map, times, weather and the must-sees.')],
+      ['pie', tx('Crea un viaje en un minuto', 'Create a trip in a minute'), tx('Dinos adónde vas y cuándo: la app prepara el plan con datos reales. Luego cambias lo que quieras.', 'Tell us where and when: the app builds the plan from real data. Then change whatever you like.')],
+      ['ciudad', tx('Colecciona los sitios que visitas', 'Collect the places you visit'), tx('Cada sitio es un cromo: cuando estés allí, haz tu foto y canjéalo. Con ellos haces tu postal y sellas tu pasaporte.', 'Each place is a card: when you are there, take your photo and redeem it. They make your postcard and stamp your passport.')],
+      ['globo', tx('¿Creamos tu primer viaje?', 'Shall we plan your first trip?'), tx('Te acompañamos paso a paso: destino, fechas, cómo os movéis, ritmo y gustos.', 'We’ll guide you step by step: destination, dates, getting around, pace and interests.')]];
+    var i = 0, box = document.createElement('div');
+    box.id = 'welBox'; box.className = 'wel';
+    function paint(dir) {
+      var x = S[i], last = i === S.length - 1;
+      box.innerHTML = '<div class="wel-in"><button type="button" class="wel-skip" data-w="end">' + tx('Saltar', 'Skip') + '</button>' +
+        '<div class="wel-pg ' + (dir < 0 ? 'l' : 'r') + '"><div class="wel-fig"></div><h2>' + x[1] + '</h2><p class="wel-p">' + x[2] + '</p></div>' +
+        '<div class="wel-dots">' + S.map(function (_, k) { return '<i' + (k === i ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
+        (last ? '<button type="button" class="btn navy sq wel-go" data-w="new">' + ic('plus') + tx('Crear mi primer viaje', 'Plan my first trip') + '</button><button type="button" class="wel-no" data-w="end">' + tx('Ahora no, solo quiero mirar', 'Not now, just looking') + '</button>'
+          : '<button type="button" class="btn navy sq wel-go" data-w="next">' + tx('Siguiente', 'Next') + '</button>') + '</div>';
+      var f = $('.wel-fig', box);
+      if (window.Pj) f.appendChild(Pj.figure(x[0])); else f.innerHTML = '<span class="wel-ic">' + ic('route') + '</span>';
+    }
+    function end(then) { try { localStorage.setItem('guia-bienvenida', '1'); } catch (e) {} box.classList.add('out'); setTimeout(function () { box.remove(); if (then) then(); }, 300); }
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-w]'); if (!b) return; var w = b.getAttribute('data-w');
+      if (w === 'next') { i++; paint(1); } else if (w === 'end') end(); else if (w === 'new') end(function () { newTrip(); });
+    });
+    var x0 = null;
+    box.addEventListener('pointerdown', function (e) { x0 = e.clientX; });
+    box.addEventListener('pointerup', function (e) { if (x0 == null) return; var dx = e.clientX - x0; x0 = null; if (dx < -50 && i < S.length - 1) { i++; paint(1); } else if (dx > 50 && i > 0) { i--; paint(-1); } });
+    paint(1);
+    document.body.appendChild(box);
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-welcome]')) showWelcome();
+    var o = e.target.closest('[data-pjo]'); if (!o) return;
+    try { if (o.getAttribute('data-pjo') === 'off') localStorage.setItem('guia-pj', 'off'); else localStorage.removeItem('guia-pj'); } catch (err) {}
+    $$('[data-pjo]').forEach(function (b) { b.classList.toggle('on', b === o); });
+    if (o.getAttribute('data-pjo') === 'on' && window.Pj) Pj.play(Pj.kinds[Math.floor(Math.random() * 16)], { ground: window.innerHeight - 120 });
+  });
+  try { if (!localStorage.getItem('guia-bienvenida')) setTimeout(showWelcome, 500); } catch (e) {}
   renderList();
   (function () { var ip = $('#tpPh'), I0 = window.Juego ? Juego.ideas({}, 3)[new Date().getDate() % 3] : null; if (ip && I0) Juego.ideaImg(I0.wiki).then(function (u) { if (u) { ip.style.backgroundImage = 'url("' + u + '")'; ip.classList.add('on'); } }); })();
   completeEnglish();

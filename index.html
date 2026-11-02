@@ -364,6 +364,159 @@
   .tp-imp{display:inline-flex;align-items:center;gap:6px;margin:4px 4px 16px;font-size:13.5px;font-weight:700;color:var(--txt2);cursor:pointer}
   .tp-imp .ic{width:16px;height:16px}
   .pf-note{margin:2px 0 10px;font-size:13px;color:var(--txt3)}
+  /* Personajes animados (personajes.js) */
+  .pj-layer{position:fixed;inset:0;z-index:120;pointer-events:none;overflow:hidden}
+  .pj{position:absolute;left:0;top:0;z-index:2;will-change:transform}
+  .pj-fig{display:block;overflow:visible;transform-origin:50% 100%}
+  .pj.left .pj-fig{scale:-1 1}
+  .pj-legL{transform-origin:43px 110px}.pj-legR{transform-origin:57px 110px}
+  .pj-armL{transform-origin:29px 71px}.pj-armR{transform-origin:71px 71px}
+  .pj-head{transform-origin:50px 60px}
+  .pj-legL,.pj-legR,.pj-armL,.pj-armR,.pj-head{transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+  .pj-eyes{transform-origin:50px 42px;animation:pjBlink 3.8s infinite}
+  @keyframes pjBlink{0%,93%,100%{transform:none}96%{transform:scaleY(.1)}}
+  .pj-shadow{position:absolute;left:50%;bottom:-3px;width:62px;height:11px;margin-left:-31px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.32),transparent);transition:opacity .3s}
+  .pj-veh .pj-shadow{width:130px;margin-left:-65px;bottom:-4px}
+  .pj-say{position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%);white-space:nowrap;padding:6px 11px;border-radius:14px;background:#fff;color:#1c1d21;font:750 13px -apple-system,system-ui,sans-serif;box-shadow:0 8px 20px -8px rgba(0,0,0,.45);animation:pjSay .45s cubic-bezier(.3,1.5,.5,1) both}
+  .pj-say::after{content:"";position:absolute;left:50%;top:100%;margin-left:-6px;border:6px solid transparent;border-top-color:#fff}
+  .pj-say.out{animation:pjSay .25s ease reverse both}
+  @keyframes pjSay{from{opacity:0;transform:translateX(-50%) translateY(8px) scale(.6)}}
+  /* caer, aterrizar, andar, conducir */
+  .pj.fall .pj-shadow{opacity:0}
+  .pj.fall .pj-armL{transform:rotate(150deg)}.pj.fall .pj-armR{transform:rotate(-150deg)}
+  .pj.fall .pj-legL{transform:rotate(14deg)}.pj.fall .pj-legR{transform:rotate(-14deg)}
+  .pj.land .pj-fig{animation:pjLand .26s ease-out}
+  @keyframes pjLand{0%{transform:scale(1.14,.82)}100%{transform:none}}
+  .pj.walk .pj-legL,.pj.walk .pj-armR{animation:pjSwA .34s ease-in-out infinite alternate}
+  .pj.walk .pj-legR,.pj.walk .pj-armL{animation:pjSwB .34s ease-in-out infinite alternate}
+  .pj.walk .pj-fig{animation:pjBob .17s ease-in-out infinite alternate}
+  @keyframes pjSwA{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+  @keyframes pjSwB{from{transform:rotate(22deg)}to{transform:rotate(-22deg)}}
+  @keyframes pjBob{to{transform:translateY(-4px)}}
+  .pj.drive .pj-wheel{animation:pjSpin .45s linear infinite}
+  .pj.drive .pj-fig{animation:pjBump .16s ease-in-out infinite alternate}
+  .pj-veh.left .pj-wheel{animation-direction:reverse}
+  @keyframes pjSpin{to{transform:rotate(360deg)}}
+  @keyframes pjBump{to{transform:translateY(-2px) rotate(-.6deg)}}
+  /* gestos */
+  .pj.act-shiver .pj-fig{animation:pjShiv .07s linear infinite alternate}
+  .pj.act-shiver .pj-armL{transform:rotate(-40deg)}.pj.act-shiver .pj-armR{transform:rotate(40deg)}
+  .pj.act-shiver .pj-eyes{animation:none;transform:scaleY(.4)}
+  .pj.act-shiver::before{content:"";position:absolute;left:62px;top:38px;width:14px;height:10px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:8px -6px 0 -2px rgba(255,255,255,.7),15px -13px 0 -4px rgba(255,255,255,.55);animation:pjPuff 1s ease-out infinite}
+  @keyframes pjShiv{from{transform:translateX(-1.7px)}to{transform:translateX(1.7px)}}
+  @keyframes pjPuff{0%{opacity:0;transform:scale(.4)}30%{opacity:1}100%{opacity:0;transform:translate(12px,-14px) scale(1.2)}}
+  .pj.act-fan .pj-armR{animation:pjFan .28s ease-in-out infinite alternate}
+  .pj.act-fan .pj-head{transform:rotate(-6deg)}
+  .pj.act-fan::before{content:"";position:absolute;left:30px;top:22px;width:7px;height:10px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#5bb4e8;animation:pjSweat .9s ease-in infinite}
+  @keyframes pjFan{from{transform:rotate(-150deg)}to{transform:rotate(-112deg)}}
+  @keyframes pjSweat{0%{opacity:0;transform:none}20%{opacity:1}100%{opacity:0;transform:translateY(26px)}}
+  .pj.act-shake .pj-head{animation:pjShake .22s ease-in-out infinite alternate}
+  .pj.act-shake .pj-armL{transform:rotate(-30deg)}.pj.act-shake .pj-armR{transform:rotate(30deg)}
+  @keyframes pjShake{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
+  .pj.act-look .pj-armR{transform:rotate(158deg)}
+  .pj.act-look .pj-head{animation:pjLook 1.7s ease-in-out both}
+  @keyframes pjLook{0%,100%{transform:none}30%{transform:translateX(-3px) rotate(-6deg)}70%{transform:translateX(3px) rotate(6deg)}}
+  .pj-cam{transition:transform .4s cubic-bezier(.3,1.4,.5,1)}
+  .pj.act-photo .pj-armL{transform:rotate(-158deg)}.pj.act-photo .pj-armR{transform:rotate(158deg)}
+  .pj.act-photo .pj-cam{transform:translateY(-44px) scale(1.15)}
+  .pj.act-photo::before{content:"";position:absolute;left:50%;top:30px;width:90px;height:90px;margin-left:-45px;border-radius:50%;background:radial-gradient(closest-side,#fff,rgba(255,255,255,0));opacity:0;animation:pjFlash .5s .8s ease-out both}
+  @keyframes pjFlash{30%{opacity:1;transform:scale(1.5)}100%{opacity:0;transform:scale(2)}}
+  .pj.act-wave .pj-armR{animation:pjWave .32s ease-in-out infinite alternate}
+  @keyframes pjWave{from{transform:rotate(-165deg)}to{transform:rotate(-128deg)}}
+  .pj.act-run .pj-legL,.pj.act-run .pj-armR{animation:pjSwA .16s linear infinite alternate}
+  .pj.act-run .pj-legR,.pj.act-run .pj-armL{animation:pjSwB .16s linear infinite alternate}
+  .pj.act-run .pj-fig{animation:pjBob .08s linear infinite alternate}
+  .pj.act-run::before{content:"";position:absolute;left:-34px;top:70px;width:40px;height:30px;background:repeating-linear-gradient(180deg,rgba(120,120,130,.6) 0 2px,transparent 2px 9px);animation:pjSpeed .3s linear infinite}
+  @keyframes pjSpeed{from{opacity:.2;transform:translateX(10px)}to{opacity:.8;transform:translateX(-6px)}}
+  .pj.act-sip .pj-armR{animation:pjSip 1.2s ease-in-out infinite}
+  .pj.act-sip .pj-eyes{animation:none;transform:scaleY(.15)}
+  @keyframes pjSip{0%,100%{transform:rotate(20deg)}45%,65%{transform:rotate(150deg)}}
+  .pj.act-stretch .pj-armL{transform:rotate(176deg)}.pj.act-stretch .pj-armR{transform:rotate(-176deg)}
+  .pj.act-stretch .pj-fig{animation:pjStretch .9s ease-in-out infinite alternate}
+  .pj.act-stretch .pj-yawn,.pj.act-yawn .pj-yawn{animation:pjYawn 1.6s ease-in-out infinite}
+  @keyframes pjStretch{to{transform:scale(.97,1.06)}}
+  @keyframes pjYawn{0%,100%{opacity:0}30%,70%{opacity:1}}
+  .pj.act-yawn .pj-armL{transform:rotate(-148deg)}
+  .pj.act-yawn .pj-eyes{animation:none;transform:scaleY(.12)}
+  .pj.act-yawn .pj-head{transform:rotate(-8deg)}
+  .pj.act-yawn::before{content:"z Z";position:absolute;left:66px;top:4px;font:800 16px var(--serif);color:#8f7fc4;animation:pjZ 1.4s ease-out infinite}
+  @keyframes pjZ{from{opacity:0;transform:translate(0,10px) scale(.6)}50%{opacity:1}to{opacity:0;transform:translate(14px,-16px) scale(1.1)}}
+  .pj.act-paint .pj-armL{transform:rotate(-30deg)}
+  .pj.act-paint .pj-armR{animation:pjPaint .35s ease-in-out infinite alternate}
+  .pj.act-paint::before{content:"";position:absolute;left:78px;top:48px;width:30px;height:24px;background:radial-gradient(circle at 30% 40%,#e8574a 0 4px,transparent 5px),radial-gradient(circle at 70% 30%,#2b8fc9 0 4px,transparent 5px),radial-gradient(circle at 50% 75%,#f2c14e 0 4px,transparent 5px);animation:pjDots 1.4s steps(3) both}
+  @keyframes pjPaint{from{transform:rotate(100deg)}to{transform:rotate(140deg)}}
+  @keyframes pjDots{from{opacity:0}to{opacity:1}}
+  .pj.act-flip .pj-armR{animation:pjPanUp .7s ease-in-out infinite}
+  .pj.act-flip .pj-cake{transform-box:fill-box;transform-origin:center;animation:pjCake .7s ease-in-out infinite}
+  @keyframes pjPanUp{0%,100%{transform:rotate(-10deg)}35%{transform:rotate(-40deg)}}
+  @keyframes pjCake{0%,100%{transform:none}50%{transform:translateY(-30px) rotate(180deg)}}
+  .pj.act-swing .pj-armL{animation:pjSwB .5s ease-in-out infinite alternate}
+  .pj.act-swing .pj-armR{animation:pjSwA .5s ease-in-out infinite alternate}
+  .pj.act-hop .pj-fig,.pj.act-jump .pj-fig{animation:pjHop .42s cubic-bezier(.3,.7,.4,1) infinite alternate}
+  .pj.act-jump .pj-armL{transform:rotate(150deg)}.pj.act-jump .pj-armR{transform:rotate(-150deg)}
+  @keyframes pjHop{to{transform:translateY(-16px)}}
+  .pj-balloon{animation:pjFloat 1.6s ease-in-out infinite alternate}
+  @keyframes pjFloat{to{transform:translate(2px,-4px) rotate(3deg)}}
+  /* la prenda: bufanda, gafas, paraguas */
+  .pj-scarf{opacity:0;transform-origin:50px 64px;transform:translateY(-26px) scale(.5);transition:opacity .3s,transform .6s cubic-bezier(.3,1.5,.5,1)}
+  .pj.gear .pj-scarf{opacity:1;transform:none}
+  .pj-shades{opacity:0;transform:translateY(-32px);transition:opacity .25s,transform .55s cubic-bezier(.3,1.6,.5,1)}
+  .pj.gear .pj-shades{opacity:1;transform:none}
+  .pj-can{transform-origin:71px 40px;transform:scale(.08,.9);transition:transform .55s cubic-bezier(.3,1.5,.5,1)}
+  .pj.gear .pj-can{transform:none}
+  .pj.gear:not(.pj-still) .pj-armR{animation:pjGear .8s ease-in-out}
+  @keyframes pjGear{50%{transform:rotate(-40deg)}}
+  /* la compuerta en la opción elegida */
+  .pj-hatch{position:absolute;perspective:700px}
+  .pj-hole{position:absolute;left:21%;right:21%;top:46%;bottom:8%;border-radius:50%;background:radial-gradient(ellipse at 50% 30%,#000 40%,#18191d 68%,#30323a);box-shadow:inset 0 10px 18px rgba(0,0,0,.9),0 0 0 4px rgba(255,255,255,.55),0 0 0 5px rgba(0,0,0,.12),0 10px 22px -8px rgba(0,0,0,.45);transform:scale(0);transition:transform .4s cubic-bezier(.3,1.4,.5,1)}
+  .pj-flap{position:absolute;inset:0;border-radius:20px;transform-origin:50% 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.1) 0 2px,transparent 2px 22px),linear-gradient(170deg,var(--orange2),var(--c));box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 14px 30px -12px rgba(0,0,0,.55);animation:pjFlapIn .35s ease both;transition:transform .55s cubic-bezier(.3,1.3,.5,1)}
+  .pj-flap::after{content:"";position:absolute;left:50%;bottom:12px;width:44px;height:7px;margin-left:-22px;border-radius:4px;background:rgba(0,0,0,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+  @keyframes pjFlapIn{from{opacity:0;transform:scale(.96)}}
+  .pj-hatch.open .pj-flap{transform:rotateX(-78deg)}
+  .pj-hatch.open .pj-hole{transform:scale(1)}
+  .pj-hatch.shut .pj-flap{animation:pjFlapOut .3s .5s ease both}
+  @keyframes pjFlapOut{to{opacity:0}}
+  /* alrededor: nieve, lluvia, sol, confeti… */
+  .pj-fx{position:absolute;inset:0;animation:pjFxIn .4s ease both}
+  @keyframes pjFxIn{from{opacity:0}}
+  .pj-p{position:absolute;top:-14px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 3px rgba(0,0,0,.18);animation:pjDrop var(--t) var(--dl) linear infinite;transform:scale(var(--s))}
+  @keyframes pjDrop{to{transform:translate(var(--x),105vh) scale(var(--s))}}
+  .pj-p.rain{width:2px;height:16px;border-radius:1px;background:rgba(91,155,213,.75);box-shadow:none}
+  .pj-p.confetti{width:7px;height:12px;border-radius:2px;box-shadow:none;animation-name:pjConf}
+  @keyframes pjConf{to{transform:translate(var(--x),105vh) rotate(720deg) scale(var(--s))}}
+  .pj-sun{position:absolute;top:calc(var(--safe-t) + 70px);right:-36px;width:150px;height:150px;border-radius:50%;animation:pjSunIn .9s cubic-bezier(.3,1.3,.5,1) both}
+  .pj-sun::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(rgba(255,196,60,.6) 0 7deg,transparent 7deg 22deg);-webkit-mask:radial-gradient(closest-side,transparent 40%,#000 42%,transparent);mask:radial-gradient(closest-side,transparent 40%,#000 42%,transparent);animation:pjSpin 16s linear infinite}
+  .pj-sun::after{content:"";position:absolute;inset:32%;border-radius:50%;background:radial-gradient(circle at 40% 40%,#ffe58a,#ffbf3a);box-shadow:0 0 40px 10px rgba(255,200,60,.45)}
+  .pj-sun.rise{top:auto;right:auto;left:50%;bottom:150px;margin-left:-75px;animation:pjRise 1.8s ease-out both}
+  @keyframes pjSunIn{from{opacity:0;transform:translate(40px,-40px) scale(.5)}}
+  @keyframes pjRise{from{opacity:0;transform:translateY(90px)}}
+  .pj-bird{position:absolute;left:-60px;font:700 15px -apple-system,system-ui,sans-serif;letter-spacing:6px;color:var(--txt2);animation:pjBird 4.5s var(--dl) linear both}
+  @keyframes pjBird{to{transform:translate(calc(100vw + 120px),-40px)}}
+  /* quietos, en la bienvenida */
+  .pj.pj-still{position:relative;left:auto;top:auto;will-change:auto;margin:0 auto}
+  @media (prefers-reduced-motion:reduce){.pj *,.pj::before{animation:none!important}}
+  /* bienvenida */
+  .wel{position:fixed;inset:0;z-index:95;display:flex;align-items:stretch;justify-content:center;background:var(--bone);animation:welIn .4s ease both;touch-action:pan-y}
+  .wel.out{animation:welIn .3s ease reverse both}
+  @keyframes welIn{from{opacity:0}}
+  .wel-in{position:relative;width:min(460px,100%);display:flex;flex-direction:column;align-items:center;padding:calc(var(--safe-t) + 50px) 26px calc(var(--safe-b) + 22px)}
+  .wel-skip{position:absolute;top:calc(var(--safe-t) + 14px);right:18px;border:0;background:none;font:700 14px -apple-system,system-ui,sans-serif;color:var(--txt3);cursor:pointer}
+  .wel-pg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;text-align:center;animation:welR .45s cubic-bezier(.2,1,.3,1) both}
+  .wel-pg.l{animation-name:welL}
+  @keyframes welR{from{opacity:0;transform:translateX(40px)}}
+  @keyframes welL{from{opacity:0;transform:translateX(-40px)}}
+  .wel-fig{position:relative;display:grid;place-items:end center;width:220px;height:220px;margin-bottom:10px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(242,154,82,.28),rgba(242,154,82,.08) 60%,transparent 70%)}
+  .wel-fig .pj{transform:scale(1.1);transform-origin:50% 100%;margin-bottom:28px}
+  .wel-ic{width:96px;height:96px;border-radius:30px;display:grid;place-items:center;color:#fff;background:linear-gradient(150deg,var(--orange),#c45f1f)}
+  .wel h2{margin:0;font:700 30px/1.12 var(--serif)}
+  .wel-p{margin:0;max-width:340px;font-size:16px;line-height:1.45;color:var(--txt2)}
+  .wel-dots{display:flex;gap:7px;margin:18px 0}
+  .wel-dots i{width:7px;height:7px;border-radius:4px;background:var(--fill2);transition:width .3s var(--spring),background .3s}
+  .wel-dots i.on{width:22px;background:var(--orange)}
+  .wel-go{width:100%;max-width:360px;justify-content:center;padding:15px;font-size:16px}
+  .wel-go .ic{stroke-width:2.4}
+  .wel-no{margin-top:12px;border:0;background:none;font:700 14.5px -apple-system,system-ui,sans-serif;color:var(--txt2);cursor:pointer}
+
 
   .pf-trip{display:flex;gap:12px;padding:10px;margin-bottom:12px}
   .pf-ph{flex:0 0 84px;border-radius:14px;background:var(--fill2) center/cover no-repeat}
@@ -535,11 +688,12 @@
     <div class="wz-fld"><span>Idioma</span><div class="opts" id="langOpts"><button type="button" class="opt" data-l="es">Español</button><button type="button" class="opt" data-l="en">English</button></div></div>
     <div class="wz-fld"><span>Tema</span><div class="opts" id="themeOpts"><button type="button" class="opt" data-th="auto">Automático</button><button type="button" class="opt" data-th="light">Claro</button><button type="button" class="opt" data-th="dark">Oscuro</button></div></div>
     <div class="wz-fld"><span>Diseño de Home</span><div class="opts hx-chips" id="homeOpts"></div></div>
+    <div class="wz-fld"><span>Personajes animados</span><div class="opts"><button type="button" class="opt" data-pjo="on">Sí</button><button type="button" class="opt" data-pjo="off">No</button><button type="button" class="opt" data-welcome>Ver la bienvenida</button></div></div>
     <div class="wz-fld" style="margin:0"><span>Copia de seguridad</span><p class="pf-note" id="bkNote"></p><div class="btn-row"><button type="button" class="btn ghost sq" id="albExp">Guardar copia</button><label class="btn ghost sq">Cargar copia<input type="file" accept="application/json,.json" id="albImp" hidden></label></div></div>
   </div>
 </section>
 
-  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.16 · 2 nov 2026</p>
+  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.17 · 2 nov 2026</p>
 </main>
 <div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
 <nav class="vnav" role="tablist" aria-label="Secciones">
@@ -572,6 +726,7 @@
 <script src="juego.js"></script>
 <script src="mundo.js"></script>
 <script src="album.js"></script>
+<script src="personajes.js"></script>
 <script src="asistente.js"></script>
 <script src="viajes.js"></script>
 <script>

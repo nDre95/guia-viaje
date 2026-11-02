@@ -11,7 +11,10 @@ window.Asistente = (function () {
   function flag(cc) { return /^[A-Z]{2}$/.test(cc || '') ? String.fromCodePoint(127397 + cc.charCodeAt(0), 127397 + cc.charCodeAt(1)) : '🌍'; }
   var MAX_DAYS = 10, COLORS = ['#e2782f', '#3b3e46', '#2f8f5b', '#b4551a', '#6b7fb3', '#a8481a', '#8b9099'];
 
-  var A, page = 0, cfg = {}, debounce = 0, busy = false, done = null, repaintDays = null;
+  var A, page = 0, cfg = {}, debounce = 0, busy = false, done = null, repaintDays = null, lastPj = '';
+  // personajes animados (personajes.js): aparecen al elegir y se meten en la opción elegida
+  function pj(kind, target) { if (!window.Pj || !kind) return; lastPj = kind; setTimeout(function () { Pj.play(kind, { target: target }); }, 300); }
+  function ccs() { return A.countries.map(function (k) { return k.cc; }); }
   function fresh() {
     var t = new Date(); t.setDate(t.getDate() + 30);
     return { countries: [], cities: [], start: t.toISOString().slice(0, 10), mode: 'transit', pace: 'normal', style: 'spread', ints: {}, open: {}, fin: { t: '', p: '' }, fout: { t: '', p: '' }, fixed: [], title: '' };
@@ -33,7 +36,7 @@ window.Asistente = (function () {
   ];
 
   function open(o) {
-    cfg = o || cfg; A = fresh(); page = 0; done = null; busy = false;
+    cfg = o || cfg; A = fresh(); page = 0; done = null; busy = false; lastPj = '';
     // desde una idea de temporada: el país ya elegido y la fecha en su mes
     var pre = (o || {}).preset;
     if (pre && pre.country) {
@@ -51,6 +54,7 @@ window.Asistente = (function () {
   function close() {
     if (busy && !confirm('Se está creando la guía. ¿Cerrar de todos modos?')) return;
     if (!busy && !done && A && (A.countries.length || A.cities.length) && !confirm('¿Salir sin crear el viaje?')) return;
+    if (window.Pj) Pj.stop();
     var w = $('#wz'); w.classList.remove('on'); document.documentElement.classList.remove('wz-open');
     setTimeout(function () { w.hidden = true; $('#wzBody').innerHTML = ''; }, 420);
   }
@@ -140,6 +144,7 @@ window.Asistente = (function () {
         if (!A.countries.some(function (k) { return k.cc === h.cc; })) {
           var k = { name: h.name, cc: h.cc, wd: h.wd, lat: h.lat, lon: h.lon, bb: h.bb };
           A.countries.push(k);
+          pj(window.Pj && Pj.theme(ccs(), A.start), function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; });
           Motor.placeInfo(h.name).then(function (i) { if (i) { k.text = i.text; if (PAGES[page].id === 'pais') paint(); } });
           Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; if (PAGES[page].id === 'pais') paint(); });
         }
@@ -267,6 +272,7 @@ window.Asistente = (function () {
 
   /* ---------- 3. Días ---------- */
   function drawDays(c) {
+    var th0 = window.Pj && Pj.theme(ccs(), A.start); if (th0 && th0 !== lastPj) pj(th0, function () { return $('#wzStart') && $('#wzStart').closest('.wz-fld'); });
     function paint() {
       var tot = totalDays(), at = 0;
       var segs = A.cities.map(function (x, i) { return '<i style="flex:' + x.days + ';background:' + COLORS[i % COLORS.length] + '">' + x.days + '</i>'; }).join('');
@@ -278,7 +284,10 @@ window.Asistente = (function () {
         }).join('') +
         '<div class="wz-time">' + segs + '</div><p class="wz-note center">' + tot + (tot === 1 ? ' día' : ' días') + ' en total' + (tot >= MAX_DAYS ? ' · de momento, ' + MAX_DAYS + ' como máximo' : '') + '</p>' +
         '<p class="wz-note">Los días de cada destino se han sugerido según lo que hay que ver allí.</p>';
-      $('#wzStart', c).onchange = function () { A.start = this.value; paint(); foot(); };
+      $('#wzStart', c).onchange = function () {
+        A.start = this.value; paint(); foot();
+        var th = window.Pj && Pj.theme(ccs(), A.start); if (th && th !== lastPj) pj(th, function () { return $('#wzStart') && $('#wzStart').closest('.wz-fld'); });
+      };
     }
     c.onclick = function (e) {
       var m = e.target.closest('[data-m]'), p = e.target.closest('[data-p]');
@@ -292,13 +301,18 @@ window.Asistente = (function () {
   }
 
   /* ---------- Tarjetas de elección ---------- */
+  var CARD_PJ = { mode: { car: 'coche', walk: 'pie', transit: 'bus' }, pace: { slow: 'relax', normal: 'pie', fast: 'corre' }, style: { morning: 'madruga', afternoon: 'siesta', spread: 'ciudad' } };
   function cards(c, key, list, after) {
     function paint() {
       c.innerHTML = list.map(function (o) {
         return '<button type="button" class="wz-card' + (A[key] === o.v ? ' on' : '') + '" data-v="' + o.v + '"><span class="wz-ico">' + o.ico + '</span><span class="wz-cb"><b>' + esc(o.t) + '</b><small>' + esc(o.d) + '</small>' + (o.bar ? dayBar(o.bar) : '') + '</span><i class="wz-tick">' + ic('check') + '</i></button>';
       }).join('') + (after ? after() : '');
     }
-    c.onclick = function (e) { var b = e.target.closest('[data-v]'); if (b) { A[key] = b.getAttribute('data-v'); paint(); } };
+    c.onclick = function (e) {
+      var b = e.target.closest('[data-v]'); if (!b) return;
+      var v = b.getAttribute('data-v'), was = A[key]; A[key] = v; paint();
+      if (v !== was && CARD_PJ[key]) pj(CARD_PJ[key][v], function () { return c.querySelector('[data-v="' + v + '"]'); });
+    };
     paint();
   }
   // tira del día de 8:00 a 22:00: v = visitas, c = comer, b = bares, l = libre
@@ -353,7 +367,7 @@ window.Asistente = (function () {
       if (g) {
         var id = g.getAttribute('data-g'), G = GUSTOS.filter(function (x) { return x.id === id; })[0], on = G.subs.some(function (x) { return A.ints[x[0]]; });
         // primer toque: se marca todo el grupo y se abre el detalle; después abre o cierra
-        if (!A.open[id] && !on) { G.subs.forEach(function (x) { A.ints[x[0]] = 1; }); A.open[id] = 1; }
+        if (!A.open[id] && !on) { G.subs.forEach(function (x) { A.ints[x[0]] = 1; }); A.open[id] = 1; pj({ cultura: 'ciudad', arte: 'arte', ciudad: 'compras', natura: 'monte', comer: 'chef', peques: 'globo' }[id], function () { var x = c.querySelector('[data-g="' + id + '"]'); return x && x.closest('.wz-g'); }); }
         else A.open[id] = !A.open[id];
         paint();
       }
@@ -409,12 +423,14 @@ window.Asistente = (function () {
   }
   function create() {
     if (busy) return; busy = true; foot(); $('#wzLog').innerHTML = '';
+    pj('maleta');
     var fixed = A.fixed.filter(function (f) { return f.n && f.at; }).map(function (f) { return { n: f.n, day: f.day, at: f.at }; });
     var sp = { title: A.title, start: A.start, mode: A.mode, pace: A.pace, style: A.style, ints: A.ints, fin: A.fin, fout: A.fout, fixed: fixed,
       stops: A.cities.map(function (x) { return { name: x.name, lat: x.lat, lon: x.lon, bb: x.bb, cc: x.cc, country: x.country, days: x.days, stay: x.stay || '' }; }) };
     Motor.generate(sp, step).then(function (b) {
       return cfg.onSave(b).then(function () {
         done = b; busy = false; step('Guía guardada en este móvil').ok(); foot();
+        pj('fiesta');
         $('#wzAfter').innerHTML = '<div id="wzMapa"></div>' + (cfg.aiBox ? cfg.aiBox(b) : '');
         if (window.Mapa) {
           Mapa.mount($('#wzMapa'), { id: b.meta.id, title: b.meta.title.es, heading: 'Tu viaje en un mapa', dayLabel: Lang.t('Día 1').replace(' 1', ''), lang: Lang.get(), mode: b.meta.mode, land: b.trip.mapLand || null, photos: b.photos, days: Mapa.fromTrip(Motor.localized(b)) });

@@ -1,6 +1,6 @@
 // Guarda la app para usarla sin conexión. build.py pone la versión en el nombre de la caché.
-var CACHE = 'guia-3.16', IMG = 'guia-img';
-var FILES = ['./', './index.html', './guia.html', './viajes.html', './app.js', './styles.css', './viajes.js', './album.js', './album.css', './motor.js', './asistente.js', './mapa.js', './mundo.js', './juego.js', './lang.js', './manifest.webmanifest',
+var CACHE = 'guia-3.17', IMG = 'guia-img';
+var FILES = ['./', './index.html', './guia.html', './viajes.html', './app.js', './styles.css', './viajes.js', './album.js', './album.css', './motor.js', './asistente.js', './personajes.js', './mapa.js', './mundo.js', './juego.js', './lang.js', './manifest.webmanifest',
   './icon-180.png', './icon-192.png', './icon-512.png', './trips/index.json'];
 
 self.addEventListener('install', function (e) {

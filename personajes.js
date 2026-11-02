@@ -1,0 +1,284 @@
+/* ===== Personajes animados (window.Pj): monigotes en SVG que acompañan al asistente y a la bienvenida =====
+   Cada personaje se monta por piezas (piernas, cuerpo, brazos y cabeza giran por separado) con su ropa y objetos.
+   Pj.play(tipo, { target }) lo hace caer desde arriba, hacer su gesto, ponerse su prenda, andar hasta la opción
+   elegida, que se abre como una compuerta, y meterse dentro. Pj.figure(tipo) da uno quieto que repite su gesto. */
+window.Pj = (function () {
+  'use strict';
+  var NS = 'guia-pj', layer = null, cur = null;
+  function en() { return window.Lang && Lang.get() === 'en'; }
+  function off() { try { return localStorage.getItem(NS) === 'off'; } catch (e) { return false; } }
+  function reduced() { return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+  /* ---------- Vestuario ---------- */
+  var SKIN = ['#f3cdae', '#e2b08a', '#c68b62', '#8d5a3b'], HAIR = ['#3a2a22', '#6b4226', '#c98a3c', '#1f1d1c', '#a33d22'];
+  // ropa: top, pantalón, zapatos, extra (gorro, bufanda…). Colores vivos pero no chillones
+  var KINDS = {
+    nieve:   { top: '#e2782f', bot: '#3b4a6b', shoe: '#5a3b2a', hat: 'beanie', hatC: '#2f8f5b', coat: 1, mitt: '#2f8f5b', gear: 'scarf', gearC: '#c8323c', idle: 'shiver', fx: 'snow', say: ['¡Brrr, qué frío!', 'Brrr, it’s cold!'] },
+    playa:   { top: 'swim', bot: '#2b8fc9', shoe: 'flip', hat: 'sunhat', hatC: '#f2c14e', ring: '#e8574a', gear: 'shades', idle: 'fan', fx: 'sun', say: ['¡Uf, qué calor!', 'Phew, so hot!'] },
+    lluvia:  { top: '#f2c14e', bot: '#3b4a6b', shoe: '#2f8f5b', hat: 'hood', hatC: '#f2c14e', coat: 1, gear: 'umbrella', gearC: '#c8323c', idle: 'shake', fx: 'rain', say: ['¡Llueve!', 'It’s raining!'] },
+    monte:   { top: '#2f8f5b', bot: '#6b5a44', shoe: '#5a3b2a', hat: 'sunhat', hatC: '#b9a27a', pack: '#e2782f', stick: 1, gear: 'pack', idle: 'look', fx: 'birds', say: ['¡Qué vistas!', 'What a view!'] },
+    ciudad:  { top: '#6b7fb3', bot: '#e9e2d3', shoe: '#e8574a', hat: 'cap', hatC: '#e2782f', cam: 1, gear: 'map', gearC: '#f7f3ec', idle: 'photo', fx: '', say: ['¡Foto!', 'Say cheese!'] },
+    pie:     { top: '#e8574a', bot: '#3b4a6b', shoe: '#f7f3ec', hat: '', pack: '#2f8f5b', gear: 'map', gearC: '#f7f3ec', idle: 'wave', fx: '', say: ['¡A andar!', 'Let’s walk!'] },
+    corre:   { top: '#2b8fc9', bot: '#1f2126', shoe: '#f2c14e', hat: 'band', hatC: '#e8574a', idle: 'run', gear: '', fx: 'speed', say: ['¡A tope!', 'Full speed!'] },
+    relax:   { top: '#f2c14e', bot: '#e9e2d3', shoe: 'flip', hat: '', drink: 1, gear: 'shades', idle: 'sip', fx: '', say: ['Sin prisa…', 'No rush…'] },
+    madruga: { top: '#f29a52', bot: '#3b4a6b', shoe: '#f7f3ec', hat: '', idle: 'stretch', gear: '', fx: 'sunrise', say: ['¡Buenos días!', 'Good morning!'] },
+    siesta:  { top: '#8f7fc4', bot: '#8f7fc4', shoe: '#e9e2d3', hat: 'night', hatC: '#6b5fb0', pillow: 1, idle: 'yawn', gear: '', fx: 'zzz', say: ['Cinco minutitos más…', 'Five more minutes…'] },
+    arte:    { top: '#1f2126', bot: '#3b3e46', shoe: '#1f2126', hat: 'beret', hatC: '#c8323c', palette: 1, idle: 'paint', gear: '', fx: 'paint', say: ['¡Qué arte!', 'Such art!'] },
+    chef:    { top: '#f7f3ec', bot: '#3b3e46', shoe: '#1f2126', hat: 'chef', hatC: '#ffffff', pan: 1, idle: 'flip', gear: '', fx: '', say: ['¡Qué rico!', 'Yummy!'] },
+    compras: { top: '#d0558a', bot: '#3b4a6b', shoe: '#f7f3ec', hat: '', bags: 1, idle: 'swing', gear: 'shades', fx: '', say: ['¡De tiendas!', 'Shopping!'] },
+    globo:   { top: '#2f8f5b', bot: '#f2c14e', shoe: '#e8574a', hat: 'cap', hatC: '#2b8fc9', balloon: '#e8574a', kid: 1, idle: 'hop', gear: '', fx: '', say: ['¡Bieeen!', 'Yay!'] },
+    maleta:  { top: '#6b7fb3', bot: '#3b3e46', shoe: '#5a3b2a', hat: '', case: '#e2782f', idle: 'wave', gear: '', fx: '', say: ['¡Nos vamos!', 'Off we go!'] },
+    fiesta:  { top: '#e2782f', bot: '#3b4a6b', shoe: '#f7f3ec', hat: 'party', hatC: '#6b7fb3', idle: 'jump', gear: '', fx: 'confetti', say: ['¡Viaje listo!', 'Trip ready!'] },
+    coche:   { vehicle: 'car', body: '#e2782f', say: ['¡Pi, pi!', 'Beep beep!'] },
+    bus:     { vehicle: 'tram', body: '#c8323c', say: ['¡Próxima parada!', 'Next stop!'] }
+  };
+
+  /* ---------- Dibujo (viewBox 100 × 170; el suelo en y = 162) ---------- */
+  function hat(k, c) {
+    if (k === 'beanie') return '<path d="M30 38 Q31 17 50 16 Q69 17 70 38 Z" fill="' + c + '"/><rect x="29" y="33" width="42" height="8" rx="4" fill="' + shade(c, -18) + '"/><circle cx="50" cy="14" r="6" fill="#f7f3ec"/>';
+    if (k === 'sunhat') return '<ellipse cx="50" cy="30" rx="30" ry="6" fill="' + shade(c, -12) + '"/><path d="M35 30 Q36 15 50 15 Q64 15 65 30 Z" fill="' + c + '"/><rect x="35" y="26" width="30" height="4" fill="#e8574a" opacity=".85"/>';
+    if (k === 'cap') return '<path d="M31 33 Q32 18 50 18 Q68 18 69 33 Z" fill="' + c + '"/><path d="M50 31 Q72 29 80 34 Q66 37 50 35 Z" fill="' + shade(c, -20) + '"/>';
+    if (k === 'hood') return '<path d="M27 44 Q26 16 50 15 Q74 16 73 44 Q70 30 50 28 Q30 30 27 44 Z" fill="' + c + '"/>';
+    if (k === 'band') return '<rect x="30" y="29" width="40" height="7" rx="3" fill="' + c + '"/><path d="M30 32 L22 38 L25 30 Z" fill="' + c + '"/>';
+    if (k === 'beret') return '<ellipse cx="46" cy="25" rx="20" ry="8" fill="' + c + '" transform="rotate(-12 46 25)"/><rect x="45" y="15" width="3" height="5" rx="1.5" fill="' + c + '"/>';
+    if (k === 'chef') return '<rect x="36" y="18" width="28" height="12" fill="' + c + '" stroke="#ddd" stroke-width=".8"/><circle cx="40" cy="15" r="8" fill="' + c + '"/><circle cx="50" cy="11" r="9" fill="' + c + '"/><circle cx="60" cy="15" r="8" fill="' + c + '"/>';
+    if (k === 'night') return '<path d="M32 34 Q34 14 54 16 Q70 20 82 40 L76 44 Q68 28 66 34 Z" fill="' + c + '"/><circle cx="80" cy="44" r="4.5" fill="#f7f3ec"/>';
+    if (k === 'party') return '<path d="M38 26 L50 0 L62 26 Z" fill="' + c + '"/><path d="M41 19 L59 19 M44 12 L56 12" stroke="#f2c14e" stroke-width="2.5"/><circle cx="50" cy="0" r="3.5" fill="#f2c14e"/>';
+    return '';
+  }
+  // aclara u oscurece un color #rrggbb
+  function shade(h, p) {
+    var n = parseInt(h.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255, f = function (v) { return Math.max(0, Math.min(255, Math.round(v + p * 2.55))); };
+    return '#' + ((1 << 24) + (f(r) << 16) + (f(g) << 8) + f(b)).toString(16).slice(1);
+  }
+  function person(K, id) {
+    var skin = pick(SKIN), hair = pick(HAIR), swim = K.top === 'swim', top = swim ? skin : K.top, legC = swim ? skin : K.bot, kid = K.kid;
+    var g = 'url(#pjSh' + id + ')', s = '';
+    s += '<defs><linearGradient id="pjSh' + id + '" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient>' +
+      '<radialGradient id="pjHd' + id + '" cx=".38" cy=".35" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".12"/></radialGradient></defs>';
+    s += '<g class="pj-all"' + (kid ? ' transform="translate(10 34) scale(.8)"' : '') + '>';
+    if (K.balloon) s += '<g class="pj-balloon"><path d="M73 104 Q80 70 76 34" stroke="#555" stroke-width="1" fill="none"/><ellipse cx="76" cy="22" rx="13" ry="15" fill="' + K.balloon + '"/><ellipse cx="71" cy="16" rx="3.5" ry="5" fill="#fff" opacity=".45"/><path d="M74 37 L78 37 L76 34 Z" fill="' + K.balloon + '"/></g>';
+    if (K.pack) s += '<rect x="25" y="66" width="50" height="46" rx="9" fill="' + K.pack + '"/><rect x="25" y="66" width="50" height="46" rx="9" fill="' + g + '"/>';
+    if (K.stick) s += '<line x1="78" y1="98" x2="86" y2="162" stroke="#7a5a3a" stroke-width="3" stroke-linecap="round"/>';
+    if (K.case) s += '<g class="pj-case"><line x1="72" y1="106" x2="78" y2="124" stroke="#555" stroke-width="2.5"/><rect x="70" y="122" width="24" height="34" rx="5" fill="' + K.case + '"/><rect x="70" y="122" width="24" height="34" rx="5" fill="' + g + '"/><line x1="76" y1="128" x2="76" y2="150" stroke="#000" stroke-opacity=".2" stroke-width="2"/><line x1="88" y1="128" x2="88" y2="150" stroke="#000" stroke-opacity=".2" stroke-width="2"/><circle cx="74" cy="158" r="3" fill="#333"/><circle cx="90" cy="158" r="3" fill="#333"/></g>';
+    // piernas
+    var shoe = function (cx) { return K.shoe === 'flip' ? '<rect x="' + (cx - 7) + '" y="155" width="14" height="4" rx="2" fill="#2b8fc9"/>' : '<ellipse cx="' + cx + '" cy="155" rx="8" ry="5" fill="' + K.shoe + '"/>'; };
+    s += '<g class="pj-legL"><rect x="38" y="108" width="11" height="46" rx="5" fill="' + legC + '"/><rect x="38" y="108" width="11" height="46" rx="5" fill="' + g + '"/>' + shoe(43) + '</g>';
+    s += '<g class="pj-legR"><rect x="51" y="108" width="11" height="46" rx="5" fill="' + legC + '"/><rect x="51" y="108" width="11" height="46" rx="5" fill="' + g + '"/>' + shoe(57) + '</g>';
+    // cuerpo
+    var torso = 'M31 74 Q31 64 40 63 L60 63 Q69 64 69 74 L71 116 Q50 122 29 116 Z';
+    s += '<g class="pj-body"><path d="' + torso + '" fill="' + top + '"/>';
+    if (swim) s += '<path d="M29 104 L71 104 L71 116 Q50 122 29 116 Z" fill="' + K.bot + '"/><path d="M29 104 L71 104" stroke="#fff" stroke-width="1.5" stroke-dasharray="3 3"/>';
+    else s += '<path d="M29 112 Q50 118 71 112 L71 116 Q50 122 29 116 Z" fill="' + shade(top, -15) + '"/>';
+    if (K.coat) s += '<path d="M31 80 Q50 84 69 80 M30 92 Q50 96 70 92 M30 104 Q50 108 70 104" stroke="' + shade(top, -16) + '" stroke-width="1.6" fill="none"/><line x1="50" y1="64" x2="50" y2="118" stroke="' + shade(top, -22) + '" stroke-width="1.4"/>';
+    else if (!swim) s += '<path d="M42 63 Q50 72 58 63" fill="' + shade(top, -14) + '"/>';
+    if (K.hat === 'chef') s += '<circle cx="50" cy="80" r="1.6" fill="#999"/><circle cx="50" cy="90" r="1.6" fill="#999"/><circle cx="50" cy="100" r="1.6" fill="#999"/>';
+    s += '<path d="' + torso + '" fill="' + g + '"/>';
+    if (K.ring) s += '<g class="pj-ring"><ellipse cx="50" cy="110" rx="29" ry="9" fill="none" stroke="' + K.ring + '" stroke-width="8"/><ellipse cx="50" cy="110" rx="29" ry="9" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="10 12"/></g>';
+    if (K.cam) s += '<g class="pj-cam"><path d="M38 64 L46 86 M62 64 L54 86" stroke="#1f2126" stroke-width="1.5"/><rect x="41" y="84" width="18" height="12" rx="2.5" fill="#1f2126"/><circle cx="50" cy="90" r="4" fill="#5b6170" stroke="#9aa" stroke-width="1"/></g>';
+    s += '</g>';
+    // brazos (el izquierdo y el derecho giran desde el hombro)
+    var hand = K.mitt || skin, slv = swim ? skin : top;
+    s += '<g class="pj-armL"><rect x="24" y="67" width="10" height="38" rx="5" fill="' + slv + '"/><rect x="24" y="67" width="10" height="38" rx="5" fill="' + g + '"/><circle cx="29" cy="107" r="5.5" fill="' + hand + '"/>' +
+      (K.palette ? '<g class="pj-pal"><ellipse cx="24" cy="110" rx="12" ry="8" fill="#e9d3a7"/><circle cx="18" cy="108" r="2.2" fill="#e8574a"/><circle cx="23" cy="105" r="2.2" fill="#2b8fc9"/><circle cx="29" cy="107" r="2.2" fill="#f2c14e"/><circle cx="24" cy="113" r="2.2" fill="#2f8f5b"/></g>' : '') +
+      (K.pillow ? '<rect x="10" y="96" width="26" height="17" rx="7" fill="#f7f3ec" stroke="#ddd"/>' : '') +
+      (K.bags ? '<g class="pj-bagL"><path d="M25 106 Q29 98 33 106" stroke="#333" stroke-width="1.5" fill="none"/><rect x="20" y="106" width="18" height="20" rx="2" fill="#f2c14e"/></g>' : '') +
+      (K.gear === 'map' ? '<g class="pj-map"><rect x="17" y="100" width="24" height="17" rx="1" fill="' + (K.gearC || '#fff') + '" stroke="#bbb"/><path d="M23 100 L23 117 M29 100 L29 117 M35 100 L35 117" stroke="#ccc"/><path d="M19 112 Q26 104 38 106" stroke="#e2782f" stroke-width="1.4" fill="none" stroke-dasharray="2 2"/></g>' : '') + '</g>';
+    s += '<g class="pj-armR"><rect x="66" y="67" width="10" height="38" rx="5" fill="' + slv + '"/><rect x="66" y="67" width="10" height="38" rx="5" fill="' + g + '"/><circle cx="71" cy="107" r="5.5" fill="' + hand + '"/>' +
+      (K.drink ? '<g><path d="M66 94 L76 94 L74 104 L68 104 Z" fill="#f2c14e" opacity=".85" stroke="#fff"/><line x1="71" y1="104" x2="71" y2="112" stroke="#fff" stroke-width="1.5"/></g>' : '') +
+      (K.pan ? '<g class="pj-pan"><rect x="72" y="104" width="16" height="4" rx="2" fill="#333"/><ellipse cx="96" cy="106" rx="11" ry="4" fill="#333"/><ellipse class="pj-cake" cx="96" cy="103" rx="8" ry="3" fill="#e0a92c"/></g>' : '') +
+      (K.palette ? '<g class="pj-brush"><line x1="71" y1="108" x2="80" y2="92" stroke="#7a5a3a" stroke-width="2.5"/><circle cx="80.5" cy="91" r="2.5" fill="#e8574a"/></g>' : '') +
+      (K.bags ? '<g class="pj-bagR"><path d="M67 106 Q71 98 75 106" stroke="#333" stroke-width="1.5" fill="none"/><rect x="62" y="106" width="18" height="22" rx="2" fill="#2b8fc9"/></g>' : '') +
+      (K.gear === 'umbrella' ? '<g class="pj-umb"><line x1="71" y1="110" x2="71" y2="34" stroke="#333" stroke-width="2"/><path class="pj-can" d="M41 40 Q71 0 101 40 Q93 34 86 40 Q78 34 71 40 Q64 34 56 40 Q49 34 41 40 Z" fill="' + K.gearC + '"/></g>' : '') + '</g>';
+    // cuello y cabeza
+    s += '<rect x="45" y="55" width="10" height="10" fill="' + skin + '"/>';
+    s += '<g class="pj-head"><circle cx="50" cy="40" r="19" fill="' + skin + '"/><circle cx="50" cy="40" r="19" fill="url(#pjHd' + id + ')"/>';
+    if (K.hat !== 'beanie' && K.hat !== 'hood' && K.hat !== 'chef' && K.hat !== 'night') s += '<path d="M31 38 Q31 20 50 20 Q69 20 69 38 Q64 28 50 28 Q38 28 31 38 Z" fill="' + hair + '"/>';
+    s += '<g class="pj-eyes"><ellipse cx="43" cy="42" rx="2.1" ry="2.7" fill="#2a2a2e"/><ellipse cx="57" cy="42" rx="2.1" ry="2.7" fill="#2a2a2e"/></g>' +
+      '<circle cx="38" cy="48" r="3.2" fill="#e8574a" opacity=".25"/><circle cx="62" cy="48" r="3.2" fill="#e8574a" opacity=".25"/>' +
+      '<path class="pj-mouth" d="M45 50 Q50 54 55 50" stroke="#2a2a2e" stroke-width="1.8" fill="none" stroke-linecap="round"/><ellipse class="pj-yawn" cx="50" cy="51" rx="3.5" ry="4.5" fill="#6b2a2a" opacity="0"/>';
+    s += hat(K.hat, K.hatC || '#333');
+    if (K.gear === 'shades') s += '<g class="pj-shades"><rect x="36" y="37" width="12" height="8" rx="3" fill="#1f2126"/><rect x="52" y="37" width="12" height="8" rx="3" fill="#1f2126"/><line x1="48" y1="40" x2="52" y2="40" stroke="#1f2126" stroke-width="1.6"/><rect x="38" y="38.5" width="4" height="2" rx="1" fill="#fff" opacity=".4"/></g>';
+    s += '</g>';
+    if (K.gear === 'scarf') s += '<g class="pj-scarf"><path d="M38 61 Q50 70 62 61" stroke="' + K.gearC + '" stroke-width="8" fill="none" stroke-linecap="round"/><rect x="53" y="63" width="8" height="22" rx="3" fill="' + K.gearC + '" transform="rotate(-8 57 63)"/><path d="M54 80 L61 79" stroke="#fff" stroke-width="1.6" opacity=".6"/></g>';
+    s += '</g>';
+    return '<svg class="pj-fig" viewBox="0 0 100 170" width="96" height="163" aria-hidden="true">' + s + '</svg>';
+  }
+  function vehicle(K) {
+    var c = K.body, heads = function (xs, y) { return xs.map(function (x) { return '<circle cx="' + x + '" cy="' + y + '" r="8" fill="' + pick(SKIN) + '"/><path d="M' + (x - 8) + ' ' + (y - 1) + ' Q' + x + ' ' + (y - 12) + ' ' + (x + 8) + ' ' + (y - 1) + '" fill="' + pick(HAIR) + '"/><circle cx="' + (x + 3) + '" cy="' + (y + 1) + '" r="1.3" fill="#222"/>'; }).join(''); };
+    if (K.vehicle === 'car') return '<svg class="pj-fig pj-car" viewBox="0 0 150 90" width="150" height="90" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M30 32 Q38 12 70 12 Q98 12 108 32 Z" fill="' + shade(c, 10) + '"/><path d="M40 31 Q46 18 66 18 L66 31 Z M72 18 Q94 18 100 31 L72 31 Z" fill="#bfe0f2"/>' + heads([56, 86], 27) +
+      '<rect x="10" y="30" width="130" height="34" rx="14" fill="' + c + '"/><rect x="10" y="30" width="130" height="34" rx="14" fill="url(#pjCarSh)"/><circle cx="133" cy="42" r="4" fill="#fff6c8"/><rect x="12" y="42" width="6" height="6" rx="2" fill="#e8574a"/>' +
+      '<defs><linearGradient id="pjCarSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient></defs>' +
+      '<g class="pj-wheel" style="transform-origin:42px 66px"><circle cx="42" cy="66" r="13" fill="#2a2a2e"/><circle cx="42" cy="66" r="5" fill="#bbb"/><rect x="40.5" y="55" width="3" height="22" fill="#555"/></g>' +
+      '<g class="pj-wheel" style="transform-origin:110px 66px"><circle cx="110" cy="66" r="13" fill="#2a2a2e"/><circle cx="110" cy="66" r="5" fill="#bbb"/><rect x="108.5" y="55" width="3" height="22" fill="#555"/></g></g></svg>';
+    return '<svg class="pj-fig pj-car" viewBox="0 0 190 100" width="180" height="95" aria-hidden="true"><g class="pj-all">' +
+      '<line x1="95" y1="2" x2="80" y2="16" stroke="#333" stroke-width="2"/><rect x="8" y="16" width="174" height="62" rx="12" fill="' + c + '"/><rect x="8" y="58" width="174" height="8" fill="#f7f3ec" opacity=".85"/>' +
+      '<rect x="20" y="24" width="34" height="26" rx="5" fill="#bfe0f2"/><rect x="62" y="24" width="34" height="26" rx="5" fill="#bfe0f2"/><rect x="104" y="24" width="34" height="26" rx="5" fill="#bfe0f2"/><rect x="146" y="24" width="28" height="40" rx="5" fill="#8fc4df"/>' +
+      heads([37, 79, 121], 42) + '<circle cx="176" cy="70" r="3.5" fill="#fff6c8"/>' +
+      '<g class="pj-wheel" style="transform-origin:42px 82px"><circle cx="42" cy="82" r="11" fill="#2a2a2e"/><circle cx="42" cy="82" r="4" fill="#bbb"/><rect x="40.5" y="72" width="3" height="20" fill="#555"/></g>' +
+      '<g class="pj-wheel" style="transform-origin:148px 82px"><circle cx="148" cy="82" r="11" fill="#2a2a2e"/><circle cx="148" cy="82" r="4" fill="#bbb"/><rect x="146.5" y="72" width="3" height="20" fill="#555"/></g></g></svg>';
+  }
+
+  /* ---------- Efectos alrededor (nieve, sol, lluvia…) ---------- */
+  function fx(kind, L) {
+    var n = { snow: 26, rain: 34, confetti: 40 }[kind] || 0, h = '';
+    for (var i = 0; i < n; i++) {
+      var st = 'left:' + rnd(0, 100).toFixed(1) + '%;--t:' + rnd(kind === 'rain' ? .5 : 2.2, kind === 'rain' ? .9 : 4).toFixed(2) + 's;--dl:' + rnd(0, 1.5).toFixed(2) + 's;--s:' + rnd(.6, 1.3).toFixed(2) + ';--x:' + rnd(-40, 40).toFixed(0) + 'px';
+      if (kind === 'confetti') st += ';background:' + pick(['#e2782f', '#2f8f5b', '#2b8fc9', '#f2c14e', '#e8574a', '#8f7fc4']);
+      h += '<i class="pj-p ' + kind + '" style="' + st + '"></i>';
+    }
+    if (kind === 'sun') h = '<i class="pj-sun"></i>';
+    if (kind === 'sunrise') h = '<i class="pj-sun rise"></i>';
+    if (kind === 'birds') h = '<i class="pj-bird" style="top:16%;--dl:0s">︶︶</i><i class="pj-bird" style="top:22%;--dl:.5s">︶︶</i>';
+    if (!h) return null;
+    var e = document.createElement('div'); e.className = 'pj-fx'; e.innerHTML = h; L.appendChild(e);
+    return e;
+  }
+
+  /* ---------- La escena ---------- */
+  function lay() {
+    if (!layer || !layer.isConnected) { layer = document.createElement('div'); layer.className = 'pj-layer'; layer.setAttribute('aria-hidden', 'true'); document.body.appendChild(layer); }
+    return layer;
+  }
+  function wait(ms, run) { return new Promise(function (r) { run.t.push(setTimeout(r, ms)); }); }
+  function anim(el, kf, o) { try { var a = el.animate(kf, o); return a.finished.catch(function () {}); } catch (e) { return Promise.resolve(); } }
+  function stop() {
+    if (!cur) return;
+    var r = cur; cur = null; r.dead = true; r.t.forEach(clearTimeout);
+    r.els.forEach(function (e) { if (e && e.parentNode) { e.style.transition = 'opacity .25s'; e.style.opacity = '0'; setTimeout(function () { e.remove(); }, 260); } });
+  }
+  function bubble(run, wrap, txt) {
+    var b = document.createElement('span'); b.className = 'pj-say'; b.textContent = txt; wrap.appendChild(b);
+    return wait(1500, run).then(function () { b.classList.add('out'); });
+  }
+  // una compuerta sobre la opción elegida: se levanta, deja un hueco y se cierra
+  function hatch(r, color) {
+    var h = document.createElement('div'); h.className = 'pj-hatch';
+    h.style.cssText = 'left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
+    h.innerHTML = '<i class="pj-hole"></i><i class="pj-flap" style="--c:' + color + '"></i>';
+    lay().insertBefore(h, lay().firstChild);
+    return h;
+  }
+  function targetRect(t) {
+    var el = typeof t === 'function' ? t() : t; if (!el || !el.getBoundingClientRect) return null;
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    if (r.width < 40 || r.bottom < 60 || r.top > vh - 120) return null;
+    // solo la parte visible
+    var top = Math.max(r.top, 50), bot = Math.min(r.bottom, vh - 100);
+    return { left: r.left, top: top, width: r.width, height: Math.max(60, Math.min(bot - top, 220)), radius: getComputedStyle(el).borderRadius };
+  }
+  function ground() {
+    var f = document.querySelector('#wz:not([hidden]) .wz-foot'), y = f ? f.getBoundingClientRect().top - 6 : window.innerHeight - 110;
+    return Math.min(y, window.innerHeight - 30);
+  }
+
+  function play(kind, o) {
+    o = o || {};
+    var K = KINDS[kind]; if (!K || off() || reduced()) return;
+    stop();
+    var run = { t: [], els: [], dead: false }; cur = run;
+    var L = lay(), W = window.innerWidth, gy = o.ground || ground(), veh = !!K.vehicle;
+    var wrap = document.createElement('div'); wrap.className = 'pj pj-' + kind + (veh ? ' pj-veh' : '');
+    wrap.innerHTML = (veh ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
+    L.appendChild(wrap); run.els.push(wrap);
+    var w = veh ? (K.vehicle === 'car' ? 150 : 180) : 96, hgt = veh ? (K.vehicle === 'car' ? 90 : 95) : 163;
+    var x0 = o.x != null ? o.x : Math.round(rnd(.18, .62) * (W - w)), pos = { x: x0, y: gy - hgt };
+    function at(x, y, extra) { return 'translate(' + x + 'px,' + y + 'px)' + (extra || ''); }
+    var F = K.fx ? fx(K.fx, L) : null; if (F) run.els.push(F);
+    var t0 = Promise.resolve();
+    // 1 · entrada: cae desde arriba (o llega rodando si es un vehículo)
+    if (veh) {
+      wrap.classList.add('drive');
+      pos.x = Math.round(W * .5 - w / 2);
+      t0 = anim(wrap, [{ transform: at(-w - 20, pos.y) }, { transform: at(pos.x, pos.y) }], { duration: 1300, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' }).then(function () { wrap.classList.remove('drive'); });
+    } else {
+      wrap.classList.add('fall');
+      t0 = anim(wrap, [{ transform: at(pos.x, -hgt - 40, ' rotate(-14deg)') }, { transform: at(pos.x, pos.y, ' rotate(0deg)'), offset: .78 }, { transform: at(pos.x, pos.y - 18) , offset: .9 }, { transform: at(pos.x, pos.y) }],
+        { duration: 1000, easing: 'cubic-bezier(.45,0,.6,1)', fill: 'forwards' }).then(function () {
+        wrap.classList.remove('fall'); wrap.classList.add('land');
+        return wait(260, run);
+      }).then(function () { wrap.classList.remove('land'); });
+    }
+    t0.then(function () {
+      if (run.dead) return;
+      // 2 · su gesto (frío, calor, foto…) con un bocadillo
+      if (K.idle) wrap.classList.add('act-' + K.idle);
+      if (K.say) bubble(run, wrap, en() ? K.say[1] : K.say[0]);
+      return wait(veh ? 900 : 1700, run);
+    }).then(function () {
+      if (run.dead) return;
+      if (K.idle) wrap.classList.remove('act-' + K.idle);
+      // 3 · se pone su prenda (bufanda, gafas, paraguas…)
+      if (K.gear && K.gear !== 'map' && K.gear !== 'pack') { wrap.classList.add('gear'); return wait(900, run); }
+    }).then(function () {
+      if (run.dead) return;
+      // 4 · va hasta la opción elegida, se abre la compuerta y se mete
+      var r = o.target ? targetRect(o.target) : null;
+      if (!r) {
+        var out = pos.x > W / 2 ? W + 20 : -w - 20;
+        wrap.classList.add(veh ? 'drive' : 'walk'); if (out < pos.x) wrap.classList.add('left');
+        return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(out, pos.y) }], { duration: 1400, easing: 'ease-in', fill: 'forwards' });
+      }
+      var tx = Math.round(r.left + r.width / 2 - w / 2), ty = Math.round(r.top + r.height * .62 - hgt), d = Math.hypot(tx - pos.x, ty - pos.y);
+      wrap.classList.add(veh ? 'drive' : 'walk'); if (tx < pos.x) wrap.classList.add('left');
+      var H = null;
+      return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(tx, ty) }], { duration: Math.max(700, Math.min(1600, d * 4.5)), easing: 'ease-in-out', fill: 'forwards' }).then(function () {
+        if (run.dead) return;
+        // al llegar, la opción se levanta como una compuerta
+        wrap.classList.remove('walk', 'drive');
+        H = hatch(targetRect(o.target) || r, o.color || K.gearC || K.hatC || K.body || '#e2782f'); run.els.push(H);
+        return wait(260, run);
+      }).then(function () {
+        if (run.dead) return;
+        H.classList.add('open');
+        return wait(380, run);
+      }).then(function () {
+        if (run.dead) return;
+        // salta dentro del hueco
+        wrap.classList.add('dive');
+        return anim(wrap, [{ transform: at(tx, ty) + ' scale(1)' }, { transform: at(tx, ty - 46) + ' scale(.9)', offset: .4 }, { transform: at(tx, ty + hgt * .35) + ' scale(.25)', opacity: 0 }], { duration: 650, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'forwards' });
+      }).then(function () {
+        if (run.dead) return;
+        H.classList.remove('open'); H.classList.add('shut');
+        try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
+        return wait(520, run);
+      });
+    }).then(function () {
+      if (run.dead) return;
+      return wait(400, run);
+    }).then(function () { if (cur === run) stop(); });
+  }
+
+  // un personaje quieto que repite su gesto (para la bienvenida)
+  function figure(kind) {
+    var K = KINDS[kind] || KINDS.maleta, e = document.createElement('div');
+    e.className = 'pj pj-still pj-' + kind + (K.vehicle ? ' pj-veh drive' : '') + (K.idle && !reduced() ? ' act-' + K.idle : '') + (K.gear ? ' gear' : '');
+    e.innerHTML = (K.vehicle ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
+    return e;
+  }
+
+  /* ---------- Qué personaje toca según el destino y la fecha ---------- */
+  var TROPIC = 'TH MX ID MV DO CU BR PH VN MY SG CR CO KE TZ EG IN LK JM PR PA AE QA OM SC MU KH LA CV BS BB'.split(' ');
+  var SOUTH = 'AR CL AU NZ ZA UY'.split(' ');
+  var COLD = 'FI NO SE IS CH AT CA EE LV LT DK PL CZ SK RU GL'.split(' ');
+  var BEACH = 'ES PT IT GR HR FR TR CY MT MA ME AL TN US'.split(' ');
+  var RAINY = 'GB IE NL BE'.split(' ');
+  var HIKE = 'NP CH AT NZ PE SI'.split(' ');
+  function theme(ccs, iso) {
+    var m = iso ? +iso.slice(5, 7) : new Date().getMonth() + 1, cc = (ccs || [])[0] || '';
+    if (TROPIC.indexOf(cc) >= 0) return 'playa';
+    if (SOUTH.indexOf(cc) >= 0) m = (m + 5) % 12 + 1;
+    var winter = m === 12 || m <= 2, cold = COLD.indexOf(cc) >= 0, summer = m >= 6 && m <= 9;
+    if (winter || (cold && (m === 11 || m === 3))) return 'nieve';
+    if (summer && BEACH.indexOf(cc) >= 0) return 'playa';
+    if (summer && HIKE.indexOf(cc) >= 0) return 'monte';
+    if (RAINY.indexOf(cc) >= 0) return 'lluvia';
+    if (m >= 10 || m <= 4) return 'lluvia';
+    return 'ciudad';
+  }
+
+  return { play: play, stop: stop, figure: figure, theme: theme, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
+})();
