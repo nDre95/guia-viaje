@@ -32,6 +32,7 @@ window.Pj = (function () {
     maleta:  { top: '#6b7fb3', bot: '#3b3e46', shoe: '#5a3b2a', hat: '', case: '#e2782f', idle: 'wave', gear: '', fx: '', say: ['¡Nos vamos!', 'Off we go!'] },
     fiesta:  { top: '#e2782f', bot: '#3b4a6b', shoe: '#f7f3ec', hat: 'party', hatC: '#6b7fb3', idle: 'jump', gear: '', fx: 'confetti', say: ['¡Viaje listo!', 'Trip ready!'] },
     isla:    { vehicle: 'isle', idle: 'lounge', fx: 'sun', say: ['¡Esto es vida!', 'This is the life!'] },
+    avion:   { vehicle: 'plane', body: '#f7f3ec', say: ['¡Despegamos!', 'Take off!'] },
     coche:   { vehicle: 'car', body: '#e2782f', say: ['¡Pi, pi!', 'Beep beep!'] },
     bus:     { vehicle: 'tram', body: '#c8323c', say: ['¡Próxima parada!', 'Next stop!'] }
   };
@@ -54,8 +55,8 @@ window.Pj = (function () {
     var n = parseInt(h.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255, f = function (v) { return Math.max(0, Math.min(255, Math.round(v + p * 2.55))); };
     return '#' + ((1 << 24) + (f(r) << 16) + (f(g) << 8) + f(b)).toString(16).slice(1);
   }
-  function person(K, id) {
-    var skin = pick(SKIN), hair = pick(HAIR), swim = K.top === 'swim', top = swim ? skin : K.top, legC = swim ? skin : K.bot, kid = K.kid;
+  function person(K, id, look) {
+    var skin = look ? look.skin : pick(SKIN), hair = look ? look.hair : pick(HAIR), swim = K.top === 'swim', top = swim ? skin : K.top, legC = swim ? skin : K.bot, kid = K.kid;
     var g = 'url(#pjSh' + id + ')', s = '';
     s += '<defs><linearGradient id="pjSh' + id + '" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient>' +
       '<radialGradient id="pjHd' + id + '" cx=".38" cy=".35" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".12"/></radialGradient></defs>';
@@ -128,8 +129,23 @@ window.Pj = (function () {
       '<g class="pj-sipA"><path d="M80 99 L86 84" stroke="' + sk + '" stroke-width="5.5" stroke-linecap="round"/><path d="M81 72 L92 72 L86.5 80 Z" fill="#f29a52" stroke="#fff" stroke-width="1"/><line x1="86.5" y1="80" x2="86.5" y2="86" stroke="#fff" stroke-width="1.5"/><circle cx="91" cy="71.5" r="2.2" fill="#e8574a"/><line x1="84" y1="72" x2="80" y2="64" stroke="#2f8f5b" stroke-width="1.4"/></g>' +
       '</g></svg>';
   }
+  // avioneta con pasajeros en las ventanillas
+  function plane() {
+    var h = ''; [62, 82, 102].forEach(function (x) { h += '<circle cx="' + x + '" cy="40" r="6.5" fill="#bfe0f2"/><circle cx="' + x + '" cy="41" r="4.6" fill="' + pick(SKIN) + '"/><path d="M' + (x - 4.6) + ' 40 Q' + x + ' 33 ' + (x + 4.6) + ' 40" fill="' + pick(HAIR) + '"/>'; });
+    return '<svg class="pj-fig" viewBox="0 0 190 90" width="170" height="80" aria-hidden="true"><g class="pj-all">' +
+      '<path class="pj-trail" d="M2 44 L26 44 M8 52 L28 52" stroke="#9aa3b5" stroke-width="2.5" stroke-linecap="round" opacity=".6"/>' +
+      '<path d="M40 30 L26 8 L40 8 L62 30 Z" fill="#e2782f"/>' +
+      '<path d="M30 30 Q30 24 44 24 L150 24 Q178 26 184 42 Q178 58 150 60 L44 60 Q30 60 30 52 Z" fill="#f7f3ec"/>' +
+      '<path d="M30 46 L184 46 Q182 52 176 55 L44 55 Q32 55 30 50 Z" fill="#2b8fc9" opacity=".9"/>' + h +
+      '<path d="M160 34 Q172 34 178 42 L160 42 Z" fill="#8fc4df"/>' +
+      '<path d="M90 50 L118 50 L96 84 L82 84 Z" fill="#d5d0c6"/><path d="M40 48 L56 48 L44 64 L36 64 Z" fill="#d5d0c6"/>' +
+      '<path d="M30 30 Q30 24 44 24 L150 24 Q178 26 184 42 Q178 58 150 60 L44 60 Q30 60 30 52 Z" fill="url(#pjPlSh)"/>' +
+      '<defs><linearGradient id="pjPlSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".15"/></linearGradient></defs>' +
+      '</g></svg>';
+  }
   function vehicle(K) {
     if (K.vehicle === 'isle') return isle();
+    if (K.vehicle === 'plane') return plane();
     var c = K.body, heads = function (xs, y) { return xs.map(function (x) { return '<circle cx="' + x + '" cy="' + y + '" r="8" fill="' + pick(SKIN) + '"/><path d="M' + (x - 8) + ' ' + (y - 1) + ' Q' + x + ' ' + (y - 12) + ' ' + (x + 8) + ' ' + (y - 1) + '" fill="' + pick(HAIR) + '"/><circle cx="' + (x + 3) + '" cy="' + (y + 1) + '" r="1.3" fill="#222"/>'; }).join(''); };
     if (K.vehicle === 'car') return '<svg class="pj-fig pj-car" viewBox="0 0 150 90" width="150" height="90" aria-hidden="true"><g class="pj-all">' +
       '<path d="M30 32 Q38 12 70 12 Q98 12 108 32 Z" fill="' + shade(c, 10) + '"/><path d="M40 31 Q46 18 66 18 L66 31 Z M72 18 Q94 18 100 31 L72 31 Z" fill="#bfe0f2"/>' + heads([56, 86], 27) +
@@ -207,7 +223,7 @@ window.Pj = (function () {
     var wrap = document.createElement('div'); wrap.className = 'pj pj-' + kind + (veh ? ' pj-veh' : '');
     wrap.innerHTML = (veh ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
     L.appendChild(wrap); run.els.push(wrap);
-    var SZ = { car: [150, 90], tram: [180, 95], isle: [177, 118] }, w = veh ? SZ[K.vehicle][0] : 96, hgt = veh ? SZ[K.vehicle][1] : 163;
+    var SZ = { car: [150, 90], tram: [180, 95], isle: [177, 118], plane: [170, 80] }, w = veh ? SZ[K.vehicle][0] : 96, hgt = veh ? SZ[K.vehicle][1] : 163;
     var x0 = o.x != null ? o.x : Math.round(rnd(.18, .62) * (W - w)), pos = { x: x0, y: gy - hgt };
     function at(x, y, extra) { return 'translate(' + x + 'px,' + y + 'px)' + (extra || ''); }
     var F = K.fx ? fx(K.fx, L) : null; if (F) run.els.push(F);
@@ -283,27 +299,63 @@ window.Pj = (function () {
     return e;
   }
 
+  /* ---------- Un acompañante dentro de un recuadro (los mapas animados) ----------
+     Es siempre la misma persona, vestida según el viaje (base); cambia a coche, autobús o avión en los trayectos
+     y hace gestos en cada parada. show(tipo, estado): estado = 'walk', 'drive', 'idle' o 'act-…' */
+  function cast(box, base) {
+    var A = { el: null, cur: '', look: { skin: pick(SKIN), hair: pick(HAIR) }, base: KINDS[base] && !KINDS[base].vehicle ? base : base === 'isla' ? 'playa' : 'pie' };
+    function build(kind) {
+      var K = KINDS[kind], P = {}; for (var k in K) P[k] = K[k];
+      if (!K.vehicle && kind === A.base) P.cam = 1;
+      var e = document.createElement('div');
+      e.className = 'pj pj-cast pj-in pj-' + kind + (K.vehicle ? ' pj-veh' : '') + (K.gear ? ' gear' : '');
+      e.innerHTML = (K.vehicle ? vehicle(P) : person(P, Math.random().toString(36).slice(2, 7), A.look)) + '<span class="pj-shadow"></span>';
+      return e;
+    }
+    A.show = function (kind, state) {
+      if (off() || reduced() || !box) return;
+      kind = kind || A.base;
+      if (kind !== A.cur || !A.el) {
+        var old = A.el; if (old) { old.classList.add('pj-out'); setTimeout(function () { old.remove(); }, 300); }
+        A.el = build(kind); A.cur = kind; box.appendChild(A.el);
+      }
+      var c = A.el.className.replace(/\s(walk|drive|act-\w+)/g, ''); A.el.className = c + (state && state !== 'idle' ? ' ' + state : '');
+    };
+    A.say = function (txt, ms) {
+      if (!A.el) return; var b = document.createElement('span'); b.className = 'pj-say'; b.textContent = txt; A.el.appendChild(b);
+      setTimeout(function () { b.classList.add('out'); setTimeout(function () { b.remove(); }, 260); }, ms || 1600);
+    };
+    A.hide = function () { var old = A.el; A.el = null; A.cur = ''; if (old) { old.classList.add('pj-out'); setTimeout(function () { old.remove(); }, 300); } };
+    A.phrase = function (kind) { var K = KINDS[kind]; return K && K.say ? (en() ? K.say[1] : K.say[0]) : ''; };
+    A.idleOf = function (kind) { var K = KINDS[kind]; return K && K.idle ? 'act-' + K.idle : 'idle'; };
+    return A;
+  }
+
   /* ---------- Qué personaje toca según el destino y la fecha ---------- */
-  var ISLE = 'MV SC MU FJ PF BS BB'.split(' ');
-  var TROPIC = 'TH MX ID MV DO CU BR PH VN MY SG CR CO KE TZ EG IN LK JM PR PA AE QA OM SC MU KH LA CV BS BB'.split(' ');
-  var SOUTH = 'AR CL AU NZ ZA UY'.split(' ');
-  var COLD = 'FI NO SE IS CH AT CA EE LV LT DK PL CZ SK RU GL'.split(' ');
-  var BEACH = 'ES PT IT GR HR FR TR CY MT MA ME AL TN US'.split(' ');
-  var RAINY = 'GB IE NL BE'.split(' ');
-  var HIKE = 'NP CH AT NZ PE SI'.split(' ');
+  // el clima de cada país en cada época: así un viaje a Marruecos en invierno no sale con abrigo y bufanda
+  function L(x) { return x.split(' '); }
+  var ISLE = L('MV SC MU FJ PF BS BB'), TROPIC = L('TH MX ID DO CU BR PH VN MY SG CR CO KE TZ IN LK JM PR PA KH LA CV SN GH NG');
+  var SOUTH = L('AR CL AU NZ ZA UY NA BW'), HOT = L('EG AE QA OM SA JO BH KW');
+  var MILD = L('ES PT IT GR MT CY TR MA TN IL LB HR ME AL');
+  var COLD = L('FI NO SE IS CH AT CA EE LV LT DK PL CZ SK RU GL DE NL BE GB IE FR LU HU RO BG SI RS BA MK UA BY US JP KR CN MN NP');
+  var RAINY = L('GB IE NL BE'), HIKE = L('NP CH AT NZ PE SI CA NO');
   function theme(ccs, iso) {
-    var m = iso ? +iso.slice(5, 7) : new Date().getMonth() + 1, cc = (ccs || [])[0] || '';
-    if (ISLE.indexOf(cc) >= 0) return 'isla';
-    if (TROPIC.indexOf(cc) >= 0) return 'playa';
-    if (SOUTH.indexOf(cc) >= 0) m = (m + 5) % 12 + 1;
-    var winter = m === 12 || m <= 2, cold = COLD.indexOf(cc) >= 0, summer = m >= 6 && m <= 9;
-    if (winter || (cold && (m === 11 || m === 3))) return 'nieve';
-    if (summer && BEACH.indexOf(cc) >= 0) return 'playa';
-    if (summer && HIKE.indexOf(cc) >= 0) return 'monte';
-    if (RAINY.indexOf(cc) >= 0) return 'lluvia';
-    if (m >= 10 || m <= 4) return 'lluvia';
+    var m = iso ? +iso.slice(5, 7) : new Date().getMonth() + 1, cc = (ccs || [])[0] || '', has = function (l) { return l.indexOf(cc) >= 0; };
+    if (has(ISLE)) return 'isla';
+    if (has(TROPIC)) return 'playa';
+    if (has(SOUTH)) m = (m + 5) % 12 + 1;
+    var winter = m === 12 || m <= 2, shoulder = m === 11 || m === 3, summer = m >= 6 && m <= 9;
+    if (has(HOT)) return summer ? 'playa' : 'ciudad';
+    if (has(MILD)) return summer ? 'playa' : 'ciudad';
+    if (has(COLD)) {
+      if (winter || (shoulder && !has(RAINY) && cc !== 'FR' && cc !== 'US')) return 'nieve';
+      if (summer && has(HIKE)) return 'monte';
+      if (has(RAINY)) return 'lluvia';
+      return summer ? 'pie' : 'ciudad';
+    }
+    if (has(SOUTH)) return winter ? 'ciudad' : summer ? 'playa' : 'pie';
     return 'ciudad';
   }
 
-  return { play: play, stop: stop, figure: figure, theme: theme, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
+  return { play: play, stop: stop, figure: figure, cast: cast, theme: theme, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
 })();

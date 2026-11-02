@@ -302,14 +302,38 @@
     if (mem) { var yrs = nowD.getFullYear() - +mem.start.slice(0, 4); h += '<button type="button" class="card hm-row sq rv-h" data-open="' + esc(mem.id) + '"><span class="hm-ph"' + bg(mem.cover) + '></span><span><b>' + (yrs === 1 ? tx('Hace 1 año', '1 year ago') : tx('Hace ' + yrs + ' años', yrs + ' years ago')) + '</b><small>' + esc(mem.title) + '</small></span>' + ic('chev') + '</button>'; }
     return h;
   }
-  // tareas que se pueden marcar desde aquí (se guardan donde las guarda la guía)
+  // tareas que se pueden marcar desde aquí (se guardan donde las guarda la guía); al marcar, cambian en directo
+  function taskLi(i, k, num) {
+    return '<li data-tid="' + esc(i.id) + '"><button type="button" class="hx-tk" data-tick="' + esc(i.id) + '" aria-label="' + tx('Hecho', 'Done') + '">' + ic('check') + '</button><span>' + (num ? '<i>' + ('0' + (k + 1)).slice(-2) + '</i>' : '') + esc(i.t) + (i.imp ? '<em>' + tx('Importante', 'Important') + '</em>' : '') + '</span></li>';
+  }
   function tasksHTML(D, n, cls) {
     var C = D.chk, id = esc(D.next.id);
     if (!C.all) return '';
     if (!C.todo.length) return '<p class="hx-done">' + ic('check') + tx('Todo listo para salir', 'All set to go') + '</p>';
-    return '<ul class="hx-tasks ' + (cls || '') + '">' + C.todo.slice(0, n).map(function (i, k) {
-      return '<li><button type="button" class="hx-tk" data-tick="' + esc(i.id) + '" aria-label="' + tx('Hecho', 'Done') + '">' + ic('check') + '</button><span>' + (cls === 'num' ? '<i>' + ('0' + (k + 1)).slice(-2) + '</i>' : '') + esc(i.t) + (i.imp ? '<em>' + tx('Importante', 'Important') + '</em>' : '') + '</span></li>';
-    }).join('') + '</ul><button type="button" class="hx-more" data-open="' + id + '" data-grp="ida">' + tx('Ver la lista entera', 'See the whole list') + ' · ' + C.done + '/' + C.all + ic('chev') + '</button>';
+    return '<ul class="hx-tasks ' + (cls || '') + '" data-n="' + n + '">' + C.todo.slice(0, n).map(function (i, k) { return taskLi(i, k, cls === 'num'); }).join('') + '</ul><button type="button" class="hx-more" data-open="' + id + '" data-grp="ida">' + tx('Ver la lista entera', 'See the whole list') + ' · <span data-ckd>' + C.done + '</span>/' + C.all + ic('chev') + '</button>';
+  }
+  function tickTask(tk) {
+    var C = HOME.chk, id = tk.getAttribute('data-tick'), li = tk.closest('li'), ul = li && li.parentNode, ck = {};
+    if (!li || li.classList.contains('ok')) return;
+    try { ck = JSON.parse(localStorage.getItem(C.ns + 'checked') || '{}') || {}; } catch (err) {}
+    ck[id] = true;
+    try { localStorage.setItem(C.ns + 'checked', JSON.stringify(ck)); } catch (err) {}
+    try { if (navigator.vibrate) navigator.vibrate(10); } catch (err) {}
+    li.classList.add('ok');
+    C.done++; C.todo = C.todo.filter(function (x) { return x.id !== id; }); C.pc = C.all ? Math.round(C.done / C.all * 100) : 0;
+    $$('[data-ckd]').forEach(function (el) { el.textContent = C.done; });
+    $$('[data-ckpc]').forEach(function (el) { el.textContent = C.pc; });
+    $$('[data-ckbar]').forEach(function (el) { el.style.width = C.pc + '%'; });
+    // la tachada se pliega y entra la siguiente pendiente, sin volver a pintar la página
+    setTimeout(function () {
+      li.style.height = li.offsetHeight + 'px'; void li.offsetHeight; li.classList.add('gone');
+      setTimeout(function () {
+        li.remove();
+        var shown = $$('li[data-tid]', ul).map(function (x) { return x.getAttribute('data-tid'); }), nx = C.todo.filter(function (x) { return shown.indexOf(x.id) < 0; })[0];
+        if (nx && shown.length < +(ul.getAttribute('data-n') || 3)) { ul.insertAdjacentHTML('beforeend', taskLi(nx, shown.length, ul.classList.contains('num'))); ul.lastChild.classList.add('in'); }
+        if (!ul.children.length) { var more = ul.nextElementSibling; if (more && more.classList.contains('hx-more')) more.remove(); ul.outerHTML = '<p class="hx-done">' + ic('check') + tx('Todo listo para salir', 'All set to go') + '</p>'; }
+      }, 360);
+    }, 520);
   }
   function ring(pc, inner, cls) {
     var r = 26, c = 2 * Math.PI * r;
@@ -336,19 +360,45 @@
     }).join('') + '</div></div>';
   }
 
-  /* 1 · Cuenta atrás: la cifra en grande y tres anillos (maleta, tiempo, imprescindibles) */
+  // la portada del próximo viaje (la del Clásico)
+  function heroHTML(D) {
+    var t = D.next;
+    if (!t) return '<button type="button" class="hm-next empty rv-h" data-new><span class="hm-ey">' + tx('Sin viajes a la vista', 'No trips ahead') + '</span><b>' + tx('¿A dónde vamos?', 'Where to?') + '</b><small>' + tx('Crea una guía nueva en un par de minutos, con datos reales.', 'Create a new guide in a couple of minutes, with real data.') + '</small><span class="hm-go">' + tx('Crear un viaje', 'Create a trip') + ic('chev') + '</span></button>';
+    return '<button type="button" class="hm-next rv-h" data-open="' + esc(t.id) + '"' + bg(t.cover) + '><span class="hm-shade"></span>' +
+      '<span class="hm-ey">' + (D.live ? tx('Estás de viaje', 'You’re travelling') : tx('Tu próximo viaje', 'Your next trip')) + '</span><span class="hm-cd">' + esc(D.live ? tx('En curso · día ' + D.day + ' de ' + t.days, 'Day ' + D.day + ' of ' + t.days) : D.when) + '</span><b>' + esc(t.title) + '</b><small>' + esc(dateLbl(t.start)) + ' – ' + esc(dateLbl(addDays(t.start, Math.max(0, t.days - 1)))) + '</small><span class="hm-go">' + tx('Abrir la guía', 'Open the guide') + ic('chev') + '</span></button>';
+  }
+  function tileProfile(D) { var O = D.O, n = D.trips.length; return '<button type="button" class="card hm-t" data-go="profile"><span class="hm-tt">' + ic('user') + tx('Perfil', 'Profile') + '</span><span class="hm-big">' + O.badgesOn + '<i>/' + O.badgesMax + '</i></span><small>' + tx('insignias', 'badges') + '</small><small>' + n + (n === 1 ? tx(' viaje', ' trip') : tx(' viajes', ' trips')) + ' · ' + O.totalDays + tx(' días', ' days') + '</small></button>'; }
+  function tileAlbum(D) {
+    var O = D.O, fan = O.recent.slice(0, 3);
+    return '<button type="button" class="card hm-t" data-go="album"><span class="hm-tt">' + ic('star') + tx('Álbum', 'Album') + '</span>' +
+      (fan.length ? '<span class="hm-fan">' + fan.map(function (c, i) { return '<i class="' + (c.img ? '' : 'noph') + '" style="--r:' + (i - 1) * 9 + 'deg;--x:' + (i - 1) * 22 + 'px' + (c.img ? ';background-image:url(&quot;' + esc(c.img) + '&quot;)' : '') + '"></i>'; }).join('') + '</span>' : '<span class="hm-big">' + O.got + '<i>/' + O.all + '</i></span>') +
+      '<small>' + O.got + tx(' de ', ' of ') + O.all + tx(' cromos', ' cards') + '</small></button>';
+  }
+  function tileReady(D) { var C = D.chk; return '<button type="button" class="card hm-t" data-open="' + esc(D.next.id) + '" data-grp="ida"><span class="hm-tt">' + ic('check') + tx('Listo para salir', 'Ready to go') + '</span><span class="hm-big"><span data-ckpc>' + C.pc + '</span><i>%</i></span><span class="hm-prog"><i data-ckbar style="width:' + C.pc + '%"></i></span><small><span data-ckd>' + C.done + '</span>' + tx(' de ', ' of ') + C.all + tx(' tareas', ' tasks') + '</small></button>'; }
+  // el tiempo con su dibujo (sol, nubes, lluvia, nieve…), como en la previsión de la guía
+  function tileWeather(D) { return '<button type="button" class="card hm-t" data-open="' + esc(D.next.id) + '" data-grp="wx"><span class="hm-tt">' + ic('cloud') + tx('Tiempo', 'Weather') + '</span><span class="hm-wx"><svg class="ic hm-wxi" data-wxi><use href="#i-cloudsun"></use></svg><span class="hm-big" data-wxt>–</span></span><small data-wxn>' + esc(D.wxn) + '</small></button>'; }
+  function mustPage(D) {
+    var t = D.next, T = t.ref, all = Album.cromosOf(T, Album.get()).filter(function (c) { return c.must; }), got = all.filter(function (c) { return c.got; }).length;
+    var old = $('#mustBox'); if (old) old.remove();
+    var v = document.createElement('div'); v.id = 'mustBox'; v.className = 'msp';
+    v.innerHTML = '<div class="msp-top"><button type="button" class="rec-bk" data-mspx>' + ic('chev') + tx('Home', 'Home') + '</button><small>' + esc(t.title) + '</small><span></span></div>' +
+      '<div class="msp-in"><h2>' + tx('Imprescindibles', 'Must-sees') + '</h2><p>' + got + tx(' de ', ' of ') + all.length + tx(' vistos. Lo que no te puedes perder en este viaje.', ' seen. What you can’t miss on this trip.') + '</p>' +
+      all.map(function (c, i) {
+        return '<button type="button" class="msp-c sq' + (c.got ? ' got' : '') + '" data-cr="' + esc(T.id + '|' + c.id) + '" style="--d:' + Math.min(i, 8) * 40 + 'ms"><span class="msp-ph"' + bg(c.img) + '></span><span class="msp-t"><small>' + tx('Día ', 'Day ') + c.day + (c.got ? ' · ' + tx('Visto', 'Seen') : '') + '</small><b>' + esc(c.ti) + '</b>' + (c.lead ? '<span>' + esc(c.lead) + '</span>' : '') + '</span></button>';
+      }).join('') + '</div>';
+    v.addEventListener('click', function (e) { if (e.target.closest('[data-mspx]')) { v.classList.add('out'); setTimeout(function () { v.remove(); }, 280); } });
+    document.body.appendChild(v);
+  }
+
+  /* 1 · Cuenta atrás: la portada, cuatro recuadros, lo imprescindible y la lista de antes de salir */
   function homeCuenta(D) {
-    var h = '';
-    if (!D.next) return newCard(D) + ideasRow(D) + extrasHTML(D);
-    var t = D.next, id = esc(t.id), big = D.live ? D.day : Math.max(0, D.dd), unit = D.live ? tx('de ' + t.days + ' días', 'of ' + t.days + ' days') : D.dd === 1 ? tx('día', 'day') : tx('días', 'days');
-    h += '<button type="button" class="hc-hero rv-h" data-open="' + id + '"' + bg(t.cover) + '><span class="hm-shade"></span><span class="hm-ey">' + (D.live ? tx('Estás de viaje', 'You’re travelling') : tx('Tu próximo viaje', 'Your next trip')) + '</span>' +
-      (D.dd === 0 && !D.live ? '<span class="hc-num"><b>' + tx('Hoy', 'Today') + '</b></span>' : '<span class="hc-num">' + (D.live ? '<small>' + tx('Día', 'Day') + '</small>' : '') + '<b>' + big + '</b><small>' + unit + '</small></span>') +
-      '<span class="hc-ti">' + esc(t.title) + '</span><small>' + esc(D.range) + '</small></button>';
-    h += '<div class="hc-rings rv-h" style="--d:60ms">' +
-      '<button type="button" class="card sq" data-open="' + id + '" data-grp="ida">' + ring(D.chk.pc, D.chk.pc + '<i>%</i>') + '<span>' + tx('Maleta', 'Packing') + '</span><small>' + D.chk.done + '/' + D.chk.all + '</small></button>' +
-      '<button type="button" class="card sq" data-open="' + id + '" data-grp="wx">' + ring(100, '<span data-wxt>–</span>', 'wx') + '<span>' + tx('Tiempo', 'Weather') + '</span><small>' + esc(D.wxn) + '</small></button>' +
-      '<button type="button" class="card sq" data-open="' + id + '">' + ring(D.must.length ? D.mustGot / D.must.length * 100 : 0, D.must.length, 'mu') + '<span>' + tx('Imprescindibles', 'Must-sees') + '</span><small>' + D.mustGot + ' ' + tx('vistos', 'seen') + '</small></button></div>';
-    if (!D.live && D.chk.all) h += '<div class="card rv-h" style="--d:120ms"><div class="hm-h in"><b>' + tx('Antes de salir', 'Before you go') + '</b><small>' + D.chk.done + ' ' + tx('de', 'of') + ' ' + D.chk.all + '</small></div>' + tasksHTML(D, 3) + '</div>';
+    var h = heroHTML(D);
+    if (!D.next) return h + '<div class="hm-four rv-h" style="--d:60ms">' + tileProfile(D) + tileAlbum(D) + '</div>' + ideasRow(D) + newCard(D) + extrasHTML(D);
+    h += '<div class="hm-four rv-h" style="--d:60ms">' + tileProfile(D) + tileAlbum(D) + tileReady(D) + tileWeather(D) + '</div>';
+    if (D.must.length) h += '<div class="hm-sec rv-h" style="--d:120ms"><div class="hm-h"><b>' + tx('Imprescindibles', 'Must-sees') + '</b><button type="button" class="hx-lnk" data-mustall>' + tx('Ver todos', 'See all') + ' · ' + D.mustGot + '/' + D.must.length + '</button></div><div class="hm-scroll">' + D.must.map(function (c) {
+      return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(D.next.ref.id + '|' + c.id) + '"' + bg(c.img) + '><span>' + esc(c.ti) + '</span></button>';
+    }).join('') + '</div></div>';
+    if (!D.live && D.chk.all) h += '<div class="card rv-h" style="--d:160ms"><div class="hm-h in"><b>' + tx('Antes de salir', 'Before you go') + '</b><small><span data-ckd>' + D.chk.done + '</span>' + tx(' de ', ' of ') + D.chk.all + '</small></div>' + tasksHTML(D, 3) + '</div>';
     return h + extrasHTML(D) + ideasRow(D) + newCard(D);
   }
 
@@ -503,30 +553,29 @@
     var hs = e.target.closest('[data-hs]'), tk = e.target.closest('[data-tick]'), rc = e.target.closest('[data-rec]');
     if (hs) setHomeStyle(hs.getAttribute('data-hs'));
     if (rc) openRec();
-    if (tk && HOME && HOME.next) {
-      // marcar una tarea desde Home: se guarda donde la guarda la guía
-      var C = HOME.chk, ck = {}; try { ck = JSON.parse(localStorage.getItem(C.ns + 'checked') || '{}') || {}; } catch (err) {}
-      ck[tk.getAttribute('data-tick')] = true;
-      try { localStorage.setItem(C.ns + 'checked', JSON.stringify(ck)); } catch (err) {}
-      tk.closest('li').classList.add('ok');
-      try { if (navigator.vibrate) navigator.vibrate(10); } catch (err) {}
-      setTimeout(renderHome, 650);
-    }
+    if (tk && HOME && HOME.next) tickTask(tk);
+    if (e.target.closest('[data-mustall]') && HOME && HOME.next) mustPage(HOME);
   });
   // previsión si faltan menos de 2 semanas; si no, temperaturas típicas de esas fechas
+  function wxIcon(code) {
+    return code == null ? 'cloudsun' : code <= 1 ? 'sun' : code === 2 ? 'cloudsun' : code === 3 ? 'cloud' : code <= 48 ? 'fog' : code >= 95 ? 'bolt' : (code >= 71 && code <= 77) || code === 85 || code === 86 ? 'snow' : 'rain';
+  }
   function wxFill(t) {
     var w = t.ref.b.trip.wx[0]; if (!w) return;
     var d = daysTo(t.start), day = d > 0 ? t.start : new Date().toISOString().slice(0, 10);
-    function put(hi, note) { $$('[data-wxt]').forEach(function (el) { el.textContent = hi == null ? '–' : hi + '°'; }); $$('[data-wxn]').forEach(function (el) { el.textContent = note; }); }
-    function typical() { if (w.hi != null) put(w.hi, w.n + ' · ' + tx('típico ', 'typical ') + w.lo + '–' + w.hi + '°'); }
+    function put(hi, note, code, typ) {
+      $$('[data-wxt]').forEach(function (el) { el.textContent = hi == null ? '–' : hi + '°'; });
+      $$('[data-wxn]').forEach(function (el) { el.textContent = note; });
+      // sin previsión, el dibujo sale de las temperaturas típicas
+      var k = !typ ? wxIcon(code) : w.lo != null && w.lo <= 0 ? 'snow' : w.hi != null && w.hi >= 24 ? 'sun' : 'cloudsun';
+      $$('[data-wxi]').forEach(function (el) { el.innerHTML = '<use href="#i-' + k + '"></use>'; el.setAttribute('class', 'ic hm-wxi k-' + k); });
+    }
+    function typical() { if (w.hi != null) put(w.hi, w.n + ' · ' + tx('típico ', 'typical ') + w.lo + '–' + w.hi + '°', null, 1); }
     if (d > 14 || d < -30 || w.lat == null) { typical(); return; }
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + w.lat + '&longitude=' + w.lon + '&daily=temperature_2m_max,temperature_2m_min&timezone=auto&start_date=' + day + '&end_date=' + day)
-      .then(function (r) { return r.json(); }).then(function (j) { put(Math.round(j.daily.temperature_2m_max[0]), w.n + ' · ' + tx('mín. ', 'min ') + Math.round(j.daily.temperature_2m_min[0]) + '°'); }).catch(typical);
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + w.lat + '&longitude=' + w.lon + '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=' + day + '&end_date=' + day)
+      .then(function (r) { return r.json(); }).then(function (j) { put(Math.round(j.daily.temperature_2m_max[0]), w.n + ' · ' + tx('mín. ', 'min ') + Math.round(j.daily.temperature_2m_min[0]) + '°', j.daily.weather_code[0]); }).catch(typical);
   }
 
-  // el personaje de cada idea según su categoría
-  var CAT_PJ = { isla: 'isla', comida: 'chef', nieve: 'nieve', playa: 'playa', naturaleza: 'monte', ciudad: 'ciudad' };
-  function ideaPj(x) { var t = (x && x.tags) || []; return ['isla', 'comida', 'nieve', 'playa', 'naturaleza', 'ciudad'].map(function (k) { return t.indexOf(k) >= 0 ? CAT_PJ[k] : ''; }).filter(Boolean)[0] || ''; }
   /* ---------- Recomiéndame un viaje: «¿Sin ideas?» con categorías en fotos y después una propuesta ---------- */
   var CAT_SUB = { isla: ['Arena, palmeras y mar', 'Sand, palms and sea'], comida: ['Viajar para comer bien', 'Travel to eat well'], playa: ['Sol y agua templada', 'Sun and warm water'],
     nieve: ['Auroras, montañas y Navidad', 'Auroras, mountains and Christmas'], ciudad: ['Museos, plazas y barrios', 'Museums, squares and neighbourhoods'], naturaleza: ['Fiordos, lagos y senderos', 'Fjords, lakes and trails'] };

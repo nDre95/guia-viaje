@@ -435,7 +435,7 @@ window.Asistente = (function () {
         pj('fiesta');
         $('#wzAfter').innerHTML = '<div id="wzMapa"></div>' + (cfg.aiBox ? cfg.aiBox(b) : '');
         if (window.Mapa) {
-          Mapa.mount($('#wzMapa'), { id: b.meta.id, title: b.meta.title.es, heading: 'Tu viaje en un mapa', dayLabel: Lang.t('Día 1').replace(' 1', ''), lang: Lang.get(), mode: b.meta.mode, land: b.trip.mapLand || null, photos: b.photos, days: Mapa.fromTrip(Motor.localized(b)) });
+          Mapa.mount($('#wzMapa'), { pj: 1, start: A.start, id: b.meta.id, title: b.meta.title.es, heading: 'Tu viaje en un mapa', dayLabel: Lang.t('Día 1').replace(' 1', ''), lang: Lang.get(), mode: b.meta.mode, land: b.trip.mapLand || null, photos: b.photos, days: Mapa.fromTrip(Motor.localized(b)) });
           $('#wzMapa').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });

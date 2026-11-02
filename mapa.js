@@ -587,7 +587,25 @@ window.Mapa = (function () {
       setTimeout(play, 700);
     }
     vidBtn.addEventListener('click', recordVideo);
-    function stop() { playing = false; playBtn.classList.remove('on'); clearTimeout(el._pt); cancelAnimationFrame(gl); }
+    function stop() { playing = false; playBtn.classList.remove('on'); clearTimeout(el._pt); cancelAnimationFrame(gl); if (actor) actor.hide(); }
+    // el acompañante (personajes.js): la misma persona todo el viaje, vestida según el país y la estación;
+    // en los trayectos va andando o en coche, autobús o avión, y en cada parada hace un gesto
+    var actor = null;
+    function cast() {
+      // solo donde se pide (el mapa del asistente): dentro de la guía, nada de personajes
+      if (actor || !o.pj || !window.Pj || !Pj.cast) return actor;
+      var cc = null; try { cc = JSON.parse(localStorage.getItem('guia-cc:' + o.id) || 'null'); } catch (e) {}
+      actor = Pj.cast(el.querySelector('.map-wrap'), Pj.theme(cc || [], o.start || ''));
+      return actor;
+    }
+    var RIDE = { car: 'coche', plane: 'avion', train: 'bus', bus: 'bus' };
+    function gesture(it) {
+      var t = (it && it.ti) || '';
+      if (/castill|castle|palac|catedral|cathedral|museo|museum|templo|temple|iglesia|church/i.test(t)) return 'act-photo';
+      if (it && it.t === 'view' || /lago|loch|lake|mirador|viewpoint|playa|beach|monte|mount|glen|valle|valley/i.test(t)) return 'act-look';
+      if (it && (it.t === 'visit' || it.t === 'tour')) return 'act-photo';
+      return 'act-wave';
+    }
     function legMs(n) {
       if (n <= 0 || n > last) return 1700;
       var km = M.legs[n - 1].km, ms = M.seq[n - 1].sc === M.seq[n].sc ? 1300 : km < 6 ? 1800 : clamp(3000 + km * 12, 3000, 5500);
@@ -597,10 +615,21 @@ window.Mapa = (function () {
     function play() {
       ovrT = 0; var n = Math.round(mem.v); if (n > last) { mem.ovr = 0; set(-1); n = -1; }
       playing = true; playBtn.classList.add('on');
+      var A = cast();
       (function next() {
         if (!playing) return;
         if (n > last) { stop(); if (playEnd) playEnd(); return; }
-        n++; glide(n, legMs(n), function () { el._pt = setTimeout(next, 1500); });
+        n++;
+        if (A) {
+          if (n === 0) A.show('maleta', 'walk');
+          else if (n > last) { A.show('fiesta', 'act-jump'); A.say(H0.fin, 2600); }
+          else { var m = M.legs[n - 1] && M.legs[n - 1].m; A.show(RIDE[m] || A.base, RIDE[m] ? 'drive' : 'walk'); }
+        }
+        glide(n, legMs(n), function () {
+          if (A && playing && n >= 0 && n <= last) A.show(A.base, gesture(M.seq[n].s));
+          if (A && n > last) setTimeout(function () { if (!playing) A.hide(); }, 3200);
+          el._pt = setTimeout(next, 1500);
+        });
       })();
     }
     rg.addEventListener('input', function () { stop(); ovrT = 0; set(+rg.value, true); });

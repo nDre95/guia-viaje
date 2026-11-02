@@ -197,23 +197,34 @@ window.Mundo = (function () {
   var STAMP = ['#b3364b', '#2b6ea3', '#3f8f5b', '#8a4fa8', '#c2622a', '#1f8a8a', '#7a5a2b'];
   // sellos del pasaporte: guia-sellos = { país: { t: viaje, at: fecha, shown: 1 } }. Se sella al crear la postal del viaje
   function seals(o) { try { if (o) localStorage.setItem('guia-sellos', JSON.stringify(o)); return JSON.parse(localStorage.getItem('guia-sellos') || '{}') || {}; } catch (e) { return o || {}; } }
+  // un sello por país y año (guia-sellos «ES|2026»; los de antes, solo «ES», valen para el viaje con el que se sellaron)
   function seal(t) {
-    var S = seals(), nw = [], today = new Date().toISOString().slice(0, 10);
-    (cached(t) || []).forEach(function (c) { if (!S[c]) { S[c] = { t: t.id, at: today }; nw.push(name(c)); } });
+    var S = seals(), nw = [], today = new Date().toISOString().slice(0, 10), m = (t.b || {}).meta || {}, st = null;
+    try { st = JSON.parse(localStorage.getItem((m.storage || m.id || t.id) + ':start') || 'null'); } catch (e) {}
+    var y = (typeof st === 'string' ? st : ((t.b || {}).trip || {}).defaultStart || today).slice(0, 4);
+    (cached(t) || []).forEach(function (c) { if (!S[c + '|' + y] && !(S[c] && S[c].t === t.id)) { S[c + '|' + y] = { t: t.id, at: today }; nw.push(name(c)); } });
     if (nw.length) seals(S);
     return nw;
   }
   // el pasaporte del perfil: una tapa que se abre en 3D y se hojea; los sellos van en las páginas de visados
   var PP = null, GLOBE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18M5 7.5h14M5 16.5h14"/></svg>';
+  // las filas del pasaporte: una por país y año, con todos los viajes (no depende de ningún filtro)
+  function stampRows(S) {
+    var SL = seals(), rows = [];
+    function add(c, list, next) {
+      var by = {}; list.forEach(function (t) { var y = (t.start || '').slice(0, 4) || '—'; (by[y] = by[y] || []).push(t); });
+      Object.keys(by).forEach(function (y) {
+        var tr = by[y], key = c + '|' + y, sl = SL[key] ? { o: SL[key], k: key } : SL[c] && tr.some(function (t) { return t.id === SL[c].t; }) ? { o: SL[c], k: c } : null;
+        rows.push({ c: c, y: y, trips: tr, sl: next ? null : sl && sl.o, key: sl ? sl.k : key, next: next, at: String(tr[0].start || '') });
+      });
+    }
+    Object.keys(S.V).forEach(function (c) { add(c, S.V[c], false); });
+    Object.keys(S.N).forEach(function (c) { add(c, S.N[c], true); });
+    return rows.sort(function (a, b) { return a.at.localeCompare(b.at) || a.c.localeCompare(b.c); });
+  }
   function stampsHTML(S) {
-    var firstYear = function (l) { return l.map(function (t) { return (t.start || '').slice(0, 4); }).sort()[0]; };
-    var rows = Object.keys(S.V).map(function (c) { return { c: c, y: firstYear(S.V[c]), n: S.V[c].length }; }).sort(function (a, b) { return String(a.y).localeCompare(String(b.y)); })
-      .concat(Object.keys(S.N).filter(function (c) { return !S.V[c]; }).map(function (c) { return { c: c, y: firstYear(S.N[c]), next: true }; }));
+    var rows = stampRows(S);
     if (!rows.length) return '';
-    var SL = seals();
-    // los sellados primero, luego los visitados sin sellar y al final los próximos
-    rows.forEach(function (r) { r.sl = SL[r.c]; r.k = r.sl ? 0 : r.next ? 2 : 1; });
-    rows.sort(function (a, b) { return a.k - b.k || String(a.sl ? a.sl.at : a.y).localeCompare(String(b.sl ? b.sl.at : b.y)); });
     PP = { rows: rows, S: S };
     var got = rows.filter(function (r) { return r.sl; }).length, open = rows.filter(function (r) { return !r.sl && !r.next; }).length, nw = rows.filter(function (r) { return r.sl && !r.sl.shown; }).length;
     // en el perfil, el propio pasaporte: la tapa en 3D; debajo, una línea
@@ -233,7 +244,7 @@ window.Mundo = (function () {
       var col = 0; for (var k = 0; k < r.c.length; k++) col += r.c.charCodeAt(k);
       var shape = ['circ', 'rect', 'oval'][hashOf(r.c, 3)], rot = hashOf(r.c + 'r', 25) - 12, dx = hashOf(r.c + 'x', 17) - 8, dy = hashOf(r.c + 'y', 13) - 6;
       var d = r.sl ? new Date(r.sl.at + 'T12:00:00Z') : null, isNew = r.sl && !r.sl.shown;
-      return '<button type="button" class="pps ' + shape + (r.sl ? ' sealed' + (isNew ? ' fresh' : '') : r.next ? ' next' : ' open') + '"' + (r.sl ? ' data-post="' + esc(r.sl.t) + '"' : '') + ' data-cc="' + esc(r.c) + '" style="--c:' + STAMP[col % STAMP.length] + ';--r:' + rot + 'deg;--x:' + dx + 'px;--y:' + dy + 'px">' +
+      return '<button type="button" class="pps ' + shape + (r.sl ? ' sealed' + (isNew ? ' fresh' : '') : r.next ? ' next' : ' open') + '"' + (r.sl ? ' data-post="' + esc(r.sl.t) + '"' : r.next ? '' : ' data-post="' + esc(r.trips[0].id) + '"') + ' data-cc="' + esc(r.key) + '" style="--c:' + STAMP[col % STAMP.length] + ';--r:' + rot + 'deg;--x:' + dx + 'px;--y:' + dy + 'px">' +
         '<span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.sl ? esc(d.toLocaleDateString(lg(), { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase()) : r.next ? 'Por visitar' : 'Sin sellar') + '</small></button>';
     }
     var pages = [];
@@ -245,7 +256,12 @@ window.Mundo = (function () {
       '<dt>Estilo</dt><dd>' + esc(T ? T.t : 'Sin viajes aún') + '</dd><dt>Países sellados</dt><dd>' + sealed.length + '</dd><dt>Países visitados</dt><dd>' + Object.keys(S.V).length + '</dd><dt>Continentes</dt><dd>' + S.conts + '</dd>' +
       '<dt>Km recorridos</dt><dd>' + fmtN(S.km) + '</dd><dt>Desde</dt><dd>' + esc(years[0] || '—') + '</dd></dl></div><div class="pp-mrz">' + esc(mrz) + '<br>' + esc(('<<<' + (years[0] || '0000') + '<<' + String(sealed.length) + '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<').slice(0, 36)) + '</div></div>');
     // visados: 6 sellos por página
-    for (var i = 0; i < Math.max(1, Math.ceil(rows.length / 6)); i++) pages.push('<div class="pp-page"><div class="pp-h"><span>VISADOS</span><span>' + (i + 2) + '</span></div><div class="pp-grid">' + rows.slice(i * 6, i * 6 + 6).map(stamp).join('') + '</div></div>');
+    var byY = [], yi = {};
+    rows.forEach(function (r) { if (yi[r.y] == null) { yi[r.y] = byY.length; byY.push({ y: r.y, rows: [] }); } byY[yi[r.y]].rows.push(r); });
+    byY.forEach(function (g) {
+      for (var i = 0; i < Math.ceil(g.rows.length / 6); i++) pages.push('<div class="pp-page"><div class="pp-h"><span>VISADOS · ' + esc(g.y) + '</span><span>' + pages.length + '</span></div><div class="pp-grid">' + g.rows.slice(i * 6, i * 6 + 6).map(stamp).join('') + '</div></div>');
+    });
+    if (!byY.length) for (var i = 0; i < 1; i++) pages.push('<div class="pp-page"><div class="pp-h"><span>VISADOS</span><span>' + (i + 2) + '</span></div><div class="pp-grid">' + rows.slice(i * 6, i * 6 + 6).map(stamp).join('') + '</div></div>');
     pages.push('<div class="pp-page pp-end"><div class="pp-h"><span>VISADOS</span><span>' + (pages.length) + '</span></div><p>Aquí irán los sellos de tus próximos viajes.</p></div>');
     var v = document.createElement('div'); v.className = 'ppv'; v.id = 'ppView';
     v.innerHTML = '<div class="pcv-top"><span></span><button type="button" class="pcv-x sq" data-pv="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
@@ -520,7 +536,7 @@ window.Mundo = (function () {
     function draw() {
       var S = statsOf(tf()), unk = trips.some(function (t) { return !cached(t.ref); }), yl = Object.keys(years).sort().reverse();
       var ic = function (d) { return '<svg viewBox="0 0 24 24"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; };
-      el.innerHTML = heroHTML(trips, opt.base) + (yl.length ? '<div class="mw-chips mw-years" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') + statsHTML(S) + '<div id="pfQuizBox">' + quizCardHTML(trips) + '</div><div id="mwStamps">' + stampsHTML(S) + '</div>' +
+      el.innerHTML = heroHTML(trips, opt.base) + (yl.length ? '<div class="mw-chips mw-years" role="group" aria-label="Año"><button type="button" class="opt' + (ST.year ? '' : ' on') + '" data-y="">Todos</button>' + yl.map(function (y) { return '<button type="button" class="opt' + (ST.year === y ? ' on' : '') + '" data-y="' + y + '">' + y + '</button>'; }).join('') + '</div>' : '') + statsHTML(S) + '<div id="pfQuizBox">' + quizCardHTML(trips) + '</div><div id="mwStamps">' + stampsHTML(statsOf(trips)) + '</div>' +
         '<div class="pf-h">Mi mapa del mundo</div><div class="card mw">' +
         '<div class="mw-chips" data-mw="filter">' + [['all', 'Todos'], ['one', 'Visitados'], ['rep', 'Repetidos'], ['next', 'Por visitar']].map(function (f) { return '<button type="button" class="opt' + (ST.filter === f[0] ? ' on' : '') + '" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' +
         '<div class="mw-chips" data-mw="region"><button type="button" class="opt' + (ST.region === 'mine' ? ' on' : '') + '" data-v="mine">Mis países</button><button type="button" class="opt' + (ST.region === 'world' ? ' on' : '') + '" data-v="world">Mundo</button>' + Object.keys(REGION).map(function (r) { return '<button type="button" class="opt' + (ST.region === r ? ' on' : '') + '" data-v="' + r + '">' + REGION[r][0] + '</button>'; }).join('') + '</div>' +
@@ -674,7 +690,9 @@ window.Mundo = (function () {
       if (changed) recolor();
       recPaint(); recInfo();
     }
-    function recStop() { R.playing = false; cancelAnimationFrame(R.raf); clearTimeout(R.tm); var b = el.querySelector('#mwRec .map-play'); if (b) b.classList.remove('on'); }
+    function recStop() { R.playing = false; cancelAnimationFrame(R.raf); clearTimeout(R.tm); var b = el.querySelector('#mwRec .map-play'); if (b) b.classList.remove('on'); if (R.actor) R.actor.hide(); }
+    // personajes (personajes.js): en avión entre viajes y, en cada uno, el de su país y su fecha (nieve, playa, isla…)
+    function recActor() { if (!R.actor && window.Pj && Pj.cast) R.actor = Pj.cast(el.querySelector('.mw-wrap'), 'pie'); return R.actor; }
     function recGlide(to, ms, done) {
       cancelAnimationFrame(R.raf);
       var from = R.v, t0 = performance.now();
@@ -689,10 +707,19 @@ window.Mundo = (function () {
       var L = R.seq.length - 1, n = Math.round(R.v);
       if (n > L) { R.v = -1; n = -1; }
       R.playing = true; R.follow = true; unselectRegion(); el.querySelector('#mwRec .map-play').classList.add('on');
+      var A = recActor();
       (function next() {
         if (!R.playing) return;
         if (n > L) { recStop(); return; }
-        n++; recGlide(n, n <= 0 || n > L ? 1600 : 2300, function () { R.tm = setTimeout(next, n > L ? 0 : 2400); });
+        n++;
+        if (A) { if (n === 0) A.show('maleta', 'walk'); else if (n <= L) A.show('avion', 'drive'); else { A.show('fiesta', 'act-jump'); var en = window.Lang && Lang.get() === 'en', nt = R.seq.length; A.say(en ? nt + (nt === 1 ? ' trip!' : ' trips!') : '¡' + nt + (nt === 1 ? ' viaje!' : ' viajes!'), 2200); } }
+        recGlide(n, n <= 0 || n > L ? 1600 : 2300, function () {
+          if (A && R.playing && n >= 0 && n <= L) {
+            var t = R.seq[n].t, k = Pj.theme(cached(t.ref) || [], t.start);
+            A.show(k, A.idleOf(k)); A.say(A.phrase(k), 1800);
+          }
+          R.tm = setTimeout(next, n > L ? 2400 : 2400);
+        });
       })();
     }
     function counts() {
@@ -854,7 +881,6 @@ window.Mundo = (function () {
         Array.prototype.forEach.call(el.querySelectorAll('[data-y]'), function (x) { x.classList.toggle('on', x.getAttribute('data-y') === ST.year); });
         var S1 = statsOf(tf()), box = document.createElement('div'); box.innerHTML = statsHTML(S1);
         el.querySelector('.st-card').replaceWith(box.firstChild);
-        var st0 = el.querySelector('#mwStamps'); if (st0) st0.innerHTML = stampsHTML(S1);
         paintList(S1); recSetup(); recolor();
         if (ST.region === 'mine' || !ST.region) { ST.region = 'mine'; Array.prototype.forEach.call(el.querySelectorAll('[data-mw=region] .opt'), function (x) { x.classList.toggle('on', x.getAttribute('data-v') === 'mine'); }); animateTo(viewMine()); }
         return;
