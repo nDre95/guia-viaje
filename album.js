@@ -316,7 +316,7 @@ window.Album = (function () {
     try { return c.toDataURL('image/jpeg', 0.9); } catch (e) { return ''; }
   }
   // las postales hechas se guardan (IndexedDB guia-postales; el índice, en localStorage guia-postales)
-  var PCV = 2;   // versión del diseño: las postales de un diseño anterior se rehacen solas al abrirlas
+  var PCV = 4;   // versión del diseño: las postales de un diseño anterior se rehacen solas al abrirlas
   function postIdx(o) { try { if (o) localStorage.setItem('guia-postales', JSON.stringify(o)); return JSON.parse(localStorage.getItem('guia-postales') || '{}') || {}; } catch (e) { return o || {}; } }
   function postDb(mode, fn) {
     return new Promise(function (res, rej) {
@@ -333,13 +333,15 @@ window.Album = (function () {
     if (!redo && postIdx()[id]) { postDb('readonly', function (s) { return s.get(id); }).then(function (p) { if (p && p.v === PCV) postcard3d(p.front, p.back, id); else makePostcard(id, btn, true); }, function () { makePostcard(id, btn, true); }); return; }
     var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), en = lg() === 'en';
     // sin fotos repetidas: dos sitios con la misma foto cuentan como uno
-    var seenU = {}, pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; })
-      .filter(function (c) { var u = phUrl(c); if (!u || seenU[u]) return false; seenU[u] = 1; return true; }).slice(0, 6);
+    // la foto oficial del sitio (la tuya del cromo puede ser cualquier cosa)
+    function offUrl(c) { return phUrl({ img: (t.b.photos || {})[c.ph] || '', ph: c.ph }); }
+    var seenU = {}, pick = got.filter(function (c) { return c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; })
+      .filter(function (c) { var u = offUrl(c); if (!u || seenU[u]) return false; seenU[u] = 1; return true; }).slice(0, 6);
     // mientras se hace: la tarjeta cambia solo el texto de su botón
     var go = btn && btn.querySelector('.pc-go');
     function busy(on) { if (!btn) { if (on && window.Juego) Juego.toast('Creando postal…'); return; } btn.classList.toggle('busy', on); if (go) go.textContent = tr(on ? 'Creando…' : 'Crear'); }
     busy(true);
-    Promise.all(pick.map(function (c) { return loadBig(phUrl(c)); })).then(function (imgs) {
+    Promise.all(pick.map(function (c) { return loadBig(offUrl(c)); })).then(function (imgs) {
       var ph = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
       var m = t.b.meta || {}, bt = t.b.trip, nd = bt.days.length, st = bt.defaultStart;
       var dest = (m.dest || {})[lg()] || (m.dest || {}).es || tripTitle(t), cc = window.Mundo && Mundo.cached ? (Mundo.cached(t) || [])[0] : '', country = cc && Mundo.name ? Mundo.name(cc) : dest;
@@ -426,7 +428,14 @@ window.Album = (function () {
       im.onerror = function () { res(null); }; im.src = u;
     });
   }
+  // la postal sella el país (o países) del viaje en el pasaporte
+  function sealTrip(id) {
+    var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t || !window.Mundo || !Mundo.seal) return;
+    var nw = Mundo.seal(t);
+    if (nw.length && window.Juego) setTimeout(function () { Juego.toast('Sello de ' + nw.join(', ') + ' en tu pasaporte'); }, 900);
+  }
   function postcard3d(front, back, id) {
+    if (id) sealTrip(id);
     var files = null, name = 'postal-' + (id || 'viaje');
     Promise.all([postPng(front), postPng(back)]).then(function (b) { files = b.map(function (x, i) { try { return x && new File([x], name + (i ? '-detras' : '-delante') + '.png', { type: 'image/png' }); } catch (e) { return null; } }).filter(Boolean); });
     var old = document.getElementById('pcView'); if (old) old.remove();
@@ -692,5 +701,5 @@ window.Album = (function () {
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('#crView.on')) closeCromo(); });
   }
 
-  return { init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf, trips: trips, listBox: listBox, searchText: searchText, allCards: allCards };
+  return { postcard: function (id) { trips().then(function () { makePostcard(id); }); }, init: init, renderAlbum: renderAlbum, renderProfile: renderProfile, overview: overview, reset: function () { TRIPS = null; }, get: albumGet, isCromo: isCromo, cromosOf: cromosOf, trips: trips, listBox: listBox, searchText: searchText, allCards: allCards };
 })();

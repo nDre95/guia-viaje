@@ -209,7 +209,7 @@ html[data-theme="dark"] .qz-o.no{color:#ff9fae}
 .pf-h small{font:700 13px -apple-system,system-ui,sans-serif;color:var(--txt3);margin-left:4px}
 .mw-stamps{display:flex;gap:10px;overflow-x:auto;margin:0 -16px 6px;padding:6px 16px 10px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .mw-stamps::-webkit-scrollbar{display:none}
-.mw-stamp{flex:0 0 104px;height:104px;padding:0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid var(--c);border-radius:50%;background:none;color:var(--c);font:inherit;text-align:center;cursor:pointer;scroll-snap-align:start;transition:transform .45s var(--spring)}
+.mw-stamp{position:relative;flex:0 0 104px;height:104px;padding:0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid var(--c);border-radius:50%;background:none;color:var(--c);font:inherit;text-align:center;cursor:pointer;scroll-snap-align:start;transition:transform .45s var(--spring)}
 .mw-stamp:active{transform:scale(.94)}
 .mw-stamp .fl{font-size:24px;line-height:1.1}
 .mw-stamp b{max-width:76px;font-size:10.5px;font-weight:800;line-height:1.05;letter-spacing:.03em;text-transform:uppercase;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -594,3 +594,67 @@ html[data-theme="dark"] .mw-map .mw-pin path{fill:#f4f4f2}
 .pcv-b2.pri{color:#1a1f30;background:#fff}
 .pcv-hint{position:relative;z-index:2;margin:0;padding:8px 16px calc(var(--safe-b) + 16px);text-align:center;font-size:13px;color:rgba(255,255,255,.6)}
 .mw-pp{margin:-4px 4px 10px;font-size:13px;line-height:1.35;color:var(--txt3)}
+
+/* Pasaporte: sellado (al crear la postal), sin sellar (viaje empezado) y por visitar */
+.mw-stamp.open{border-style:dashed;opacity:.85}
+.mw-stamp.sealed{border-width:2.5px;background:radial-gradient(circle,color-mix(in srgb,var(--c) 13%,transparent) 0 64%,transparent 65%);box-shadow:inset 0 0 0 5px var(--bone),inset 0 0 0 6.5px var(--c)}
+.mw-stamp .pm{position:absolute;right:-14px;bottom:4px;width:70px;height:44px;color:#23324f;opacity:.62;transform:rotate(-16deg);pointer-events:none}
+html[data-theme="dark"] .mw-stamp .pm{color:#cfd6e6}
+.mw-stamp .pm svg{width:100%;height:100%;display:block}
+.mw-stamp.stamp-in{animation:stampIn .75s .35s cubic-bezier(.2,1.3,.4,1) both}
+.mw-stamp.stamp-in .pm{animation:pmIn .4s 1s ease-out both}
+@keyframes stampIn{0%{opacity:0;transform:scale(1.9) rotate(-16deg)}55%{opacity:1;transform:scale(.9) rotate(3deg)}100%{transform:none}}
+@keyframes pmIn{from{opacity:0;transform:rotate(-16deg) scale(1.4)}}
+
+/* Pasaporte: tapa en el perfil y libro en 3D que se hojea */
+.pp-card{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;margin:4px 0 4px;padding:14px 0 6px;border:0;background:none;font:inherit;color:var(--txt);cursor:pointer;perspective:900px}
+.pp-mini{position:relative;width:168px;height:236px;border-radius:6px 14px 14px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#e8c77c;
+  background:radial-gradient(120% 80% at 30% 20%,rgba(255,255,255,.1),transparent 60%),linear-gradient(135deg,#7a2232,#4e1420);
+  box-shadow:inset 7px 0 0 rgba(0,0,0,.22),inset 8px 0 0 rgba(255,255,255,.06),inset 0 0 0 1px rgba(232,199,124,.22),5px 5px 0 -1px #efe6cf,7px 7px 0 -1px #d6cab0,0 26px 40px -18px rgba(0,0,0,.7);
+  transform:rotateY(-18deg) rotateX(6deg);transition:transform .6s var(--spring)}
+.pp-card:hover .pp-mini,.pp-card:active .pp-mini{transform:rotateY(-6deg) rotateX(2deg) scale(1.03)}
+.pp-mini small{font:800 10px -apple-system,system-ui,sans-serif;letter-spacing:.3em}
+.pp-mini b{font:700 15px/1 var(--serif);letter-spacing:.06em}
+.pp-mini i{width:68px;height:68px}
+.pp-mini em{position:absolute;right:-10px;top:-10px;min-width:26px;height:26px;padding:0 7px;border-radius:13px;display:grid;place-items:center;font:800 13px -apple-system,system-ui,sans-serif;font-style:normal;color:#fff;background:var(--orange);box-shadow:0 4px 10px -2px rgba(226,120,47,.7)}
+.pp-mini i svg,.pp-cover i svg{width:100%;height:100%}
+.pp-cap{font-size:13px;font-weight:700;color:var(--txt3)}
+.pp-cap b{color:var(--orange-t)}
+.ppv{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;overflow:hidden;color:#fff;background:radial-gradient(120% 80% at 50% 45%,#3a2a2e,#0d0b0c 72%);animation:pk3Bg .3s ease both}
+.ppv.out{animation:pk3Bg .26s ease reverse both}
+.pp-stage{flex:1;min-height:0;display:grid;place-items:center;perspective:2000px;touch-action:none}
+.pp-book{position:relative;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.2,1,.3,1)}
+.pp-book:not(.open){transform:rotateY(-8deg) rotateX(4deg)}
+.pp-back{position:absolute;inset:-5px -8px -5px -3px;border-radius:4px 12px 12px 4px;background:linear-gradient(135deg,#6b1f2e,#3d0f19);box-shadow:0 40px 70px -24px rgba(0,0,0,.9),inset -6px 0 0 #f4ecd8,inset -8px 0 0 #d8ccb2,inset -10px 0 0 #efe6cf;transform:translateZ(-3px)}
+.pp-leaf{position:absolute;inset:0;transform-origin:0 50%;transform:rotateY(var(--a,0deg));-webkit-backface-visibility:hidden;backface-visibility:hidden;border-radius:2px 8px 8px 2px;overflow:hidden}
+.pp-leaf.snap{transition:transform .7s cubic-bezier(.3,.9,.3,1)}
+.pp-sh{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.45),rgba(0,0,0,.1) 60%,transparent);opacity:var(--sh,0)}
+.pp-cover{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4em;color:#e8c77c;background:radial-gradient(120% 80% at 30% 20%,rgba(255,255,255,.08),transparent 60%),linear-gradient(135deg,#7a2232,#4e1420);box-shadow:inset 6px 0 0 rgba(0,0,0,.25),inset 0 0 0 1px rgba(232,199,124,.25)}
+.pp-cover small{font:800 1.4em -apple-system,system-ui,sans-serif;letter-spacing:.3em}
+.pp-cover b{font:700 2.2em/1 var(--serif);letter-spacing:.06em}
+.pp-cover i{width:9em;height:9em;filter:drop-shadow(0 1px 0 rgba(0,0,0,.3))}
+.pp-page{position:relative;height:100%;padding:1.6em 1.6em 1.2em;color:#3b3226;background:repeating-radial-gradient(circle at 70% 30%,rgba(43,110,163,.07) 0 .1em,transparent .1em .7em),repeating-linear-gradient(115deg,rgba(160,120,60,.05) 0 .2em,transparent .2em 1.2em),#f4ecd8;box-shadow:inset 8px 0 14px -10px rgba(0,0,0,.35)}
+.pp-h{display:flex;justify-content:space-between;font:800 1.1em -apple-system,system-ui,sans-serif;letter-spacing:.2em;color:#8a7a5c;padding-bottom:.8em;border-bottom:1px solid rgba(138,122,92,.3)}
+.pp-id{display:flex;flex-direction:column;gap:1.4em;margin-top:1.6em}
+.pp-ph{flex:0 0 8em;height:10em;border-radius:.4em;display:grid;place-items:center;font-size:3.6em;line-height:1;background:#e6dcc4;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.pp-ph{font-size:1em}.pp-ph{font-size:3.4em;flex-basis:2.4em;height:2.9em}
+.pp-id dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.7em 1.2em;align-content:start;font-size:1.3em}
+.pp-id dt{font:800 .75em -apple-system,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8a7a5c;align-self:center}
+.pp-id dd{margin:0;font:700 1em var(--serif);color:#2c2418}
+.pp-mrz{position:absolute;left:1.6em;right:1.6em;bottom:1.6em;font:600 1em/1.6 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.08em;color:#4b4030;word-break:break-all;opacity:.8}
+.pp-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:.6em;height:calc(100% - 3em);padding-top:1em}
+.pps{align-self:center;justify-self:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15em;width:10.5em;height:10.5em;padding:.4em;border:.25em solid var(--c);background:none;color:var(--c);font:inherit;text-align:center;cursor:pointer;transform:translate(var(--x),var(--y)) rotate(var(--r));mix-blend-mode:multiply}
+.pps.circ{border-radius:50%;box-shadow:inset 0 0 0 .35em #f4ecd8,inset 0 0 0 .5em var(--c)}
+.pps.rect{border-radius:.8em;height:9em;width:11.5em;box-shadow:inset 0 0 0 .35em #f4ecd8,inset 0 0 0 .5em var(--c)}
+.pps.oval{border-radius:50%;width:12em;height:8.6em}
+.pps .fl{font-size:2.4em;line-height:1;mix-blend-mode:normal}
+.pps b{max-width:8.5em;font:800 1.05em/1.05 -apple-system,system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.pps small{font:800 .85em -apple-system,system-ui,sans-serif;letter-spacing:.06em}
+.pps.sealed{opacity:.88}
+.pps.open{border-style:dashed;opacity:.5;box-shadow:none}
+.pps.next{--c:#9a907c!important;border-style:dotted;opacity:.45;box-shadow:none}
+.pps.stamp-in{animation:ppsIn .7s .25s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes ppsIn{0%{opacity:0;transform:translate(var(--x),var(--y)) rotate(calc(var(--r) - 18deg)) scale(1.9)}55%{opacity:.95;transform:translate(var(--x),var(--y)) rotate(calc(var(--r) + 3deg)) scale(.9)}100%{transform:translate(var(--x),var(--y)) rotate(var(--r))}}
+.pp-end p{margin-top:40%;text-align:center;font:italic 1.4em var(--serif);color:#9a8c70}
+.pp-nav{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:16px;padding:6px 16px 0}
+.pp-no{min-width:110px;text-align:center;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.75)}

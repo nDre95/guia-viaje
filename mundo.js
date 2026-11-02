@@ -195,16 +195,100 @@ window.Mundo = (function () {
     return { n: i + 1, name: LEVELS[i][1], pts: pts, next: next, pc: next ? Math.round((pts - LEVELS[i][0]) / (next[0] - LEVELS[i][0]) * 100) : 100 };
   }
   var STAMP = ['#b3364b', '#2b6ea3', '#3f8f5b', '#8a4fa8', '#c2622a', '#1f8a8a', '#7a5a2b'];
+  // sellos del pasaporte: guia-sellos = { país: { t: viaje, at: fecha, shown: 1 } }. Se sella al crear la postal del viaje
+  function seals(o) { try { if (o) localStorage.setItem('guia-sellos', JSON.stringify(o)); return JSON.parse(localStorage.getItem('guia-sellos') || '{}') || {}; } catch (e) { return o || {}; } }
+  function seal(t) {
+    var S = seals(), nw = [], today = new Date().toISOString().slice(0, 10);
+    (cached(t) || []).forEach(function (c) { if (!S[c]) { S[c] = { t: t.id, at: today }; nw.push(name(c)); } });
+    if (nw.length) seals(S);
+    return nw;
+  }
+  // el pasaporte del perfil: una tapa que se abre en 3D y se hojea; los sellos van en las páginas de visados
+  var PP = null, GLOBE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18M5 7.5h14M5 16.5h14"/></svg>';
   function stampsHTML(S) {
     var firstYear = function (l) { return l.map(function (t) { return (t.start || '').slice(0, 4); }).sort()[0]; };
     var rows = Object.keys(S.V).map(function (c) { return { c: c, y: firstYear(S.V[c]), n: S.V[c].length }; }).sort(function (a, b) { return String(a.y).localeCompare(String(b.y)); })
       .concat(Object.keys(S.N).filter(function (c) { return !S.V[c]; }).map(function (c) { return { c: c, y: firstYear(S.N[c]), next: true }; }));
     if (!rows.length) return '';
-    var got = rows.filter(function (r) { return !r.next; }).length;
-    return '<div class="pf-h">Mi pasaporte <small>' + got + (got === 1 ? ' sello' : ' sellos') + '</small></div><p class="mw-pp">Un sello por cada país que visitas. Se consigue al empezar un viaje allí; los de tus próximos viajes salen en gris.</p><div class="mw-stamps">' + rows.map(function (r, i) {
+    var SL = seals();
+    // los sellados primero, luego los visitados sin sellar y al final los próximos
+    rows.forEach(function (r) { r.sl = SL[r.c]; r.k = r.sl ? 0 : r.next ? 2 : 1; });
+    rows.sort(function (a, b) { return a.k - b.k || String(a.sl ? a.sl.at : a.y).localeCompare(String(b.sl ? b.sl.at : b.y)); });
+    PP = { rows: rows, S: S };
+    var got = rows.filter(function (r) { return r.sl; }).length, open = rows.filter(function (r) { return !r.sl && !r.next; }).length, nw = rows.filter(function (r) { return r.sl && !r.sl.shown; }).length;
+    // en el perfil, el propio pasaporte: la tapa en 3D; debajo, una línea
+    return '<div class="pf-h">Mi pasaporte <small>' + got + (got === 1 ? ' sello' : ' sellos') + '</small></div>' +
+      '<button type="button" class="pp-card sq" data-pp><span class="pp-mini"><small>PASAPORTE</small><i>' + GLOBE + '</i><b>GUÍA DE VIAJE</b><small>VIAJERO</small>' + (nw ? '<em>' + nw + '</em>' : '') + '</span>' +
+      '<span class="pp-cap">' + (nw ? '<b>' + (nw === 1 ? '¡1 sello nuevo!' : '¡' + nw + ' sellos nuevos!') + '</b> ' : '') + '<span>Toca para abrirlo</span></span></button>' +
+      '<p class="mw-pp">Un sello por cada país. Aparece al empezar un viaje allí y se sella al crear su postal en el álbum.' + (open ? ' ' + (open === 1 ? 'Te falta 1 país por sellar: crea la postal de ese viaje.' : 'Te faltan ' + open + ' países por sellar: crea la postal de esos viajes.') : '') + '</p>';
+  }
+  // número fijo a partir del código del país, para que cada sello caiga siempre igual
+  function hashOf(s, n) { var h = 7; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973; return h % n; }
+  function openPassport() {
+    if (!PP) return;
+    var old = document.getElementById('ppView'); if (old) old.remove();
+    var rows = PP.rows, S = PP.S, SL = seals(), T = S.done.length ? travelType(S.done) : null, en = lg() === 'en';
+    var sealed = rows.filter(function (r) { return r.sl; }), years = rows.map(function (r) { return r.y; }).filter(Boolean).sort();
+    function stamp(r) {
       var col = 0; for (var k = 0; k < r.c.length; k++) col += r.c.charCodeAt(k);
-      return '<button type="button" class="mw-stamp sq' + (r.next ? ' next' : '') + '" data-c="' + esc(r.c) + '" style="--c:' + STAMP[col % STAMP.length] + '"><span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.next ? 'Por visitar' : esc(r.y) + (r.n > 1 ? ' · ×' + r.n : '')) + '</small></button>';
-    }).join('') + '</div>';
+      var shape = ['circ', 'rect', 'oval'][hashOf(r.c, 3)], rot = hashOf(r.c + 'r', 25) - 12, dx = hashOf(r.c + 'x', 17) - 8, dy = hashOf(r.c + 'y', 13) - 6;
+      var d = r.sl ? new Date(r.sl.at + 'T12:00:00Z') : null, isNew = r.sl && !r.sl.shown;
+      return '<button type="button" class="pps ' + shape + (r.sl ? ' sealed' + (isNew ? ' fresh' : '') : r.next ? ' next' : ' open') + '"' + (r.sl ? ' data-post="' + esc(r.sl.t) + '"' : '') + ' data-cc="' + esc(r.c) + '" style="--c:' + STAMP[col % STAMP.length] + ';--r:' + rot + 'deg;--x:' + dx + 'px;--y:' + dy + 'px">' +
+        '<span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.sl ? esc(d.toLocaleDateString(lg(), { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase()) : r.next ? 'Por visitar' : 'Sin sellar') + '</small></button>';
+    }
+    var pages = [];
+    // tapa
+    pages.push('<div class="pp-cover"><small>PASAPORTE</small><i>' + GLOBE + '</i><b>GUÍA DE VIAJE</b><small>VIAJERO</small></div>');
+    // página de datos
+    var mrz = ('P<' + (en ? 'TRAVEL<GUIDE' : 'GUIA<DE<VIAJE') + '<<' + sealed.map(function (r) { return r.c; }).join('<') + '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<').slice(0, 36);
+    pages.push('<div class="pp-page"><div class="pp-h"><span>PASAPORTE</span><span>1</span></div><div class="pp-id"><span class="pp-ph">' + (T ? T.ico : '🧭') + '</span><dl>' +
+      '<dt>Estilo</dt><dd>' + esc(T ? T.t : 'Sin viajes aún') + '</dd><dt>Países sellados</dt><dd>' + sealed.length + '</dd><dt>Países visitados</dt><dd>' + Object.keys(S.V).length + '</dd><dt>Continentes</dt><dd>' + S.conts + '</dd>' +
+      '<dt>Km recorridos</dt><dd>' + fmtN(S.km) + '</dd><dt>Desde</dt><dd>' + esc(years[0] || '—') + '</dd></dl></div><div class="pp-mrz">' + esc(mrz) + '<br>' + esc(('<<<' + (years[0] || '0000') + '<<' + String(sealed.length) + '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<').slice(0, 36)) + '</div></div>');
+    // visados: 6 sellos por página
+    for (var i = 0; i < Math.max(1, Math.ceil(rows.length / 6)); i++) pages.push('<div class="pp-page"><div class="pp-h"><span>VISADOS</span><span>' + (i + 2) + '</span></div><div class="pp-grid">' + rows.slice(i * 6, i * 6 + 6).map(stamp).join('') + '</div></div>');
+    pages.push('<div class="pp-page pp-end"><div class="pp-h"><span>VISADOS</span><span>' + (pages.length) + '</span></div><p>Aquí irán los sellos de tus próximos viajes.</p></div>');
+    var v = document.createElement('div'); v.className = 'ppv'; v.id = 'ppView';
+    v.innerHTML = '<div class="pcv-top"><span></span><button type="button" class="pcv-x sq" data-pv="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
+      '<div class="pp-stage"><div class="pp-book"><div class="pp-back"></div>' + pages.map(function (h, k) { return '<div class="pp-leaf' + (k ? '' : ' cv') + '" style="z-index:' + (200 - k) + '">' + h + '<i class="pp-sh"></i></div>'; }).join('') + '</div></div>' +
+      '<div class="pp-nav"><button type="button" class="pcv-b2 sq" data-pn="-1">‹</button><span class="pp-no"></span><button type="button" class="pcv-b2 sq" data-pn="1">›</button></div><p class="pcv-hint">Toca o arrastra para pasar página · toca un sello para ver su postal</p>';
+    var book = v.querySelector('.pp-book'), stage = v.querySelector('.pp-stage'), L = Array.prototype.slice.call(v.querySelectorAll('.pp-leaf')), cur = 0, W = 300, drag = null;
+    function size() { var h = Math.min(window.innerHeight - 200, 600), w = h * 0.7; if (w > window.innerWidth - 40) { w = window.innerWidth - 40; h = w / 0.7; } W = w; book.style.width = w + 'px'; book.style.height = h + 'px'; book.style.fontSize = (w / 300 * 10) + 'px'; }
+    function setA(el, a, smooth) { el.classList.toggle('snap', !!smooth); el.style.setProperty('--a', a.toFixed(1) + 'deg'); el.style.setProperty('--sh', Math.sin(-a * Math.PI / 180).toFixed(2)); }
+    function label() {
+      v.querySelector('.pp-no').textContent = cur ? (en ? 'Page ' : 'Página ') + cur + ' / ' + (L.length - 1) : (en ? 'Cover' : 'Tapa');
+      book.classList.toggle('open', cur > 0);
+      // los sellos nuevos se estampan al llegar a su página
+      var fr = L[cur].querySelectorAll('.pps.fresh');
+      if (fr.length) { Array.prototype.forEach.call(fr, function (b) { b.classList.remove('fresh'); b.classList.add('stamp-in'); var c = b.getAttribute('data-cc'); if (SL[c]) SL[c].shown = 1; }); seals(SL); }
+    }
+    function go(n) { cur = Math.max(0, Math.min(L.length - 1, n)); L.forEach(function (el, i) { setA(el, i < cur ? -180 : 0, true); }); label(); }
+    stage.addEventListener('pointerdown', function (e) { drag = { x: e.clientX, y: e.clientY, moved: false }; try { stage.setPointerCapture(e.pointerId); } catch (er) {} });
+    stage.addEventListener('pointermove', function (e) {
+      if (!drag) return; var dx = e.clientX - drag.x; if (Math.abs(dx) > 6) drag.moved = true; if (!drag.moved) return;
+      if (dx < 0 && cur < L.length - 1) setA(L[cur], Math.max(-180, dx / W * 180), false);
+      else if (dx > 0 && cur > 0) setA(L[cur - 1], Math.min(0, -180 + dx / W * 180), false);
+    });
+    function up(e) {
+      if (!drag) return; var dx = e.clientX - drag.x, moved = drag.moved; drag = null;
+      if (!moved) {
+        var st = e.target.closest && e.target.closest('.pps[data-post]');
+        if (st && window.Album && Album.postcard) { Album.postcard(st.getAttribute('data-post')); return; }
+        var r = book.getBoundingClientRect(); go(e.clientX < r.left + r.width * 0.35 ? cur - 1 : cur + 1); return;
+      }
+      if (dx < -W * 0.25) go(cur + 1); else if (dx > W * 0.25) go(cur - 1); else go(cur);
+    }
+    stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', function () { drag = null; go(cur); });
+    v.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pv],[data-pn]'); if (!b) return;
+      if (b.getAttribute('data-pv') === 'close') { v.classList.add('out'); window.removeEventListener('resize', size); setTimeout(function () { v.remove(); }, 260); document.dispatchEvent(new Event('juego:change')); }
+      else go(cur + +b.getAttribute('data-pn'));
+    });
+    window.addEventListener('resize', size);
+    if (window.Lang) Lang.watch(v);
+    document.body.appendChild(v);
+    size(); L.forEach(function (el) { setA(el, 0, false); }); label();
+    // se abre solo al poco, como quien abre el pasaporte
+    setTimeout(function () { if (cur === 0) go(1); }, 650);
   }
   function heroHTML(trips, base) {
     var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100;
@@ -795,6 +879,7 @@ window.Mundo = (function () {
         return;
       }
       if (t.closest('#mwMore')) { ST.more = !ST.more; paintList(statsOf(tf())); return; }
+      if (t.closest('[data-pp]')) { openPassport(); return; }
       var c = t.closest('[data-c]');
       if (c) {
         var row = t.closest('.mw-row, .mw-stamp');
@@ -815,5 +900,5 @@ window.Mundo = (function () {
     el._mwOff = recStop;
     draw();
   }
-  return { quizLeft: quizLeft, openQuiz: openQuiz, mount: mount, detect: detect, cached: cached, name: name, flag: flag };
+  return { seal: seal, quizLeft: quizLeft, openQuiz: openQuiz, mount: mount, detect: detect, cached: cached, name: name, flag: flag };
 })();
