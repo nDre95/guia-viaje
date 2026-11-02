@@ -109,6 +109,9 @@ window.Juego = (function () {
   }
   /* ---------- Canjear un cromo: primero se comprueba dónde estás, luego la foto ---------- */
   var FAR_MAX = 20;   // hasta aquí puede ser un fallo del GPS o del punto guardado; más lejos, no estás allí
+  // MODO PRUEBA (lo pidió el usuario el 2 nov 2026, para trastear): los cromos se canjean a mano y hay quiz de
+  // cualquier viaje, aunque no haya empezado. Para volver a las reglas normales: TEST = false
+  var TEST = true;
   function redeem(it, title, past, done) {
     var old = document.getElementById('qzBox'); if (old) old.remove();
     var box = watch(document.createElement('div')); box.id = 'qzBox'; box.className = 'qz';
@@ -122,6 +125,7 @@ window.Juego = (function () {
     }
     function check() {
       page('Buscando tu ubicación…', '<span class="rd-load"></span>');
+      if (TEST && !check.asked) { check.asked = 1; page('Modo prueba: puedes canjearlo sin estar allí.', '<button type="button" class="btn navy sq rd-go" data-rd="test">Canjear ya</button><button type="button" class="rd-alt sq" data-rd="retry">Comprobar mi ubicación</button>'); return; }
       locate(it.lat, it.lon).then(function (r) {
         // el margen de error del GPS también cuenta, hasta 300 m
         if (r.km <= radiusOf(it) + Math.min(r.acc, 300) / 1000) { gps = true; photo('Estás aquí. Ahora hazte la foto para canjearlo.'); return; }
@@ -136,6 +140,7 @@ window.Juego = (function () {
       var b = e.target.closest('[data-rd]');
       if (e.target === box || (b && b.getAttribute('data-rd') === 'close')) { box.remove(); return; }
       if (!b) return;
+      if (b.getAttribute('data-rd') === 'test') { box.remove(); done(null, false, true); return; }
       if (b.getAttribute('data-rd') === 'retry') check();
       else { unv = true; photo('Se marcará como «sin verificar». Hazte la foto para canjearlo.'); }
     });
@@ -340,5 +345,5 @@ window.Juego = (function () {
     }).catch(function () { return ''; });
   }
 
-  return { presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
+  return { TEST: TEST, presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
 })();

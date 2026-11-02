@@ -25,10 +25,10 @@ window.Mapa = (function () {
   function fromTrip(trip) { return trip.days.map(function (d) { return { title: d.title, jump: d.items.some(function (i) { return i.jump; }), stops: d.items.filter(isStop) }; }); }
 
   // Special:FilePath de Wikimedia no deja leer la imagen desde la página: se pide su dirección directa, que sí
-  function corsUrl(src) {
+  function corsUrl(src, w) {
     var m = /commons\.wikimedia\.org\/wiki\/Special:FilePath\/([^?]+)/.exec(src);
     if (!m) return Promise.resolve(src);
-    return fetch('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=url&iiurlwidth=320&titles=File:' + m[1])
+    return fetch('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=url&iiurlwidth=' + (w || 330) + '&titles=File:' + m[1])
       .then(function (r) { return r.json(); }).then(function (j) {
         var pg = j.query.pages, i = pg[Object.keys(pg)[0]].imageinfo[0];
         return i.thumburl || i.url;

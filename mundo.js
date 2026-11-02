@@ -271,30 +271,57 @@ window.Mundo = (function () {
     withPh.concat(withTx).forEach(function (q) { if (qs.length < 5 && !used[q.ti]) ask(q.img ? 'photo' : 'text', q); });
     return shuffle(qs).slice(0, 5);
   }
+  // ¿se puede jugar el quiz de este viaje? Solo de los ya empezados o hechos (en modo prueba, de todos)
+  function quizOpen(t) { return (window.Juego && Juego.TEST) || t.status !== 'next'; }
+  function playable(trips) { return trips.filter(function (t) { return quizPool([t]).list.length >= 4; }); }
+  // losa grande del perfil: fotos de tus viajes, récord y partidas
   function quizCardHTML(trips) {
-    var P = quizPool(trips); if (P.list.length < 4) return '';
-    var sub = 'Elige un viaje y gana sobres';
-    return '<button type="button" class="card qz-card sq" id="pfQuiz"><span class="qz-ic">?</span><span class="qz-m"><b>Quiz de mis viajes</b><small>' + esc(sub) + '</small></span><svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
+    var rows = playable(trips); if (!rows.length) return '';
+    var S = quizStore(), fan = rows.filter(function (t) { return t.cover; }).slice(0, 3);
+    return '<button type="button" class="qzb sq" id="pfQuiz"><span class="qzb-fan">' + fan.map(function (t, i) { return '<i style="--r:' + ((i - (fan.length - 1) / 2) * 9) + 'deg;--x:' + ((i - (fan.length - 1) / 2) * 30) + 'px;background-image:url(&quot;' + esc(t.cover) + '&quot;)"></i>'; }).join('') + '<u>?</u></span>' +
+      '<span class="qzb-m"><small>Quizzes</small><b>¿Cuánto recuerdas de tus viajes?</b><span>5 preguntas por viaje. Gana sobres para mejorar tus cromos.</span></span>' +
+      '<span class="qzb-row"><span><b>' + (S.best || 0) + '<i>/5</i></b><small>récord</small></span><span><b>' + (S.played || 0) + '</b><small>partidas</small></span><span><b>' + (S.perfect || 0) + '</b><small>perfectos</small></span><span class="qzb-go">Jugar</span></span></button>';
   }
-  // la página para elegir de qué viaje es el quiz, con el récord de cada uno
+  // la página de quizzes, a pantalla completa: cifras, premios, cómo funciona y los viajes con su foto
+  var QZF = 'all';
   function openQuizPicker(trips, onEnd) {
     var old = document.getElementById('qzBox'); if (old) old.remove();
-    var S = quizStore(), box = document.createElement('div'), rec = S.trips || {};
-    box.id = 'qzBox'; box.className = 'qz';
-    var rows = trips.filter(function (t) { return quizPool([t]).list.length >= 4; }).slice().sort(function (a, b) { return String(b.start || '').localeCompare(String(a.start || '')); });
-    box.innerHTML = '<div class="qz-in"><div class="qz-top"><span>Quiz de mis viajes</span><button type="button" class="qz-x sq" data-qp="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div><h3>Elige un viaje</h3><p class="qz-tx">5 preguntas sobre sus sitios, un intento al día. Cuantos más aciertos, mejor sobre: 2 cobre, 3 plata, 4 oro y 5 rubí.</p><div class="qz-trips">' + rows.map(function (t) {
-      var r = rec[t.id], w = quizLeft(t.id);
-      return '<button type="button" class="qz-trip sq' + (w ? ' wait' : '') + '" data-qp="' + esc(t.id) + '"><span class="qz-tph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '></span><span class="qz-tm"><b>' + esc(t.title) + '</b><small>' + (r ? 'Récord: ' + r.best + '/5' : 'Sin jugar') + '</small>' +
-        (w ? '<small class="qz-wait"><span>Otra vez en</span> <i data-cd="' + (Date.now() + w) + '">' + clock(w) + '</i></small>' : '') + '</span><svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
-    }).join('') + '</div></div>';
-    ticker(box);
+    var S = quizStore(), rec = S.trips || {}, box = document.createElement('div'), test = !!(window.Juego && Juego.TEST);
+    box.id = 'qzBox'; box.className = 'qzp';
+    var rows = playable(trips).slice().sort(function (a, b) { return (quizOpen(b) ? 1 : 0) - (quizOpen(a) ? 1 : 0) || String(b.start || '').localeCompare(String(a.start || '')); });
+    var ST0 = { past: 'Hecho', now: 'En curso', next: 'Próximo' }, PK = [[2, 'c'], [3, 's'], [4, 'g'], [5, 'r']];
+    function tripHTML(t) {
+      var r = rec[t.id], w = quizLeft(t.id), open = quizOpen(t), best = r ? r.best : 0, dots = '';
+      for (var k = 0; k < 5; k++) dots += '<i' + (k < best ? ' class="on"' : '') + '></i>';
+      var foot = !open ? '<span class="qzp-lock">Cuando hagas el viaje</span>' : w ? '<span class="qzp-wait"><span>Otra vez en</span> <i data-cd="' + (Date.now() + w) + '">' + clock(w) + '</i></span>' : '<span class="qzp-play">Jugar</span>';
+      return '<button type="button" class="qzp-t sq' + (open ? '' : ' off') + (w ? ' wait' : '') + '" data-qp="' + esc(t.id) + '"' + (open ? '' : ' disabled') + '><span class="qzp-ph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '>' +
+        '<span class="qzp-st ' + t.status + '">' + ST0[t.status] + '</span></span><span class="qzp-tm"><b>' + esc(t.title) + '</b><small>' + (r ? 'Récord: ' + r.best + '/5' : 'Sin jugar') + '</small><span class="qzp-dots">' + dots + '</span></span>' + foot + '</button>';
+    }
+    function list() {
+      var f = rows.filter(function (t) { return QZF === 'all' ? true : QZF === 'open' ? quizOpen(t) && !quizLeft(t.id) : !!quizLeft(t.id); });
+      return f.length ? f.map(tripHTML).join('') : '<p class="note">Nada por aquí.</p>';
+    }
+    function chips() {
+      var nOpen = rows.filter(function (t) { return quizOpen(t) && !quizLeft(t.id); }).length, nWait = rows.filter(function (t) { return quizLeft(t.id); }).length;
+      return [['all', 'Todos', rows.length], ['open', 'Disponibles', nOpen], ['wait', 'Jugados hoy', nWait]].map(function (c) { return '<button type="button" class="opt' + (QZF === c[0] ? ' on' : '') + '" data-qf="' + c[0] + '">' + c[1] + ' <i>' + c[2] + '</i></button>'; }).join('');
+    }
+    box.innerHTML = '<div class="qzp-bar"><button type="button" class="qzp-back sq" data-qp="close"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Perfil</span></button><b>Quizzes</b><span></span></div>' +
+      '<div class="qzp-in"><div class="qzp-hero"><span class="qzp-q">?</span><h2>Quizzes de mis viajes</h2><p>5 preguntas por viaje con los sitios que has visto. Cuantos más aciertos, mejor sobre.</p>' +
+        (test ? '<p class="qzp-test">Modo prueba: puedes jugar cualquier viaje, aunque aún no lo hayas hecho.</p>' : '') + '</div>' +
+      '<div class="qzp-stats"><span><b>' + (S.played || 0) + '</b><small>partidas</small></span><span><b>' + (S.hits || 0) + '</b><small>aciertos</small></span><span><b>' + (S.perfect || 0) + '</b><small>perfectos</small></span><span><b>' + (S.packs || 0) + '</b><small>sobres</small></span></div>' +
+      '<div class="pf-h">Premios</div><div class="qzp-rw">' + PK.map(function (p) { return '<span class="k-' + p[1] + '"><i class="pk-mini"><span class="pk-foil"></span></i><b>' + p[0] + ' aciertos</b><small>' + esc(window.Juego ? Juego.PACK[p[1]] : '') + '</small></span>'; }).join('') + '</div>' +
+      '<div class="pf-h">Elige un viaje</div><div class="lst-chips qzp-chips">' + chips() + '</div><div class="qzp-list">' + list() + '</div>' +
+      '<div class="pf-h">Cómo funciona</div><div class="card qzp-how"><p><b>Preguntas</b><span>Fotos, descripciones sin el nombre y cuál está más al norte.</span></p><p><b>Un intento al día</b><span>Un intento por viaje cada 24 horas, desde la primera respuesta.</span></p><p><b>Sobres</b><span>Mejoran la rareza de los cromos que ya has canjeado en ese viaje, sin repetidos.</span></p></div></div>';
+    function close() { box.classList.add('out'); setTimeout(function () { box.remove(); }, 260); if (onEnd) onEnd(); }
     box.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-qp]');
-      if (e.target === box || (b && b.getAttribute('data-qp') === 'close')) { box.remove(); if (onEnd) onEnd(); return; }
-      if (!b) return;
+      var qf = e.target.closest('[data-qf]');
+      if (qf) { QZF = qf.getAttribute('data-qf'); box.querySelector('.qzp-chips').innerHTML = chips(); box.querySelector('.qzp-list').innerHTML = list(); return; }
+      var b = e.target.closest('[data-qp]'); if (!b) return;
+      if (b.getAttribute('data-qp') === 'close') { close(); return; }
       var t = rows.filter(function (x) { return x.id === b.getAttribute('data-qp'); })[0];
-      if (t) openQuiz([t], onEnd, function () { openQuizPicker(trips, onEnd); });
+      if (t && quizOpen(t)) openQuiz([t], onEnd, function () { openQuizPicker(trips, onEnd); });
     });
+    ticker(box);
     if (window.Lang) Lang.watch(box);
     document.body.appendChild(box);
   }
@@ -320,10 +347,11 @@ window.Mundo = (function () {
         '<div class="qz-opts">' + q.opts.map(function (o, k) { return '<button type="button" class="qz-o sq" data-o="' + k + '">' + esc(o) + '</button>'; }).join('') + '</div><div class="qz-next" hidden></div></div>';
     }
     function result() {
-      var S = quizStore(); S.played = (S.played || 0) + 1; S.best = Math.max(S.best || 0, hits); if (hits >= 5) S.perfect = (S.perfect || 0) + 1;
+      var S = quizStore(); S.played = (S.played || 0) + 1; S.best = Math.max(S.best || 0, hits); if (hits >= 5) S.perfect = (S.perfect || 0) + 1; S.hits = (S.hits || 0) + hits;
       S.trips = S.trips || {}; var tr0 = S.trips[tid] || { best: 0, played: 0 }; tr0.best = Math.max(tr0.best, hits); tr0.played++; S.trips[tid] = tr0;
       quizStore(S);
       var pack = window.Juego ? Juego.onQuiz(hits, tid) : '';
+      if (pack) { var S2 = quizStore(); S2.packs = (S2.packs || 0) + 1; quizStore(S2); }
       box.innerHTML = '<div class="qz-in qz-end"><b class="qz-score">' + hits + '<i>/' + Q.length + '</i></b><h3>' + esc(hits === Q.length ? 'Perfecto' : hits * 2 >= Q.length ? 'Bien' : 'Hay que repasar') + '</h3><p class="qz-tx">Has acertado ' + hits + ' de ' + Q.length + '</p><div class="qz-rew"><p class="' + (pack ? 'on' : '') + '">' + (pack ? Juego.PACK[pack] + ' conseguido' : hits >= 2 ? 'Hoy ya ganaste el sobre de este viaje' : 'Con 2 aciertos ya ganas un sobre') + '</p></div>' +
         waitHTML(quizLeft(tid) || QZ_MS) +
         '<div class="btn-row">' + (back ? '<button type="button" class="btn navy sq" data-qz="back">Otro viaje</button>' : '') + '<button type="button" class="btn ghost sq" data-qz="close">Cerrar</button></div></div>';
@@ -354,7 +382,10 @@ window.Mundo = (function () {
       nx.hidden = false;
       nx.innerHTML = '<p class="qz-tx">' + esc(q.type === 'north' ? '' : q.q.lead.length > 150 ? q.q.lead.slice(0, 150).replace(/\s+\S*$/, '') + '…' : q.q.lead) + '</p><button type="button" class="btn navy sq" data-qz="next">' + (i + 1 < Q.length ? 'Siguiente' : 'Ver resultado') + '</button>';
     });
-    if (wait) {
+    if (!quizOpen(trips[0])) {
+      box.innerHTML = '<div class="qz-in qz-end"><div class="qz-top"><span>' + esc(trips[0].title || '') + '</span><button type="button" class="qz-x sq" data-qz="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
+        '<h3>Aún no</h3><p class="qz-tx">Este viaje aún no ha empezado. Los quizzes se abren cuando lo hagas.</p><div class="btn-row">' + (back ? '<button type="button" class="btn navy sq" data-qz="back">Otro viaje</button>' : '') + '<button type="button" class="btn ghost sq" data-qz="close">Cerrar</button></div></div>';
+    } else if (wait) {
       var r0 = (quizStore().trips || {})[tid];
       box.innerHTML = '<div class="qz-in qz-end"><div class="qz-top"><span>' + esc(trips[0].title || '') + '</span><button type="button" class="qz-x sq" data-qz="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
         '<h3>Ya has jugado hoy</h3><p class="qz-tx">Un intento al día por viaje.</p>' + waitHTML(wait, r0 ? r0.best : null) +
@@ -451,7 +482,7 @@ window.Mundo = (function () {
     // qué viajes entran, sus puntos en el mapa y el encuadre de cada uno
     function recBuild() {
       var byCc = {}; (WORLD || []).forEach(function (c) { byCc[c.cc] = c; });
-      R.seq = tf().filter(function (t) { return t.start && cached(t.ref); }).sort(function (a, b) { return (Date.parse(a.start) || 0) - (Date.parse(b.start) || 0); }).map(function (t) {
+      R.seq = tf().filter(function (t) { return t.start && cached(t.ref); }).sort(function (a, b) { var x = String(a.start).slice(0, 10), y = String(b.start).slice(0, 10); return x < y ? -1 : x > y ? 1 : String(a.title).localeCompare(String(b.title)); }).map(function (t) {
         var la = 0, lo = 0, n = 0;
         t.ref.b.trip.days.forEach(function (d) { d.items.forEach(function (it) { if (Mapa.isSight(it)) { la += it.lat; lo += it.lon; n++; } }); });
         var q = proj(n ? lo / n : 0, n ? la / n : 0), box = [1e4, -1e4, 1e4, -1e4];
@@ -511,6 +542,13 @@ window.Mundo = (function () {
       recHero(v);
     }
     // al llegar: una tarjeta sobre el sitio, con su foto, el mes y el año y el nombre de la ciudad
+    // fechas del viaje con el día: «2–6 dic 2026» o «28 nov – 3 dic 2026»
+    function heroDate(t) {
+      var d1 = new Date(t.start + 'T12:00:00Z'), d2 = new Date(d1.getTime() + Math.max(0, (t.days || 1) - 1) * 864e5), y = d2.getUTCFullYear();
+      var f = function (d, o) { return d.toLocaleDateString(lg(), Object.assign({ timeZone: 'UTC' }, o)); };
+      if (d1.getUTCMonth() === d2.getUTCMonth()) return (lg() === 'en' ? f(d1, { month: 'short' }) + ' ' + d1.getUTCDate() + '–' + d2.getUTCDate() : d1.getUTCDate() + '–' + d2.getUTCDate() + ' ' + f(d1, { month: 'short' })) + ' ' + y;
+      return f(d1, { day: 'numeric', month: 'short' }) + ' – ' + f(d2, { day: 'numeric', month: 'short' }) + ' ' + y;
+    }
     function recHero(v) {
       var h = el.querySelector('#mwHero'), m = el.querySelector('#mwMap'); if (!h || !m) return;
       var L = R.seq.length - 1, i = Math.round(v), at = v > -0.13 && v < L + 0.13 && Math.abs(v - i) < 0.13;
@@ -518,8 +556,8 @@ window.Mundo = (function () {
       var q = R.seq[i], t = q.t, W = m.clientWidth, Hh = m.clientHeight, vw = ST.view;
       if (h._i !== i) {
         h._i = i;
-        var d = new Date(t.start + 'T12:00:00Z'), mon = d.toLocaleDateString(lg(), { month: 'long', timeZone: 'UTC' }), meta = t.ref.b.meta, names = ((meta.generated || {}).cities || []).slice(0, 2).join(' · ') || t.title, src = Mapa.photoOf({ ph: t.ref.b.trip.cover }, t.ref.b.photos) || t.cover;
-        h.innerHTML = '<span class="mw-h-ph"' + (src ? ' style="background-image:url(&quot;' + esc(src) + '&quot;)"' : '') + '></span><span class="mw-h-t"><small>' + esc(mon.charAt(0).toUpperCase() + mon.slice(1) + ' ' + d.getUTCFullYear()) + '</small><b>' + esc(names) + '</b></span>';
+        var d = new Date(t.start + 'T12:00:00Z'), meta = t.ref.b.meta, names = ((meta.generated || {}).cities || []).slice(0, 2).join(' · ') || t.title, src = Mapa.photoOf({ ph: t.ref.b.trip.cover }, t.ref.b.photos) || t.cover;
+        h.innerHTML = '<span class="mw-h-ph"' + (src ? ' style="background-image:url(&quot;' + esc(src) + '&quot;)"' : '') + '></span><span class="mw-h-t"><small>' + esc(heroDate(t)) + '</small><b>' + esc(names) + '</b></span>';
         h.classList.remove('on'); void h.offsetWidth; h.classList.add('on');
       }
       var cw = h.offsetWidth, ch = h.offsetHeight, x = (q.x - vw[0]) / vw[2] * W, y = (q.y - vw[1]) / vw[3] * Hh;

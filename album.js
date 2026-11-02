@@ -74,10 +74,13 @@ window.Album = (function () {
   }
   var SETS = [['hist', 'Historia', ['CAS', 'RUI', 'MON', 'TEM']], ['arte', 'Arte y espectáculos', ['MUS', 'ESP']], ['natu', 'Naturaleza y miradores', ['NAT', 'JAR', 'MIR']], ['urbe', 'Ciudad', ['PLZ', 'BAR', 'MER', 'PAS', 'FAM']]];
   function packsHTML(cards) {
+    var tops = (TRIPS || []).map(function (t) { var cs = cromosOf(t, albumGet()); return { t: t, cs: cs, got: cs.filter(function (c) { return c.got; }).length }; }).filter(function (x) { return x.got; })
+      .sort(function (a, b) { return String(b.t.b.trip.defaultStart || '').localeCompare(String(a.t.b.trip.defaultStart || '')); });
+    var cta = tops[0] && !cfg.single ? postCta(tops[0].t, tops[0].cs, tops[0].got) : '';
     var g = Juego.get(), groups = [], order = { r: 0, g: 1, s: 2, c: 3 };
     g.bag.forEach(function (b) { var f = groups.filter(function (x) { return x.k === b.k && x.t === b.t; })[0]; if (f) f.n++; else groups.push({ k: b.k, t: b.t, n: 1 }); });
     groups.sort(function (a, b) { return order[a.k] - order[b.k]; });
-    var head = '<div class="pk-row">' + (groups.length ? groups.map(function (x) {
+    var head = cta + '<div class="pk-row">' + (groups.length ? groups.map(function (x) {
       var tr0 = (TRIPS || []).filter(function (t) { return t.id === x.t; })[0];
       return '<button type="button" class="pk-mini k-' + x.k + ' sq" data-pkopen="' + x.k + '" data-pktrip="' + esc(x.t) + '"><span class="pk-foil"></span><b>' + x.n + '</b><small>' + esc(Juego.PACK[x.k]) + '</small>' + (tr0 ? '<small class="pk-trip">' + esc(tripTitle(tr0)) + '</small>' : '') + '</button>';
     }).join('') : '<p class="pk-none">Gana sobres con los quizzes: cuantos más aciertos, mejor sobre.</p>') +
@@ -136,6 +139,28 @@ window.Album = (function () {
     $('.lst-res', box).innerHTML = shown.map(o.render).join('') || '<p class="note">' + esc(o.items.length ? 'Nada coincide con la búsqueda.' : o.empty) + '</p>';
     more.hidden = all.length <= shown.length;
     if (!more.hidden) more.textContent = 'Mostrar más (' + (all.length - shown.length) + ')';
+  }
+  // tarjeta de la postal: sello con la foto de tu mejor cromo, borde de correo aéreo
+  function postCta(t, cs, got) {
+    var best = cs.filter(function (c) { return c.got && (c.img || c.ph); }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0); })[0];
+    var dest = (t.b.meta.dest || {})[lg()] || (t.b.meta.dest || {}).es || tripTitle(t);
+    return '<button type="button" class="pc-cta sq"' + (got ? ' data-post="' + esc(t.id) + '"' : ' disabled') + '><span class="pc-in"><span class="pc-st"><i class="' + (best ? phCls(best) : '') + '"' + (best ? phStyle(best) : '') + '></i></span>' +
+      '<span class="pc-m"><small>Postal</small><b>Crea tu postal de ' + esc(dest) + '</b><span>' + (got ? 'Tus fotos con sello y matasellos. Full HD y vectorial.' : 'Canjea un cromo para crear tu postal.') + '</span></span>' +
+      (got ? '<span class="pc-go">Crear</span>' : '') + '</span></button>';
+  }
+  // la postal en grande: toca para acercar
+  function postView() {
+    var src = $('#postImg') && $('#postImg').src; if (!src) return;
+    var v = document.createElement('div'); v.className = 'pc-view'; v.id = 'pcView';
+    v.innerHTML = '<div class="pc-vw"><img src="' + src + '" alt=""></div><div class="pc-vb"><button type="button" class="btn ghost sq" data-pv="share">Compartir</button><button type="button" class="btn navy sq" data-pv="close">Cerrar</button></div>';
+    v.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pv]'), a = b && b.getAttribute('data-pv');
+      if (a === 'close') { v.classList.add('out'); setTimeout(function () { v.remove(); }, 220); }
+      else if (a === 'share') postSave();
+      else if (e.target.tagName === 'IMG') v.classList.toggle('zoom');
+    });
+    if (window.Lang) Lang.watch(v);
+    document.body.appendChild(v);
   }
   // un cromo en la cuadrícula (álbum de un viaje o colección)
   function tileHTML(tid, c) {
@@ -197,11 +222,11 @@ window.Album = (function () {
       box._lst = '';
       var seen = cs.filter(function (c) { return crFilter === 'got' ? c.got : crFilter === 'miss' ? !c.got : crFilter === 'top' ? c.rate && (c.rate.r >= 80) : true; });
       box.innerHTML = (cfg.single ? '' : '<button type="button" class="alb-back sq" data-albback><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg><span>Todos los viajes</span></button>') +
-        '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
+        postCta(t, cs, got) + '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
           '<div class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></div>' +
           (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Canjeados', got], ['miss', 'Faltan', cs.length - got], ['top', 'Oro o más', cs.filter(function (c) { return c.got && c.rate && c.rate.r >= 80; }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
           '<div class="crs">' + seen.map(function (c) { return tileHTML(t.id, c); }).join('') + '</div>' +
-          '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">' + 'Crear postal' + '</button>' : '') +
+          '<div class="btn-row" style="margin-top:10px">' +
           (cfg.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button>') + '</div></div>';
     });
   }
@@ -228,7 +253,7 @@ window.Album = (function () {
           '<div class="hb"><span class="seal">' + (c.got ? 'Visto<br>' + esc(shortDate(c.got.at)) : 'Por<br>pegar') + '</span><b>' + esc(tripTitle(f.t)) + '</b><small>Cromo #' + c.n + ' de ' + f.total + ' · Día ' + c.day + '</small></div>' +
         '</div></div>' +
       '<p class="hv-hint">Arrastra para girarlo · dale la vuelta para ver el reverso</p>' +
-      '<div class="hv-btns">' + (c.got ? '<button type="button" class="btn ghost sq" data-cv="toggle">Quitar del álbum</button>' : '') +
+      '<div class="hv-btns">' + (c.got ? '<button type="button" class="btn ghost sq" data-cv="toggle">Quitar del álbum</button>' : window.Juego && Juego.TEST ? '<button type="button" class="btn navy sq" data-cv="redeem">Canjear (modo prueba)</button>' : '') +
         (window.DeviceOrientationEvent ? '<button type="button" class="btn ghost sq" data-cv="gyro">Mover con el móvil</button>' : '') +
         '<button type="button" class="btn ghost sq" data-cv="close">Cerrar</button></div>';
     $('#crView').classList.add('on');
@@ -275,6 +300,12 @@ window.Album = (function () {
       // iPhone: hay que pedir permiso con un toque
       if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) DeviceOrientationEvent.requestPermission().then(function (s) { if (s === 'granted') go(); }).catch(function () {});
       else go();
+    } else if (a === 'redeem') {
+      var al0 = albumGet(), k0 = cv3.key, f0 = cromoByKey(k0); if (!f0 || al0[k0]) return;
+      al0[k0] = { at: new Date().toISOString().slice(0, 10), ti: f0.c.ti, ph: f0.c.ph || '', day: f0.c.day, unv: 1 };
+      albumSet(al0); if (cfg.onChange) cfg.onChange(k0);
+      if (window.Juego) document.dispatchEvent(new Event('juego:change'));
+      renderAlbum().then(function () { openCromo(k0); });
     } else if (a === 'toggle') {
       var alb = albumGet(), k = cv3.key, f = cromoByKey(k); if (!f) return;
       if (alb[k]) { if (!confirm('¿Quitar este cromo del álbum?')) return; delete alb[k]; }
@@ -301,11 +332,14 @@ window.Album = (function () {
     try { return c.toDataURL('image/jpeg', 0.88); } catch (e) { return ''; }
   }
   function makePostcard(id, btn) {
-    var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t) return;
+    var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t || (btn && btn.classList.contains('busy'))) return;
     var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), en = lg() === 'en';
     var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; }).slice(0, 5);
-    if (btn) { btn.disabled = true; btn.textContent = tr('Creando postal…'); }
-    function restore() { if (btn) { btn.disabled = false; btn.textContent = tr('Crear postal'); } }
+    // mientras se hace: la tarjeta cambia solo el texto de su botón
+    var go = btn && btn.querySelector('.pc-go');
+    function busy(on) { if (!btn) return; if (!go) btn.disabled = on; btn.classList.toggle('busy', on); if (go) go.textContent = tr(on ? 'Creando…' : 'Crear'); else btn.textContent = tr(on ? 'Creando postal…' : 'Crear postal'); }
+    function restore() { busy(false); }
+    busy(true);
     Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
       var ph = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
       var m = t.b.meta || {}, bt = t.b.trip, nd = bt.days.length, st = bt.defaultStart;
@@ -400,12 +434,12 @@ window.Album = (function () {
       var im = new Image(); im.crossOrigin = 'anonymous';
       im.onload = function () { res(im); }; im.onerror = function () { res(null); };   // sin permiso CORS: se deja el hueco
       var abs = /^data:/.test(src) ? src : new URL(src, location.href).href;
-      (window.Mapa ? Mapa.corsUrl(abs).catch(function () { return abs; }) : Promise.resolve(abs)).then(function (u) { im.src = u; });
+      (window.Mapa ? Mapa.corsUrl(abs, 1280).catch(function () { return abs; }) : Promise.resolve(abs)).then(function (u) { im.src = u; });
     });
   }
-  // compartir la postal en PNG (Full HD) o guardarla en SVG, vectorial
-  function postSave(vec) {
-    var bl = vec ? postSvg : postBlob, nm = vec ? postName.replace(/\.\w+$/, '') + '.svg' : postName;
+  // compartir la postal en PNG Full HD (si el navegador no deja leer el lienzo, el SVG)
+  function postSave() {
+    var bl = postBlob, nm = postName;
     if (!bl) return; var f = null; try { f = new File([bl], nm, { type: bl.type || 'image/png' }); } catch (e) {}
     if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: nm }).catch(function () {}); return; }
     var a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = nm; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 2000);
@@ -445,6 +479,23 @@ window.Album = (function () {
       '<small>' + (b.lv ? '<em>' + esc(BMAT_ES[b.mat]) + '</em> ' : '') + (b.lv >= 5 ? '' : '<span>' + b.have + '/' + b.need + '</span>') + '</small><span class="bdg-bar"><i style="width:' + Math.round(b.frac * 100) + '%"></i></span></button>';
   }
   // ficha de una insignia: qué cuenta y sus 5 niveles
+  // todas las insignias en una página: cada categoría con sus 5 niveles, lo que tienes y lo que falta
+  function openBadges(B) {
+    var old = document.getElementById('bdgPage'); if (old) old.remove();
+    var on = B.reduce(function (a, b) { return a + b.lv; }, 0), box = document.createElement('div');
+    box.id = 'bdgPage'; box.className = 'qzp';
+    var sorted = B.slice().sort(function (a, b) { return b.lv - a.lv || b.frac - a.frac; });
+    box.innerHTML = '<div class="qzp-bar"><button type="button" class="qzp-back sq" data-bp="close"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Perfil</span></button><b>Insignias</b><span></span></div>' +
+      '<div class="qzp-in"><div class="bdp-sum"><b>' + on + '<i> / ' + B.length * 5 + '</i></b><small>niveles conseguidos</small><span class="bdg-bar"><i style="width:' + Math.round(on / (B.length * 5) * 100) + '%"></i></span></div>' +
+      '<div class="bdp-list">' + sorted.map(function (b) {
+        return '<div class="card bdp-c' + (b.lv ? '' : ' off') + '"><div class="bdp-h">' + medal(b) + '<span><b>' + esc(b.name) + '</b><small>' + esc(b.what) + '</small></span><em>' + (b.lv >= 5 ? '' : b.have + '/' + b.need) + '</em></div>' +
+          '<span class="bdg-bar bdp-bar"><i style="width:' + Math.round(b.frac * 100) + '%"></i></span>' +
+          '<div class="bdi-steps">' + b.steps.map(function (n, k) { return '<span class="bdi-s' + (b.lv > k ? ' on' : '') + '">' + medal(b, b.lv > k ? BMAT[k] : '') + '<small>' + esc(BMAT_ES[BMAT[k]]) + '</small><b>' + n + '</b></span>'; }).join('') + '</div></div>';
+      }).join('') + '</div></div>';
+    box.addEventListener('click', function (e) { if (e.target.closest('[data-bp="close"]')) { box.classList.add('out'); setTimeout(function () { box.remove(); }, 260); } });
+    if (window.Lang) Lang.watch(box);
+    document.body.appendChild(box);
+  }
   function badgeInfo(b) {
     return '<div class="bdi-h">' + medal(b) + '<span><b>' + esc(b.name) + '</b><small>' + esc(b.what) + '</small></span></div><div class="bdi-steps">' + b.steps.map(function (n, k) {
       return '<span class="bdi-s' + (b.lv > k ? ' on' : '') + '">' + medal(b, b.lv > k ? BMAT[k] : '') + '<small>' + esc(BMAT_ES[BMAT[k]]) + '</small><b>' + n + '</b></span>';
@@ -498,7 +549,7 @@ window.Album = (function () {
             '<div class="alb-bar"><i style="width:' + (t.total ? Math.round(t.got / t.total * 100) : 0) + '%"></i></div><small>' + t.got + ' de ' + t.total + ' cromos · ' + t.mustGot + ' de ' + t.must + ' imprescindibles</small>' +
             (cfg.single ? '' : '<div class="btn-row"><button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button></div>') + '</div></div>';
         }).join('') + (sorted.length > 3 ? '<button type="button" class="lst-more sq" data-go="trips">Ver todos (' + sorted.length + ')</button>' : '') : '<p class="note">Aún no hay viajes.</p>') +
-        '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + O.badgesMax + '</div><div class="card"><div class="badges">' + B.map(badgeHTML).join('') + '</div><div class="bdi" id="bdgInfo" hidden></div></div>';
+        '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + O.badgesMax + '</div><div class="card"><div class="badges">' + B.slice().sort(function (a, b) { return b.lv - a.lv || b.frac - a.frac; }).slice(0, 6).map(badgeHTML).join('') + '</div><button type="button" class="lst-more sq bdg-all" data-bdgall>Ver todas (' + B.length * 5 + ')</button><div class="bdi" id="bdgInfo" hidden></div></div>';
       box._badges = B;
       if (window.Mundo && window.Mapa) Mundo.mount($('#pfWorld'), O.trips, { base: O, single: cfg.single });
     });
@@ -528,6 +579,7 @@ window.Album = (function () {
       if (crf) { crFilter = crf.getAttribute('data-crf'); renderAlbum(); return; }
       if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
+      if (t.closest('[data-bdgall]')) { var pb1 = $('#profBox'); if (pb1 && pb1._badges) openBadges(pb1._badges); return; }
       var bd = t.closest('[data-bdg]');
       if (bd) {
         var pb0 = $('#profBox'), inf = $('#bdgInfo'), bb = ((pb0 && pb0._badges) || []).filter(function (x) { return x.id === bd.getAttribute('data-bdg'); })[0];
@@ -546,7 +598,7 @@ window.Album = (function () {
       if (c) openCromo(c.getAttribute('data-cr'));
       else if (pb) makePostcard(pb.getAttribute('data-post'), pb);
       else if (t.closest('#postSave')) postSave();
-      else if (t.closest('#postSvg')) postSave(true);
+      else if (t.closest('#postImg')) postView();
       else if (t.closest('#postClose')) $('#postBox').hidden = true;
       else if (t.closest('#albExp')) (cfg.backupTrips ? cfg.backupTrips() : Promise.resolve([])).then(function (tr0) {
         var g0 = window.Juego ? Juego.get() : null; if (g0) { g0.backup = Date.now(); Juego.save(g0); }
