@@ -19,7 +19,6 @@
   color:#fff;font:900 10px/1.1 -apple-system,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;background:rgba(226,120,47,.55);white-space:nowrap;animation:stampIn .5s var(--spring) both}
 @keyframes stampIn{from{transform:translate(-50%,-50%) rotate(-14deg) scale(1.8);opacity:0}}
 #postVid{display:block;width:100%;max-height:70vh;border-radius:12px;margin:8px 0;background:#000;box-shadow:0 10px 24px -12px rgba(0,0,0,.5)}
-#postImg{display:block;width:100%;aspect-ratio:16/9;border-radius:6px;margin:8px 0;box-shadow:0 10px 24px -12px rgba(0,0,0,.5)}
 /* perfil */
 .badges{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;margin-top:8px}
 .bdg{-webkit-appearance:none;appearance:none;border:0;background:none;padding:4px 2px;font:inherit;color:var(--txt);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;border-radius:14px;transition:background .2s}
@@ -568,13 +567,28 @@ html[data-theme="dark"] .mw-map .mw-pin path{fill:#f4f4f2}
 .pc-cta.busy{cursor:progress}
 .pc-cta.busy .pc-go{opacity:.6}
 .pc-go{flex:0 0 auto;padding:10px 15px;border-radius:999px;font-weight:800;font-size:14px;color:#fff;background:#22396b}
-#postImg{cursor:zoom-in}
-/* Postal en grande */
-.pc-view{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;background:rgba(8,8,12,.94);animation:pk3Bg .25s ease both}
-.pc-view.out{animation:pk3Bg .22s ease reverse both}
-.pc-vw{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:calc(var(--safe-t) + 10px) 10px 10px}
-.pc-vw img{display:block;width:100%;max-width:1400px;border-radius:4px;box-shadow:0 20px 50px -10px #000;cursor:zoom-in;transition:width .35s var(--spring),transform .4s var(--spring)}
-.pc-view.zoom .pc-vw{display:block}
-.pc-view.zoom .pc-vw img{width:260%;max-width:none;cursor:zoom-out}
-.pc-vb{display:flex;gap:8px;justify-content:center;padding:10px 16px calc(var(--safe-b) + 14px)}
-.pc-vb .btn.ghost{color:#fff;background:rgba(255,255,255,.14)}
+
+/* Postal en 3D: dos caras, se gira con el dedo y se acerca pellizcando */
+.pcv{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;overflow:hidden;color:#fff;background:radial-gradient(120% 80% at 50% 45%,#2b3046,#0b0c11 70%);animation:pk3Bg .3s ease both}
+.pcv.out{animation:pk3Bg .26s ease reverse both}
+.pcv-top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(var(--safe-t) + 12px) 14px 6px}
+.pcv-b2{padding:9px 14px;border:0;border-radius:999px;font:700 13.5px -apple-system,system-ui,sans-serif;color:#fff;background:rgba(255,255,255,.14);cursor:pointer}
+.pcv-x{width:38px;height:38px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.14);cursor:pointer}
+.pcv-x svg{width:17px;height:17px}
+.pcv-stage{flex:1;min-height:0;overflow:hidden;display:grid;place-items:center;perspective:1600px;touch-action:none;cursor:grab}
+.pcv-zoom{transform-origin:50% 50%;transform-style:preserve-3d}
+.pcv-zoom.snap{transition:transform .45s cubic-bezier(.2,1.2,.4,1)}
+.pcv-card{position:relative;transform-style:preserve-3d;transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+.pcv-card.snap{transition:transform .85s cubic-bezier(.2,1.45,.4,1)}
+.pcv-card.in{animation:pcvIn 1s cubic-bezier(.2,1.2,.35,1) both}
+@keyframes pcvIn{from{transform:translateY(60px) rotateY(-200deg) rotateX(18deg) scale(.6)}}
+.pcv-face{position:absolute;inset:0;overflow:hidden;border-radius:10px;-webkit-backface-visibility:hidden;backface-visibility:hidden;background:#f6efe0;box-shadow:0 30px 60px -20px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.08)}
+.pcv-face svg{display:block;width:100%;height:100%}
+.pcv-bk{transform:rotateY(180deg)}
+/* brillo que cruza la postal al girarla; delante, papel fotográfico; detrás, cartulina */
+.pcv-gl{position:absolute;inset:0;pointer-events:none;opacity:var(--go,0);transition:opacity .3s;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.55) var(--gx,50%),transparent 70%);mix-blend-mode:soft-light}
+.pcv-f .pcv-gl{background:linear-gradient(105deg,transparent 28%,rgba(255,255,255,.7) var(--gx,50%),transparent 72%),linear-gradient(180deg,rgba(255,255,255,.1),transparent 40%)}
+.pcv-bk .pcv-gl{opacity:calc(var(--go,0) * .6)}
+.pcv.zoomed .pcv-stage{cursor:move}
+.pcv-hint{position:relative;z-index:2;margin:0;padding:8px 16px calc(var(--safe-b) + 16px);text-align:center;font-size:13px;color:rgba(255,255,255,.6)}
+.mw-pp{margin:-4px 4px 10px;font-size:13px;line-height:1.35;color:var(--txt3)}

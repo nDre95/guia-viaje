@@ -74,13 +74,10 @@ window.Album = (function () {
   }
   var SETS = [['hist', 'Historia', ['CAS', 'RUI', 'MON', 'TEM']], ['arte', 'Arte y espectáculos', ['MUS', 'ESP']], ['natu', 'Naturaleza y miradores', ['NAT', 'JAR', 'MIR']], ['urbe', 'Ciudad', ['PLZ', 'BAR', 'MER', 'PAS', 'FAM']]];
   function packsHTML(cards) {
-    var tops = (TRIPS || []).map(function (t) { var cs = cromosOf(t, albumGet()); return { t: t, cs: cs, got: cs.filter(function (c) { return c.got; }).length }; }).filter(function (x) { return x.got; })
-      .sort(function (a, b) { return String(b.t.b.trip.defaultStart || '').localeCompare(String(a.t.b.trip.defaultStart || '')); });
-    var cta = tops[0] && !cfg.single ? postCta(tops[0].t, tops[0].cs, tops[0].got) : '';
     var g = Juego.get(), groups = [], order = { r: 0, g: 1, s: 2, c: 3 };
     g.bag.forEach(function (b) { var f = groups.filter(function (x) { return x.k === b.k && x.t === b.t; })[0]; if (f) f.n++; else groups.push({ k: b.k, t: b.t, n: 1 }); });
     groups.sort(function (a, b) { return order[a.k] - order[b.k]; });
-    var head = cta + '<div class="pk-row">' + (groups.length ? groups.map(function (x) {
+    var head = '<div class="pk-row">' + (groups.length ? groups.map(function (x) {
       var tr0 = (TRIPS || []).filter(function (t) { return t.id === x.t; })[0];
       return '<button type="button" class="pk-mini k-' + x.k + ' sq" data-pkopen="' + x.k + '" data-pktrip="' + esc(x.t) + '"><span class="pk-foil"></span><b>' + x.n + '</b><small>' + esc(Juego.PACK[x.k]) + '</small>' + (tr0 ? '<small class="pk-trip">' + esc(tripTitle(tr0)) + '</small>' : '') + '</button>';
     }).join('') : '<p class="pk-none">Gana sobres con los quizzes: cuantos más aciertos, mejor sobre.</p>') +
@@ -145,22 +142,8 @@ window.Album = (function () {
     var best = cs.filter(function (c) { return c.got && (c.img || c.ph); }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0); })[0];
     var dest = (t.b.meta.dest || {})[lg()] || (t.b.meta.dest || {}).es || tripTitle(t);
     return '<button type="button" class="pc-cta sq"' + (got ? ' data-post="' + esc(t.id) + '"' : ' disabled') + '><span class="pc-in"><span class="pc-st"><i class="' + (best ? phCls(best) : '') + '"' + (best ? phStyle(best) : '') + '></i></span>' +
-      '<span class="pc-m"><small>Postal</small><b>Crea tu postal de ' + esc(dest) + '</b><span>' + (got ? 'Tus fotos con sello y matasellos. Full HD y vectorial.' : 'Canjea un cromo para crear tu postal.') + '</span></span>' +
+      '<span class="pc-m"><small>Postal</small><b>Crea tu postal de ' + esc(dest) + '</b><span>' + (got ? 'Una postal de verdad: delante tu mejor foto; detrás, más fotos, sello y matasellos.' : 'Canjea un cromo para crear tu postal.') + '</span></span>' +
       (got ? '<span class="pc-go">Crear</span>' : '') + '</span></button>';
-  }
-  // la postal en grande: toca para acercar
-  function postView() {
-    var src = $('#postImg') && $('#postImg').src; if (!src) return;
-    var v = document.createElement('div'); v.className = 'pc-view'; v.id = 'pcView';
-    v.innerHTML = '<div class="pc-vw"><img src="' + src + '" alt=""></div><div class="pc-vb"><button type="button" class="btn ghost sq" data-pv="share">Compartir</button><button type="button" class="btn navy sq" data-pv="close">Cerrar</button></div>';
-    v.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-pv]'), a = b && b.getAttribute('data-pv');
-      if (a === 'close') { v.classList.add('out'); setTimeout(function () { v.remove(); }, 220); }
-      else if (a === 'share') postSave();
-      else if (e.target.tagName === 'IMG') v.classList.toggle('zoom');
-    });
-    if (window.Lang) Lang.watch(v);
-    document.body.appendChild(v);
   }
   // un cromo en la cuadrícula (álbum de un viaje o colección)
   function tileHTML(tid, c) {
@@ -201,7 +184,6 @@ window.Album = (function () {
       paintPacks(!cur || !!cfg.single);
       if (!cur) {
         openT = null;
-        var pb = $('#postBox'); if (pb) pb.hidden = true;
         // al principio, solo los viajes: compacto
         var rows = withC.map(function (t) { var cs = cromosOf(t, alb); return { t: t, total: cs.length, got: cs.filter(function (c) { return c.got; }).length }; });
         function albumList() {
@@ -319,81 +301,80 @@ window.Album = (function () {
   }
   function closeCromo() { var v = $('#crView'); if (!v) return; v.classList.remove('on'); setTimeout(function () { if (!v.classList.contains('on')) v.innerHTML = ''; }, 350); }
 
-  /* ---------- Postal: SVG vectorial de 1920×1080 (Full HD). Collage de tus fotos, sello dentado, matasellos,
-     borde de correo aéreo, mensaje a mano, datos del viaje y la ruta. Se comparte en PNG o se guarda en SVG ---------- */
-  var postBlob = null, postName = '', postSvg = null;
+  /* ---------- Postal de verdad, en 3D: por delante la foto principal; por detrás más fotos, sello, matasellos,
+     mensaje a mano, los datos del viaje y la ruta. Las dos caras son SVG dentro de la página (texto nítido a
+     cualquier tamaño). Se gira con el dedo, con brillo, y se acerca pellizcando ---------- */
   var PC_M = { base: ['#9a917f', '#e8e1d3'], copper: ['#8a4b24', '#efb48a'], silver: ['#7f8893', '#eef1f5'], gold: ['#a2780f', '#ffe08a'], emerald: ['#0e7a54', '#7ff5c4'], ruby: ['#a01232', '#ff8ea3'] };
   function xml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]; }); }
-  // la foto recortada al tamaño en que sale, ya en JPEG dentro del SVG (así no depende de nada externo)
+  // la foto recortada a su hueco, en JPEG dentro del SVG, sin pasar de su resolución real
   function jpeg(im, w, h) {
-    var c = document.createElement('canvas'), k = Math.min(2, Math.max(1, Math.max(w / im.width, h / im.height) > 1 ? 1 : 1.6)); c.width = Math.round(w * k); c.height = Math.round(h * k);
-    var r = Math.max(c.width / im.width, c.height / im.height), iw = im.width * r, ih = im.height * r;
+    var r = Math.max(w / im.width, h / im.height), k = r > 1 ? 1 / r : 1, c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    var s = Math.max(c.width / im.width, c.height / im.height), iw = im.width * s, ih = im.height * s;
     c.getContext('2d').drawImage(im, (c.width - iw) / 2, (c.height - ih) / 2, iw, ih);
-    try { return c.toDataURL('image/jpeg', 0.88); } catch (e) { return ''; }
+    try { return c.toDataURL('image/jpeg', 0.9); } catch (e) { return ''; }
   }
   function makePostcard(id, btn) {
     var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t || (btn && btn.classList.contains('busy'))) return;
     var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), en = lg() === 'en';
-    var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; }).slice(0, 5);
+    var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; }).slice(0, 6);
     // mientras se hace: la tarjeta cambia solo el texto de su botón
     var go = btn && btn.querySelector('.pc-go');
-    function busy(on) { if (!btn) return; if (!go) btn.disabled = on; btn.classList.toggle('busy', on); if (go) go.textContent = tr(on ? 'Creando…' : 'Crear'); else btn.textContent = tr(on ? 'Creando postal…' : 'Crear postal'); }
-    function restore() { busy(false); }
+    function busy(on) { if (!btn) return; btn.classList.toggle('busy', on); if (go) go.textContent = tr(on ? 'Creando…' : 'Crear'); }
     busy(true);
     Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
       var ph = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
       var m = t.b.meta || {}, bt = t.b.trip, nd = bt.days.length, st = bt.defaultStart;
       var dest = (m.dest || {})[lg()] || (m.dest || {}).es || tripTitle(t), cc = window.Mundo && Mundo.cached ? (Mundo.cached(t) || [])[0] : '', country = cc && Mundo.name ? Mundo.name(cc) : dest;
-      var d1 = st ? new Date(st + 'T12:00:00Z') : null, d2 = d1 ? new Date(d1.getTime() + (nd - 1) * 864e5) : null;
-      var year = d1 ? d1.getUTCFullYear() : '';
+      var d1 = st ? new Date(st + 'T12:00:00Z') : null, d2 = d1 ? new Date(d1.getTime() + (nd - 1) * 864e5) : null, year = d1 ? d1.getUTCFullYear() : '';
+      var fo2 = { day: 'numeric', month: 'short', timeZone: 'UTC' }, dd = d1 ? d1.toLocaleDateString(lg(), fo2) + ' – ' + d2.toLocaleDateString(lg(), fo2) : '';
       var cities = ((m.generated || {}).cities || (m.mapCities || []).map(function (c) { return c[lg()] || c.es; })).slice(0, 4);
       var km = 0; bt.days.forEach(function (d) { d.items.forEach(function (it) { if (it.t === 'drive' && it.km) km += it.km; }); });
       var best = ph[0] ? (ph[0].c.rate || {}).tier || 'base' : 'base', gold = got.filter(function (c) { return c.rate && c.rate.r >= 80; }).length, M = PC_M[best];
       var W = 1920, H = 1080, ink = '#23324f', hand = "'Bradley Hand','Segoe Script','Snell Roundhand','Noteworthy','Comic Sans MS',cursive", serif = "'New York','Iowan Old Style',Georgia,serif", sans = "-apple-system,'Segoe UI',Roboto,Helvetica,sans-serif";
       var mc = document.createElement('canvas').getContext('2d');
       function lines(txt, font, max) { mc.font = font; var out = [''], words = String(txt).split(' '); words.forEach(function (w) { var k = out.length - 1, tt = out[k] ? out[k] + ' ' + w : w; if (mc.measureText(tt).width > max && out[k]) out.push(w); else out[k] = tt; }); return out; }
-      function photo(x, y, w, h, im, rot, cap, pad) {
-        var u = jpeg(im, w, h), p = pad == null ? 16 : pad, bh = cap ? 64 : p;
-        return '<g transform="rotate(' + rot + ' ' + (x + w / 2) + ' ' + (y + h / 2) + ')"><rect x="' + (x - p) + '" y="' + (y - p) + '" width="' + (w + 2 * p) + '" height="' + (h + p + bh) + '" fill="#fffdf8" filter="url(#sh)"/>' +
-          (u ? '<image href="' + u + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid slice"/>' : '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#cfc6b4"/>') +
-          (cap ? '<text x="' + (x + w / 2) + '" y="' + (y + h + 44) + '" text-anchor="middle" font-family="' + hand + '" font-size="28" fill="' + ink + '">' + xml(fitTxt(cap, '28px ' + hand, w)) + '</text>' : '') + '</g>';
-      }
       function fitTxt(s, font, max) { mc.font = font; s = String(s); if (mc.measureText(s).width <= max) return s; while (s.length > 3 && mc.measureText(s + '…').width > max) s = s.slice(0, -1); return s.trim() + '…'; }
-      var g = '';
-      // papel, borde de correo aéreo y línea central
-      g += '<rect width="' + W + '" height="' + H + '" fill="#f4ecdc"/><rect width="' + W + '" height="' + H + '" fill="url(#air)"/><rect x="26" y="26" width="' + (W - 52) + '" height="' + (H - 52) + '" fill="#f6efe0" filter="url(#paper)"/>';
-      g += '<line x1="1080" y1="110" x2="1080" y2="' + (H - 110) + '" stroke="#b9ac94" stroke-width="2"/>';
-      // collage: la mejor foto grande, otras tres pequeñas debajo
-      if (ph[0]) g += photo(92, 92, 900, 560, ph[0].im, -1.2, '', 18);
-      var title = dest;
-      g += '<g filter="url(#tsh)"><text x="128" y="540" font-family="' + sans + '" font-size="30" font-weight="800" letter-spacing="6" fill="#fff">' + xml(tr('RECUERDOS DE')) + '</text>' +
-        '<text x="124" y="626" font-family="' + serif + '" font-style="italic" font-weight="700" font-size="' + (title.length > 14 ? 76 : 104) + '" fill="#fff">' + xml(fitTxt(title, 'italic 700 ' + (title.length > 14 ? 76 : 104) + 'px ' + serif, 820)) + '</text></g>';
-      [[110, 760, -4], [420, 772, 2.5], [730, 758, -2]].forEach(function (p, k) { var x = ph[k + 1]; if (x) g += photo(p[0], p[1], 260, 180, x.im, p[2], x.c.ti); });
-      // sello dentado con la foto de otro sitio y el color del cromo más raro
+      function svg(defs, body) { return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid slice"><defs>' + defs + '</defs>' + body + '</svg>'; }
+      function photo(x, y, w, h, im, rot, cap) {
+        var u = jpeg(im, w * 1.6, h * 1.6), p = 16, bh = cap ? 62 : p;
+        return '<g transform="rotate(' + rot + ' ' + (x + w / 2) + ' ' + (y + h / 2) + ')"><rect x="' + (x - p) + '" y="' + (y - p) + '" width="' + (w + 2 * p) + '" height="' + (h + p + bh) + '" fill="#fffdf8" filter="url(#pcSh)"/>' +
+          (u ? '<image href="' + u + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid slice"/>' : '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#cfc6b4"/>') +
+          (cap ? '<text x="' + (x + w / 2) + '" y="' + (y + h + 43) + '" text-anchor="middle" font-family="' + hand + '" font-size="27" fill="' + ink + '">' + xml(fitTxt(cap, '27px ' + hand, w)) + '</text>' : '') + '</g>';
+      }
+      // ----- delante: la foto principal entera, con el nombre del sitio -----
+      var tsz = dest.length > 14 ? 120 : 168, front = '';
+      if (ph[0]) front += '<image href="' + jpeg(ph[0].im, W, H) + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="xMidYMid slice"/>';
+      else front += '<rect width="' + W + '" height="' + H + '" fill="#2f3a5c"/>';
+      front += '<rect width="' + W + '" height="' + H + '" fill="url(#pcFade)"/>' +
+        '<text x="96" y="' + (H - 120 - tsz * 0.95) + '" font-family="' + sans + '" font-size="38" font-weight="800" letter-spacing="9" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width="4" paint-order="stroke">' + xml(tr('RECUERDOS DE')) + '</text>' +
+        '<text x="88" y="' + (H - 120) + '" font-family="' + serif + '" font-style="italic" font-weight="700" font-size="' + tsz + '" fill="#fff" stroke="rgba(0,0,0,.22)" stroke-width="6" paint-order="stroke">' + xml(fitTxt(dest, 'italic 700 ' + tsz + 'px ' + serif, 1500)) + '</text>' +
+        '<text x="' + (W - 90) + '" y="' + (H - 66) + '" text-anchor="end" font-family="' + sans + '" font-size="30" font-weight="700" letter-spacing="3" fill="rgba(255,255,255,.88)">' + xml(dd ? dd.toUpperCase() + ' ' + year : '') + '</text>' +
+        (ph[0] ? '<text x="' + (W - 90) + '" y="' + (H - 112) + '" text-anchor="end" font-family="' + hand + '" font-size="34" fill="rgba(255,255,255,.92)">' + xml(fitTxt(ph[0].c.ti, '34px ' + hand, 700)) + '</text>' : '');
+      front = svg('<linearGradient id="pcFade" x1="0" y1="0" x2="0" y2="1"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></linearGradient>', front);
+      // ----- detrás: papel, borde de correo aéreo, fotos, sello, matasellos, mensaje, datos y ruta -----
+      var g = '<rect width="' + W + '" height="' + H + '" fill="url(#pcAir)"/><rect x="26" y="26" width="' + (W - 52) + '" height="' + (H - 52) + '" fill="#f6efe0"/>' +
+        '<line x1="1080" y1="110" x2="1080" y2="' + (H - 110) + '" stroke="#b9ac94" stroke-width="2"/>';
+      [[120, 130, 390, 270, -3], [575, 150, 390, 270, 2.5], [130, 575, 390, 270, 1.8], [585, 590, 390, 270, -2.2]].forEach(function (p, k) { var x = ph[k + 1] || (k === 0 && ph.length === 1 ? ph[0] : null); if (x) g += photo(p[0], p[1], p[2], p[3], x.im, p[4], x.c.ti); });
       var sx = 1590, sy = 90, sw = 230, sh = 280, sp = ph[1] || ph[0];
-      g += '<g filter="url(#sh)"><rect x="' + sx + '" y="' + sy + '" width="' + sw + '" height="' + sh + '" fill="#fffdf8" mask="url(#perf)"/></g>' +
+      g += '<g filter="url(#pcSh)"><rect x="' + sx + '" y="' + sy + '" width="' + sw + '" height="' + sh + '" fill="#fffdf8" mask="url(#pcPerf)"/></g>' +
         '<rect x="' + (sx + 16) + '" y="' + (sy + 16) + '" width="' + (sw - 32) + '" height="' + (sh - 32) + '" fill="' + M[0] + '"/>' +
-        (sp ? '<image href="' + jpeg(sp.im, sw - 48, sh - 96) + '" x="' + (sx + 24) + '" y="' + (sy + 24) + '" width="' + (sw - 48) + '" height="' + (sh - 96) + '" preserveAspectRatio="xMidYMid slice"/>' : '') +
+        (sp ? '<image href="' + jpeg(sp.im, (sw - 48) * 2, (sh - 96) * 2) + '" x="' + (sx + 24) + '" y="' + (sy + 24) + '" width="' + (sw - 48) + '" height="' + (sh - 96) + '" preserveAspectRatio="xMidYMid slice"/>' : '') +
         '<text x="' + (sx + sw / 2) + '" y="' + (sy + sh - 48) + '" text-anchor="middle" font-family="' + sans + '" font-weight="800" font-size="18" letter-spacing="2" fill="' + M[1] + '">' + xml(fitTxt(String(country).toUpperCase(), '800 18px ' + sans, sw - 56)) + '</text>' +
         '<text x="' + (sx + sw / 2) + '" y="' + (sy + sh - 25) + '" text-anchor="middle" font-family="' + serif + '" font-weight="700" font-size="21" fill="' + M[1] + '">' + year + '</text>';
-      // matasellos: doble círculo, texto en curva y ondas
       var mx = 1545, my = 270, r = 96;
       g += '<g opacity=".78" fill="none" stroke="' + ink + '" transform="rotate(-12 ' + mx + ' ' + my + ')"><circle cx="' + mx + '" cy="' + my + '" r="' + r + '" stroke-width="4"/><circle cx="' + mx + '" cy="' + my + '" r="' + (r - 30) + '" stroke-width="2.5"/>' +
-        '<path id="pmT" d="M' + (mx - r + 16) + ' ' + my + ' A' + (r - 16) + ' ' + (r - 16) + ' 0 0 1 ' + (mx + r - 16) + ' ' + my + '"/><path id="pmB" d="M' + (mx - r + 34) + ' ' + my + ' A' + (r - 34) + ' ' + (r - 34) + ' 0 0 0 ' + (mx + r - 34) + ' ' + my + '"/>' +
-        '<text font-family="' + sans + '" font-weight="800" font-size="20" letter-spacing="3" fill="' + ink + '" stroke="none"><textPath href="#pmT" startOffset="50%" text-anchor="middle">' + xml(fitTxt(String(cities[0] || dest).toUpperCase(), '800 20px ' + sans, 230)) + '</textPath></text>' +
-        '<text font-family="' + sans + '" font-weight="800" font-size="17" letter-spacing="2" fill="' + ink + '" stroke="none"><textPath href="#pmB" startOffset="50%" text-anchor="middle">' + xml(tr('GUÍA DE VIAJE')) + '</textPath></text>' +
+        '<path id="pcPmT" d="M' + (mx - r + 16) + ' ' + my + ' A' + (r - 16) + ' ' + (r - 16) + ' 0 0 1 ' + (mx + r - 16) + ' ' + my + '"/><path id="pcPmB" d="M' + (mx - r + 34) + ' ' + my + ' A' + (r - 34) + ' ' + (r - 34) + ' 0 0 0 ' + (mx + r - 34) + ' ' + my + '"/>' +
+        '<text font-family="' + sans + '" font-weight="800" font-size="20" letter-spacing="3" fill="' + ink + '" stroke="none"><textPath href="#pcPmT" startOffset="50%" text-anchor="middle">' + xml(fitTxt(String(cities[0] || dest).toUpperCase(), '800 20px ' + sans, 230)) + '</textPath></text>' +
+        '<text font-family="' + sans + '" font-weight="800" font-size="17" letter-spacing="2" fill="' + ink + '" stroke="none"><textPath href="#pcPmB" startOffset="50%" text-anchor="middle">' + xml(tr('GUÍA DE VIAJE')) + '</textPath></text>' +
         '<text x="' + mx + '" y="' + (my + 9) + '" text-anchor="middle" font-family="' + sans + '" font-weight="800" font-size="25" fill="' + ink + '" stroke="none">' + xml(d1 ? d1.toLocaleDateString(lg(), { day: '2-digit', month: 'short', timeZone: 'UTC' }).toUpperCase() : '') + '</text>';
       for (var k = 0; k < 5; k++) { var yy = my - 44 + k * 22, dpath = 'M' + (mx - r - 250) + ' ' + yy; for (var q = 0; q < 6; q++) dpath += ' q 20 ' + (q % 2 ? 14 : -14) + ' 40 0'; g += '<path d="' + dpath + '" stroke-width="3"/>'; }
       g += '</g>';
-      // mensaje a mano
-      var top3 = ph.slice(0, 2).map(function (x) { return x.c.ti; }), msg = (en ? 'Hi! ' + nd + ' days in ' + dest + '. The best bits: ' : '¡Hola! ' + nd + ' días por ' + dest + '. Lo mejor: ') +
-        (top3.length > 1 ? top3.slice(0, -1).join(', ') + (en ? ' and ' : ' y ') + top3[top3.length - 1] : top3[0] || '') + '. ' + (en ? 'Wish you were here!' : '¡Ojalá estuvieras aquí!');
+      var top2 = ph.slice(0, 2).map(function (x) { return x.c.ti; }), msg = (en ? 'Hi! ' + nd + ' days in ' + dest + '. The best bits: ' : '¡Hola! ' + nd + ' días por ' + dest + '. Lo mejor: ') +
+        (top2.length > 1 ? top2[0] + (en ? ' and ' : ' y ') + top2[1] : top2[0] || '') + '. ' + (en ? 'Wish you were here!' : '¡Ojalá estuvieras aquí!');
       lines(msg, '38px ' + hand, 390).slice(0, 9).forEach(function (ln, i) { g += '<text x="1130" y="' + (480 + i * 54) + '" font-family="' + hand + '" font-size="38" fill="' + ink + '">' + xml(ln) + '</text>'; });
-      // «dirección»: los datos del viaje en líneas
-      var fo2 = { day: 'numeric', month: 'short', timeZone: 'UTC' }, dd = d1 ? d1.toLocaleDateString(lg(), fo2) + ' – ' + d2.toLocaleDateString(lg(), fo2) : '';
       var rows = [dd, cities.length > 1 ? cities[0] + ' → ' + cities[cities.length - 1] : cities[0] || dest, nd + (en ? (nd === 1 ? ' day' : ' days') : (nd === 1 ? ' día' : ' días')) + (km ? ' · ' + Math.round(km) + ' km' : ''), got.length + (en ? ' cards' : ' cromos'), gold ? gold + (en ? ' gold or better' : ' de oro o más') : ''].filter(Boolean);
       rows.forEach(function (rw, i) { var y = 480 + i * 66; g += '<line x1="1560" y1="' + (y + 14) + '" x2="1830" y2="' + (y + 14) + '" stroke="#b9ac94" stroke-width="2"/><text x="1564" y="' + y + '" font-family="' + hand + '" font-size="26" fill="' + ink + '">' + xml(fitTxt(rw, '26px ' + hand, 280)) + '</text>'; });
-      // la ruta, a mano alzada
       var pts = []; bt.days.forEach(function (d) { d.items.forEach(function (it) { if (it.lat != null && (!window.Mapa || Mapa.isSight(it))) pts.push(it); }); });
       if (pts.length > 1) {
         var b0 = { s: 90, n: -90, w: 180, e: -180 }; pts.forEach(function (p) { b0.s = Math.min(b0.s, p.lat); b0.n = Math.max(b0.n, p.lat); b0.w = Math.min(b0.w, p.lon); b0.e = Math.max(b0.e, p.lon); });
@@ -402,31 +383,92 @@ window.Album = (function () {
         g += '<polyline points="' + P.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + '" fill="none" stroke="#c8382e" stroke-width="3.5" stroke-dasharray="2 9" stroke-linecap="round" stroke-linejoin="round"/>' +
           '<circle cx="' + P[0][0].toFixed(1) + '" cy="' + P[0][1].toFixed(1) + '" r="8" fill="' + ink + '"/><circle cx="' + P[P.length - 1][0].toFixed(1) + '" cy="' + P[P.length - 1][1].toFixed(1) + '" r="8" fill="none" stroke="' + ink + '" stroke-width="3.5"/>';
       }
-      g += '<text x="1130" y="' + (H - 66) + '" text-anchor="start" font-family="' + sans + '" font-size="18" font-weight="700" letter-spacing="3" fill="#a0937b">' + xml(tr('GUÍA DE VIAJE')) + '</text>';
-      // perforado del sello: círculos que se comen el borde
+      g += '<text x="1130" y="' + (H - 66) + '" font-family="' + sans + '" font-size="18" font-weight="700" letter-spacing="3" fill="#a0937b">' + xml(tr('GUÍA DE VIAJE')) + '</text>';
       var holes = ''; for (var hx = sx; hx <= sx + sw + 1; hx += 23) holes += '<circle cx="' + hx + '" cy="' + sy + '" r="8"/><circle cx="' + hx + '" cy="' + (sy + sh) + '" r="8"/>';
       for (var hy = sy; hy <= sy + sh + 1; hy += 23.3) holes += '<circle cx="' + sx + '" cy="' + hy + '" r="8"/><circle cx="' + (sx + sw) + '" cy="' + hy + '" r="8"/>';
-      var defs = '<defs><pattern id="air" width="90" height="90" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="22" height="90" fill="#c8382e"/><rect x="45" width="22" height="90" fill="#22396b"/></pattern>' +
-        '<filter id="sh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#3b2f1c" flood-opacity=".28"/></filter>' +
-        '<filter id="tsh"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter>' +
-        '<filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" values="0 0 0 0 .55  0 0 0 0 .47  0 0 0 0 .35  0 0 0 .07 0" result="c"/><feComposite in="c" in2="SourceGraphic" operator="in" result="t"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="t"/></feMerge></filter>' +
-        '<mask id="perf"><rect x="' + (sx - 10) + '" y="' + (sy - 10) + '" width="' + (sw + 20) + '" height="' + (sh + 20) + '" fill="#fff"/><g fill="#000">' + holes + '</g></mask></defs>';
-      var svg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + defs + g + '</svg>';
-      postSvg = new Blob([svg], { type: 'image/svg+xml' });
-      var name = 'postal-' + id, url = URL.createObjectURL(postSvg), im = new Image();
-      im.onload = function () {
-        // PNG en Full HD para compartir; si el navegador no deja leer el lienzo, se comparte el SVG
-        var c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(im, 0, 0, W, H);
-        function show(bl, nm) {
-          restore(); postBlob = bl; postName = nm;
-          var box = $('#postBox'); if (!box) return;
-          $('#postImg').src = url; box.hidden = false; box.scrollIntoView({ behavior: 'smooth' });
-        }
-        try { c.toBlob(function (bl) { show(bl || postSvg, bl ? name + '.png' : name + '.svg'); }, 'image/png'); } catch (e) { show(postSvg, name + '.svg'); }
-      };
-      im.onerror = function () { restore(); };
-      im.src = url;
+      var back = svg('<pattern id="pcAir" width="90" height="90" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="90" height="90" fill="#f6efe0"/><rect width="22" height="90" fill="#c8382e"/><rect x="45" width="22" height="90" fill="#22396b"/></pattern>' +
+        '<filter id="pcSh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#3b2f1c" flood-opacity=".28"/></filter>' +
+        '<mask id="pcPerf"><rect x="' + (sx - 10) + '" y="' + (sy - 10) + '" width="' + (sw + 20) + '" height="' + (sh + 20) + '" fill="#fff"/><g fill="#000">' + holes + '</g></mask>', g);
+      busy(false);
+      postcard3d(front, back);
+    }, function () { busy(false); });
+  }
+  // el visor: girar con un dedo (se asienta de frente o de espaldas), pellizcar para acercar, doble toque, rueda
+  function postcard3d(front, back) {
+    var old = document.getElementById('pcView'); if (old) old.remove();
+    var v = document.createElement('div'); v.className = 'pcv'; v.id = 'pcView';
+    v.innerHTML = '<div class="pcv-top"><button type="button" class="pcv-b2 sq" data-pv="flip">Darle la vuelta</button><button type="button" class="pcv-x sq" data-pv="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
+      '<div class="pcv-stage"><div class="pcv-zoom"><div class="pcv-card in"><div class="pcv-face pcv-f">' + front + '<i class="pcv-gl"></i></div><div class="pcv-face pcv-bk">' + back + '<i class="pcv-gl"></i></div></div></div></div>' +
+      '<p class="pcv-hint">Arrastra para girarla · pellizca para acercar</p>';
+    var stage = v.querySelector('.pcv-stage'), zoom = v.querySelector('.pcv-zoom'), card = v.querySelector('.pcv-card');
+    var S = { rx: 0, ry: 0, s: 1, x: 0, y: 0 }, P = {}, rot = null, pinch = null, pan = null, lastTap = 0;
+    function size() { var w = Math.min(window.innerWidth - 28, (window.innerHeight - 170) * 16 / 9, 1100); card.style.width = w + 'px'; card.style.height = (w * 9 / 16) + 'px'; }
+    function turn(rx, ry, snap) {
+      S.rx = rx; S.ry = ry; card.classList.toggle('snap', !!snap);
+      var face = ((ry % 360) + 360) % 360, off = Math.min(face, Math.abs(face - 180), 360 - face);
+      card.style.setProperty('--rx', rx.toFixed(1) + 'deg'); card.style.setProperty('--ry', ry.toFixed(1) + 'deg');
+      card.style.setProperty('--gx', (50 + (((ry % 180) + 270) % 180 - 90) * 0.9).toFixed(0) + '%'); card.style.setProperty('--go', Math.min(1, (off + Math.abs(rx)) / 35).toFixed(2));
+    }
+    function place(smooth) {
+      var w = card.offsetWidth, h = card.offsetHeight, mx = Math.max(0, (S.s - 1) * w / 2 + 40), my = Math.max(0, (S.s - 1) * h / 2 + 40);
+      S.x = Math.max(-mx, Math.min(mx, S.x)); S.y = Math.max(-my, Math.min(my, S.y));
+      zoom.classList.toggle('snap', !!smooth); v.classList.toggle('zoomed', S.s > 1.02);
+      zoom.style.transform = 'translate(' + S.x.toFixed(1) + 'px,' + S.y.toFixed(1) + 'px) scale(' + S.s.toFixed(3) + ')';
+    }
+    function zoomTo(s, cx, cy, smooth) {
+      var r = stage.getBoundingClientRect(), ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2), k = s / S.s;
+      S.x = ox - (ox - S.x) * k; S.y = oy - (oy - S.y) * k; S.s = s;
+      if (s <= 1.02) { S.s = 1; S.x = 0; S.y = 0; }
+      // de cerca, la cara que se ve queda plana: así el texto se vuelve a dibujar nítido
+      if (S.s > 1) turn(0, Math.round(S.ry / 180) * 180, true);
+      place(smooth);
+    }
+    function pts() { return Object.keys(P).map(function (k) { return P[k]; }); }
+    stage.addEventListener('pointerdown', function (e) {
+      P[e.pointerId] = { x: e.clientX, y: e.clientY }; try { stage.setPointerCapture(e.pointerId); } catch (er) {}
+      var p = pts();
+      if (p.length === 2) {
+        rot = null; pan = null;
+        pinch = { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, s: S.s, x: S.x, y: S.y, mx: (p[0].x + p[1].x) / 2, my: (p[0].y + p[1].y) / 2 };
+      } else if (p.length === 1) {
+        var now = Date.now();
+        if (now - lastTap < 300) { zoomTo(S.s > 1.05 ? 1 : 2.5, e.clientX, e.clientY, true); lastTap = 0; return; }
+        lastTap = now;
+        if (S.s > 1.02) pan = { x: e.clientX, y: e.clientY, sx: S.x, sy: S.y };
+        else rot = { x: e.clientX, y: e.clientY, ry: S.ry };
+      }
     });
+    stage.addEventListener('pointermove', function (e) {
+      if (!P[e.pointerId]) return; P[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var p = pts();
+      if (pinch && p.length >= 2) {
+        var d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), mx = (p[0].x + p[1].x) / 2, my = (p[0].y + p[1].y) / 2;
+        var s = Math.max(1, Math.min(5, pinch.s * d / pinch.d)), r = stage.getBoundingClientRect(), ox = pinch.mx - (r.left + r.width / 2), oy = pinch.my - (r.top + r.height / 2), k = s / pinch.s;
+        S.s = s; S.x = ox - (ox - pinch.x) * k + (mx - pinch.mx); S.y = oy - (oy - pinch.y) * k + (my - pinch.my);
+        if (s > 1.02 && (S.rx || S.ry % 180)) turn(0, Math.round(S.ry / 180) * 180, true);
+        place(false); return;
+      }
+      if (pan) { S.x = pan.sx + e.clientX - pan.x; S.y = pan.sy + e.clientY - pan.y; place(false); return; }
+      if (rot) { var dx = e.clientX - rot.x, dy = e.clientY - rot.y; if (Math.abs(dx) + Math.abs(dy) > 4) lastTap = 0; turn(Math.max(-25, Math.min(25, -dy * 0.25)), rot.ry + dx * 0.5, false); }
+    });
+    function up(e) {
+      delete P[e.pointerId];
+      if (pinch && pts().length < 2) { pinch = null; if (S.s < 1.05) zoomTo(1, 0, 0, true); var q = pts()[0]; if (q && S.s > 1.02) pan = { x: q.x, y: q.y, sx: S.x, sy: S.y }; return; }
+      if (pan && !pts().length) pan = null;
+      if (rot && !pts().length) { rot = null; turn(0, Math.round(S.ry / 180) * 180, true); }   // se asienta con rebote
+    }
+    stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+    stage.addEventListener('wheel', function (e) { e.preventDefault(); zoomTo(Math.max(1, Math.min(5, S.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15))), e.clientX, e.clientY, false); }, { passive: false });
+    v.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pv]'), a = b && b.getAttribute('data-pv');
+      if (a === 'close') { v.classList.add('out'); window.removeEventListener('resize', size); setTimeout(function () { v.remove(); }, 260); }
+      else if (a === 'flip') { if (S.s > 1) zoomTo(1, 0, 0, true); turn(0, S.ry + 180, true); }
+    });
+    window.addEventListener('resize', size);
+    if (window.Lang) Lang.watch(v);
+    document.body.appendChild(v);
+    card.addEventListener('animationend', function () { card.classList.remove('in'); });
+    size(); turn(0, 0, true);
   }
   function loadImg(src) {
     return new Promise(function (res) {
@@ -437,13 +479,7 @@ window.Album = (function () {
       (window.Mapa ? Mapa.corsUrl(abs, 1280).catch(function () { return abs; }) : Promise.resolve(abs)).then(function (u) { im.src = u; });
     });
   }
-  // compartir la postal en PNG Full HD (si el navegador no deja leer el lienzo, el SVG)
-  function postSave() {
-    var bl = postBlob, nm = postName;
-    if (!bl) return; var f = null; try { f = new File([bl], nm, { type: bl.type || 'image/png' }); } catch (e) {}
-    if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: nm }).catch(function () {}); return; }
-    var a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = nm; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 2000);
-  }
+
 
   /* ---------- Insignias: 12 categorías con 5 niveles, con los materiales de los cromos ---------- */
   var BIC = {
@@ -597,9 +633,6 @@ window.Album = (function () {
       if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), po.getAttribute('data-pktrip') || '', cards, function () { renderAlbum(); }); }); return; }
       if (c) openCromo(c.getAttribute('data-cr'));
       else if (pb) makePostcard(pb.getAttribute('data-post'), pb);
-      else if (t.closest('#postSave')) postSave();
-      else if (t.closest('#postImg')) postView();
-      else if (t.closest('#postClose')) $('#postBox').hidden = true;
       else if (t.closest('#albExp')) (cfg.backupTrips ? cfg.backupTrips() : Promise.resolve([])).then(function (tr0) {
         var g0 = window.Juego ? Juego.get() : null; if (g0) { g0.backup = Date.now(); Juego.save(g0); }
         download({ app: 'guia-album', at: new Date().toISOString(), album: albumGet(), game: g0, trips: tr0 }, 'guia-viaje-copia-' + today() + '.json');

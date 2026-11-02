@@ -2279,7 +2279,7 @@ var View = (function () {
       return '<div class="sh-in"><div class="eyebrow o">' + esc(((window.TRIP_META || {}).title || {})[I18N.lang] || ((window.TRIP_META || {}).title || {}).es || '') + '</div><h2>' + L('albT') + '</h2>' +
         '<div class="pr-seg" role="group"><button type="button" class="pr-sb sq on" data-albtab="album" aria-pressed="true">' + ic('camera') + L('albTabA') + '</button><button type="button" class="pr-sb sq" data-albtab="profile" aria-pressed="false">' + ic('check') + L('albTabP') + '</button></div>' +
         '<section data-albsec="album"><p class="sh-lead">' + L('albHint') + '</p><div id="albumBox"></div>' +
-          '<div class="card" id="postBox" hidden><div class="eyebrow">Tu postal</div><img id="postImg" alt="Postal del viaje"><div class="btn-row"><button type="button" class="btn navy sq" id="postSave">Compartir</button><button type="button" class="btn ghost sq" id="postClose">Cerrar</button></div></div></section>' +
+          '</section>' +
         '<section data-albsec="profile" hidden><div id="profBox"></div><div class="card"><div class="eyebrow">Copia del álbum</div><p class="wx-note" style="margin-top:0">' + L('albCopyNote') + '</p>' +
           '<div class="btn-row"><button type="button" class="btn ghost sq" id="albExp">Guardar copia</button><label class="btn ghost sq">Cargar copia<input type="file" accept="application/json,.json" id="albImp" hidden></label></div></div></section></div>';
     }

@@ -201,7 +201,7 @@ window.Mundo = (function () {
       .concat(Object.keys(S.N).filter(function (c) { return !S.V[c]; }).map(function (c) { return { c: c, y: firstYear(S.N[c]), next: true }; }));
     if (!rows.length) return '';
     var got = rows.filter(function (r) { return !r.next; }).length;
-    return '<div class="pf-h">Mi pasaporte <small>' + got + (got === 1 ? ' sello' : ' sellos') + '</small></div><div class="mw-stamps">' + rows.map(function (r, i) {
+    return '<div class="pf-h">Mi pasaporte <small>' + got + (got === 1 ? ' sello' : ' sellos') + '</small></div><p class="mw-pp">Un sello por cada país que visitas. Se consigue al empezar un viaje allí; los de tus próximos viajes salen en gris.</p><div class="mw-stamps">' + rows.map(function (r, i) {
       var col = 0; for (var k = 0; k < r.c.length; k++) col += r.c.charCodeAt(k);
       return '<button type="button" class="mw-stamp sq' + (r.next ? ' next' : '') + '" data-c="' + esc(r.c) + '" style="--c:' + STAMP[col % STAMP.length] + '"><span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.next ? 'Por visitar' : esc(r.y) + (r.n > 1 ? ' · ×' + r.n : '')) + '</small></button>';
     }).join('') + '</div>';
