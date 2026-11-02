@@ -910,7 +910,8 @@ window.Mundo = (function () {
       Album.overview().then(function (O) {
         var S = statsOf(O.trips), L = levelOf(S, O.got), was = 0;
         try { was = +(localStorage.getItem('guia-nivel') || 0); localStorage.setItem('guia-nivel', String(L.n)); } catch (e) { return; }
-        if (was && L.n > was) levelUp(was, L, S.done.length ? travelType(S.done) : null);
+        // el mismo icono que en la portada del perfil
+        if (was && L.n > was) levelUp(was, L, O.trips.length ? travelType(S.done.length ? S.done : O.trips) : null);
       }).catch(function () {});
     }, 700);
   }
