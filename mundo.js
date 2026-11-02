@@ -291,10 +291,10 @@ window.Mundo = (function () {
     setTimeout(function () { if (cur === 0) go(1); }, 650);
   }
   function heroHTML(trips, base) {
-    var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100, sm = window.Lang && Lang.simple && Lang.simple();
-    return '<div class="pf-hero' + (sm ? ' sm' : '') + '">' +
-      '<span class="pf-badge">' + (sm ? '' : borderSVG(BORDERS[L.n - 1])) + '<span>' + (T ? T.ico : '🧭') + '</span></span><div class="pf-hm"><small>Tu estilo de viaje</small><b>' + esc(T ? T.t : 'Sin viajes aún') + '</b></div>' +
-      (sm ? '' : '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · <u class="nm">' + esc(L.name) + '</u></span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' XP' : L.pts + ' XP') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>') +
+    var S = statsOf(trips), list = S.done.length ? S.done : trips, T = list.length ? travelType(list) : null, L = levelOf(S, (base || {}).got), pc = S.km / EARTH_KM * 100;
+    return '<div class="pf-hero">' +
+      '<span class="pf-badge">' + borderSVG(BORDERS[L.n - 1]) + '<span>' + (T ? T.ico : '🧭') + '</span></span><div class="pf-hm"><small>Tu estilo de viaje</small><b>' + esc(T ? T.t : 'Sin viajes aún') + '</b></div>' +
+      '<div class="pf-lv"><span><b>Nivel ' + L.n + '</b> · <u class="nm">' + esc(L.name) + '</u></span><span>' + (L.next ? L.pts + ' / ' + L.next[0] + ' XP' : L.pts + ' XP') + '</span></div><span class="pf-bar"><i style="width:' + L.pc + '%"></i></span>' +
       '<div class="pf-world"><span>🌍 Vuelta al mundo</span><span>' + (pc < 10 ? pc.toFixed(1).replace('.', lg() === 'en' ? '.' : ',') : Math.round(pc)) + ' % · ' + fmtN(S.km) + ' km</span></div><span class="pf-bar w"><i style="width:' + Math.min(100, pc).toFixed(1) + '%"></i></span></div>';
   }
 
@@ -360,7 +360,6 @@ window.Mundo = (function () {
   function playable(trips) { return trips.filter(function (t) { return quizPool([t]).list.length >= 4; }); }
   // losa grande del perfil: fotos de tus viajes, récord y partidas
   function quizCardHTML(trips) {
-    if (window.Lang && Lang.simple && Lang.simple()) return '';
     var rows = playable(trips); if (!rows.length) return '';
     var S = quizStore(), fan = rows.filter(function (t) { return t.cover; }).slice(0, 3);
     return '<button type="button" class="qzb sq" id="pfQuiz"><span class="qzb-fan">' + fan.map(function (t, i) { return '<i style="--r:' + ((i - (fan.length - 1) / 2) * 9) + 'deg;--x:' + ((i - (fan.length - 1) / 2) * 30) + 'px;background-image:url(&quot;' + esc(t.cover) + '&quot;)"></i>'; }).join('') + '<u>?</u></span>' +
@@ -912,7 +911,7 @@ window.Mundo = (function () {
         var S = statsOf(O.trips), L = levelOf(S, O.got), was = 0;
         try { was = +(localStorage.getItem('guia-nivel') || 0); localStorage.setItem('guia-nivel', String(L.n)); } catch (e) { return; }
         // el mismo icono que en la portada del perfil
-        if (was && L.n > was && !(window.Lang && Lang.simple && Lang.simple())) levelUp(was, L, O.trips.length ? travelType(S.done.length ? S.done : O.trips) : null);
+        if (was && L.n > was) levelUp(was, L, O.trips.length ? travelType(S.done.length ? S.done : O.trips) : null);
       }).catch(function () {});
     }, 700);
   }
