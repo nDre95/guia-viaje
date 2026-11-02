@@ -255,7 +255,7 @@ window.Motor = (function () {
   function placeInfo(name) {
     var L0 = ui() === 'en' ? ['en', 'es'] : ['es', 'en'];
     return wikiSummary(L0[0], name).then(function (s) { return s && s.extract && s.type !== 'disambiguation' ? s : wikiSummary(L0[1], name); }).then(function (s) {
-      return s ? { text: firstSentences(s.extract || '', 2), img: s.originalimage ? (s.thumbnail || s.originalimage).source.replace(/\/\d+px-/, '/800px-') : '' } : null;
+      return s ? { text: firstSentences(s.extract || '', 2), img: s.originalimage ? (s.thumbnail || s.originalimage).source.replace(/\/\d+px-/, '/960px-') : '' } : null;
     });
   }
 
@@ -882,7 +882,7 @@ window.Motor = (function () {
         return wikiSummary(p.wiki[0], p.wiki[1]).then(function (sm) {
           if (!sm) return;
           p.lead = firstSentences(sm.extract || '', 2);
-          if (!p.img && sm.thumbnail && sm.thumbnail.source) p.img = sm.thumbnail.source.replace(/\/\d+px-/, '/800px-');
+          if (!p.img && sm.thumbnail && sm.thumbnail.source) p.img = sm.thumbnail.source.replace(/\/\d+px-/, '/960px-');
           p.page = sm.content_urls && sm.content_urls.desktop && sm.content_urls.desktop.page;
         });
       }).then(function () { s7.ok(list.filter(function (p) { return p.img; }).length + ' fotos y ' + list.filter(function (p) { return p.lead; }).length + ' descripciones'); return R; });

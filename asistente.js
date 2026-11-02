@@ -34,10 +34,20 @@ window.Asistente = (function () {
 
   function open(o) {
     cfg = o || cfg; A = fresh(); page = 0; done = null; busy = false;
+    // desde una idea de temporada: el país ya elegido y la fecha en su mes
+    var pre = (o || {}).preset;
+    if (pre && pre.country) {
+      var k = { name: pre.country.name, cc: pre.country.cc, wd: pre.country.wd }; A.countries.push(k);
+      Motor.placeInfo(k.name).then(function (i) { if (i) { k.text = i.text; redraw(); } }).catch(function () {});
+      Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; redraw(); });
+      if (pre.start) A.start = pre.start;
+    }
     var w = $('#wz'); w.hidden = false; document.documentElement.classList.add('wz-open');
     requestAnimationFrame(function () { w.classList.add('on'); });
     show(1);
   }
+  // vuelve a pintar la página de países cuando llegan los datos del país elegido de antemano
+  function redraw() { var cs = document.querySelectorAll('#wzBody .wz-page .wz-c'), c0 = cs[cs.length - 1]; if (c0 && PAGES[page].id === 'pais') PAGES[page].draw(c0); }
   function close() {
     if (busy && !confirm('Se está creando la guía. ¿Cerrar de todos modos?')) return;
     if (!busy && !done && A && (A.countries.length || A.cities.length) && !confirm('¿Salir sin crear el viaje?')) return;

@@ -320,6 +320,30 @@ window.Mapa = (function () {
       return { x: u * u * l.ax + 2 * u * f * l.cx + f * f * l.bx, y: u * u * l.ay + 2 * u * f * l.cy + f * f * l.by, a: Math.atan2(dy, dx) * 180 / Math.PI, m: l.m, right: dx >= 0 };
     }
 
+    // cámara con muelle: sigue a la cámara ideal con algo de inercia y un pequeño rebote al acercarse o alejarse
+    var spr = null, RM = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+    function spring(T, dt) {
+      var tl = Math.log(T.s);
+      if (!spr || RM || spr.W !== W || spr.H !== H) { spr = { x: T.x, y: T.y, l: tl, vx: 0, vy: 0, vl: 0, W: W, H: H }; return { T: T, busy: false }; }
+      var w = 7.5, z = 0.68, n = Math.max(1, Math.ceil(dt / 16)), h = dt / 1000 / n;
+      for (var k = 0; k < n; k++) {
+        spr.vx += (w * w * (T.x - spr.x) - 2 * z * w * spr.vx) * h; spr.x += spr.vx * h;
+        spr.vy += (w * w * (T.y - spr.y) - 2 * z * w * spr.vy) * h; spr.y += spr.vy * h;
+        spr.vl += (w * w * (tl - spr.l) - 2 * z * w * spr.vl) * h; spr.l += spr.vl * h;
+      }
+      var px = T.s, busy = Math.abs(T.x - spr.x) * px > 0.3 || Math.abs(T.y - spr.y) * px > 0.3 || Math.abs(tl - spr.l) > 0.002 || Math.abs(spr.vx) * px > 2 || Math.abs(spr.vy) * px > 2 || Math.abs(spr.vl) > 0.01;
+      if (!busy) { spr.x = T.x; spr.y = T.y; spr.l = tl; spr.vx = spr.vy = spr.vl = 0; }
+      return { T: { x: spr.x, y: spr.y, s: Math.exp(spr.l) }, busy: busy };
+    }
+    // escala de una burbuja: muelle poco amortiguado, para que la foto del sitio al que llegas dé un saltito
+    function pop(q, to, dt) {
+      if (q.ks == null || RM) { q.ks = to; q.kv = 0; return false; }
+      var w = 15, z = 0.38, n = Math.max(1, Math.ceil(dt / 16)), h = dt / 1000 / n;
+      for (var k = 0; k < n; k++) { q.kv += (w * w * (to - q.ks) - 2 * z * w * q.kv) * h; q.ks += q.kv * h; }
+      if (Math.abs(to - q.ks) < 0.002 && Math.abs(q.kv) < 0.02) { q.ks = to; q.kv = 0; return false; }
+      return true;
+    }
+
     /* ----- dibujo ----- */
     function halo(txt, x, y, col, hal, lw) { g.lineJoin = 'round'; g.lineWidth = lw; g.strokeStyle = hal; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); }
     function drawLeg(l, t1, alpha, sx, sy) {
@@ -360,6 +384,7 @@ window.Mapa = (function () {
       var cam = camAt(v);
       if (mem.ovr > 0) cam = mix(cam, over, ease(mem.ovr));
       if (tr < 1 && trFrom) { tr = Math.min(1, tr + dt / 900); cam = mix(trFrom, cam, ease(tr)); again = true; }
+      var sp0 = spring(cam, dt); cam = sp0.T; if (sp0.busy) again = true;
       var s = cam.s, ox = W / 2 - cam.x * s, oy = H / 2 - cam.y * s;
       function sx(x) { return x * s + ox; }
       function sy(y) { return y * s + oy; }
@@ -414,7 +439,8 @@ window.Mapa = (function () {
       drawn = [];
       cand.slice().reverse().forEach(function (q) {
         if (q.a <= 0.3) return;
-        var cur = M.seq[curI] === q, x = sx(q.x), y = sy(q.y), k = q.a * (cur ? 1.28 : 1), r = R * k, by = y - r - 9 * k, col = COLORS[q.di % COLORS.length], src = photoOf(q.s, o.photos), ph = src ? bubblePhoto(src) : null;
+        var cur = M.seq[curI] === q; if (pop(q, cur ? 1.28 : 1, dt)) again = true;
+        var x = sx(q.x), y = sy(q.y), k = q.a * q.ks, r = R * k, by = y - r - 9 * k, col = COLORS[q.di % COLORS.length], src = photoOf(q.s, o.photos), ph = src ? bubblePhoto(src) : null;
         g.save();
         g.shadowColor = 'rgba(20,20,25,.4)'; g.shadowBlur = 8; g.shadowOffsetY = 3;
         g.beginPath(); g.moveTo(x, y - 1); g.lineTo(x - r * 0.42, by + r * 0.72); g.lineTo(x + r * 0.42, by + r * 0.72); g.closePath(); g.fillStyle = cur ? BALL : col; g.fill();
@@ -526,7 +552,7 @@ window.Mapa = (function () {
       var from = mem.v, t0 = performance.now();
       if (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches) { set(to); if (done) done(); return; }
       (function step(now) {
-        var f = clamp((now - t0) / ms, 0, 1), e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+        var f = clamp((now - t0) / ms, 0, 1), e = (1 - Math.cos(Math.PI * f)) / 2;
         set(from + (to - from) * e);
         if (f < 1) gl = requestAnimationFrame(step); else if (done) done();
       })(t0);

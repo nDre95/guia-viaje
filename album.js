@@ -24,7 +24,12 @@ window.Album = (function () {
   function albumGet() { try { return JSON.parse(localStorage.getItem('guia-album') || '{}') || {}; } catch (e) { return {}; } }
   function albumSet(a) { try { localStorage.setItem('guia-album', JSON.stringify(a)); } catch (e) {} }
   function isCromo(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole && !/aeropuerto|airport/i.test(it.ti); }
-  function trips() { var ph = window.Juego ? Juego.ready() : Promise.resolve(); return ph.then(function () { return TRIPS || cfg.trips().then(function (t) { TRIPS = t || []; return TRIPS; }); }); }
+  function trips() { var ph = window.Juego ? Juego.ready() : Promise.resolve(); return ph.then(function () { return TRIPS || cfg.trips().then(function (t) { TRIPS = t || []; TRIPS.forEach(realStart); return TRIPS; }); }); }
+  // la fecha del viaje es la que se haya puesto en la guía; si no, la de cuando se creó
+  function realStart(t) {
+    var m = t.b.meta || {}, v = null; try { v = JSON.parse(localStorage.getItem((m.storage || m.id || t.id) + ':start') || 'null'); } catch (e) {}
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) t.b.trip.defaultStart = v;
+  }
   function lg() { return window.Lang ? Lang.get() : 'es'; }
   function tr(s) { return window.Lang ? Lang.t(s) : s; }
   function tripTitle(t) { var m = t.b.meta.title || {}; return m[lg()] || m.es || t.id; }
@@ -80,11 +85,11 @@ window.Album = (function () {
     // colecciones: cuántos has canjeado de cada clase
     var sets = SETS.map(function (S) {
       var all = cards.filter(function (c) { return S[2].indexOf(c.rate.pos) >= 0; });
-      return all.length ? { n: S[1], have: all.filter(function (c) { return c.got; }).length, all: all.length } : null;
+      return all.length ? { k: S[0], n: S[1], have: all.filter(function (c) { return c.got; }).length, all: all.length } : null;
     }).filter(Boolean);
-    if (cards.length) sets.push({ n: 'Oro o mejores', have: cards.filter(function (c) { return c.got && c.rate.r >= 80; }).length, all: cards.length });
+    if (cards.length) sets.push({ k: 'top', n: 'Oro o mejores', have: cards.filter(function (c) { return c.got && c.rate.r >= 80; }).length, all: cards.length });
     return head + (sets.length ? '<div class="pf-h">Colecciones</div><div class="set-row">' + sets.map(function (x) {
-      return '<div class="card set-c"><b>' + esc(x.n) + '</b><small>' + x.have + ' de ' + x.all + '</small><span class="alb-bar"><i style="width:' + Math.round(x.have / x.all * 100) + '%"></i></span></div>';
+      return '<button type="button" class="card set-c sq" data-setopen="' + x.k + '"><b>' + esc(x.n) + '</b><small>' + x.have + ' de ' + x.all + '</small><span class="alb-bar"><i style="width:' + Math.round(x.have / x.all * 100) + '%"></i></span></button>';
     }).join('') + '</div><div class="pf-h">Mis viajes</div>' : '');
   }
   function paintPacks(on) {
@@ -132,6 +137,28 @@ window.Album = (function () {
     more.hidden = all.length <= shown.length;
     if (!more.hidden) more.textContent = 'Mostrar más (' + (all.length - shown.length) + ')';
   }
+  // un cromo en la cuadrícula (álbum de un viaje o colección)
+  function tileHTML(tid, c) {
+    var R = c.rate || { r: '', pos: '', tier: 'copper' };
+    return '<button type="button" class="cr fc t-' + R.tier + (c.got ? ' got' : '') + (c.own ? ' own' : '') + phCls(c) + '" data-cr="' + esc(tid + '|' + c.id) + '"' + phStyle(c) + '>' +
+      '<i class="fc-b"></i>' + (c.got ? '<i class="sheen"></i>' : '') + (c.own && c.own.n > 1 ? '<i class="fc-x">×' + c.own.n + '</i>' : '') + (c.got ? '<i class="fc-v">' + (c.got.gps ? '✓ GPS' : '✓') + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
+  }
+  // una colección abierta: sus cromos de todos los viajes, separados por viaje
+  var openS = null;
+  function renderSet(box, list, alb) {
+    var S = SETS.filter(function (x) { return x[0] === openS; })[0], name = S ? S[1] : 'Oro o mejores', have = 0, all = 0, body = '';
+    list.forEach(function (t) {
+      var cs0 = cromosOf(t, alb), cs = S ? cs0.filter(function (c) { return S[2].indexOf((c.rate || {}).pos) >= 0; }) : cs0.filter(function (c) { return c.got; }).sort(function (a, b) { return b.rate.r - a.rate.r; });
+      var h = S ? cs.filter(function (c) { return c.got; }).length : cs.filter(function (c) { return c.rate.r >= 80; }).length;
+      have += h; all += S ? cs.length : cs0.length;
+      if (!cs.length) return;
+      body += '<div class="pf-h">' + esc(tripTitle(t)) + ' <i class="set-n">' + h + ' de ' + (S ? cs.length : cs0.length) + '</i></div><div class="crs">' + cs.map(function (c) { return tileHTML(t.id, c); }).join('') + '</div>';
+    });
+    box.innerHTML = '<button type="button" class="alb-back sq" data-setback><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg><span>Álbum</span></button>' +
+      '<div class="alb"><div class="alb-h"><b>' + esc(name) + '</b><small>' + have + ' de ' + all + '</small></div><div class="alb-bar"><i style="width:' + (all ? Math.round(have / all * 100) : 0) + '%"></i></div>' +
+      '<p class="set-lead">' + (S ? 'Los que faltan se canjean en el sitio, con tu foto.' : 'Tus cromos canjeados, del mejor al peor. Los sobres de los quizzes mejoran la rareza.') + '</p>' +
+      (body || '<p class="note">Aún no tienes ninguno.</p>') + '</div>';
+  }
   var openT = null, crFilter = 'all';   // viaje abierto en el álbum y qué cromos se ven
   function coverOf(t) {
     var bt = t.b.trip, ph = t.b.photos || {}, c = bt.cover;
@@ -144,6 +171,7 @@ window.Album = (function () {
     return trips().then(function (list) {
       var alb = albumGet(), withC = list.filter(function (t) { return cromosOf(t, alb).length; });
       if (cfg.single && withC[0]) openT = withC[0].id;
+      if (openS) { paintPacks(false); box._lst = ''; renderSet(box, withC, alb); return; }
       var cur = withC.filter(function (t) { return t.id === openT; })[0];
       paintPacks(!cur || !!cfg.single);
       if (!cur) {
@@ -172,11 +200,7 @@ window.Album = (function () {
         '<div class="alb" data-trip="' + esc(t.id) + '"><div class="alb-h"><b>' + esc(tripTitle(t)) + '</b><small>' + got + ' de ' + cs.length + '</small></div>' +
           '<div class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></div>' +
           (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Canjeados', got], ['miss', 'Faltan', cs.length - got], ['top', 'Oro o más', cs.filter(function (c) { return c.got && c.rate && c.rate.r >= 80; }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
-          '<div class="crs">' + seen.map(function (c) {
-            var R = c.rate || { r: '', pos: '', tier: 'copper' };
-            return '<button type="button" class="cr fc t-' + R.tier + (c.got ? ' got' : '') + (c.own ? ' own' : '') + phCls(c) + '" data-cr="' + esc(t.id + '|' + c.id) + '"' + phStyle(c) + '>' +
-              '<i class="fc-b"></i>' + (c.got ? '<i class="sheen"></i>' : '') + (c.own && c.own.n > 1 ? '<i class="fc-x">×' + c.own.n + '</i>' : '') + (c.got ? '<i class="fc-v">' + (c.got.gps ? '✓ GPS' : '✓') + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
-          }).join('') + '</div>' +
+          '<div class="crs">' + seen.map(function (c) { return tileHTML(t.id, c); }).join('') + '</div>' +
           '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">' + (reelMime() ? 'Crear vídeo' : 'Crear postal') + '</button>' : '') +
           (cfg.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button>') + '</div></div>';
     });
@@ -332,43 +356,126 @@ window.Album = (function () {
     if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return '';
     return ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].filter(function (m) { return MediaRecorder.isTypeSupported(m); })[0] || '';
   }
+  // vídeo del viaje (720×1280): portada con la ruta dibujándose, cada cromo canjeado entra girando con su borde
+  // de rareza mientras la ruta avanza hasta ese sitio, y al final las cifras. Sin MediaRecorder: la postal de siempre
+  var REEL_M = { base: ['#c9c3b6', '#f5f2eb', '#dcd7cb', '#ffffff'], copper: ['#6e3a18', '#e9a877', '#a65f30', '#ffd7b0'], silver: ['#7f8893', '#f7f9fb', '#aeb6c0', '#ffffff'], gold: ['#8a620c', '#ffe896', '#c9972a', '#fff6c8'], emerald: ['#0a553a', '#6ff0bb', '#129a69', '#d2ffe9'], ruby: ['#6e0a20', '#ff7a92', '#c5163c', '#ffd3dc'] };
   function makeReel(id, btn) {
     var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t) return;
     var mime = reelMime(); if (!mime) { makePostcard(id); return; }
-    var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return (b.rate ? b.rate.r : 0) - (a.rate ? a.rate.r : 0); }).slice(0, 7);
+    var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; });
+    // hasta 8, por orden del viaje; si hay más, los imprescindibles y los de más rareza
+    var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return (b.must ? 1 : 0) - (a.must ? 1 : 0) || ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0); }).slice(0, 8).sort(function (a, b) { return a.n - b.n; });
     if (btn) { btn.disabled = true; btn.textContent = 'Creando vídeo…'; }
     function restore() { if (btn) { btn.disabled = false; btn.textContent = 'Crear vídeo'; } }
+    // la ruta: todas las paradas del viaje, en orden
+    var route = [];
+    t.b.trip.days.forEach(function (d) { d.items.forEach(function (it) { if (it.lat != null && (!window.Mapa || Mapa.isSight(it))) route.push({ id: it.id, lat: it.lat, lon: it.lon }); }); });
+    // km: los de los trayectos en coche si el viaje los tiene; si no, en línea recta entre paradas
+    var km = 0, dkm = 0; t.b.trip.days.forEach(function (d) { d.items.forEach(function (it) { if (it.t === 'drive' && it.km) dkm += it.km; }); });
+    route.forEach(function (p, i) { if (!i) return; var q = route[i - 1], R = 6371, dl = (p.lat - q.lat) * Math.PI / 180, dn = (p.lon - q.lon) * Math.PI / 180, a = Math.sin(dl / 2) * Math.sin(dl / 2) + Math.cos(q.lat * Math.PI / 180) * Math.cos(p.lat * Math.PI / 180) * Math.sin(dn / 2) * Math.sin(dn / 2); km += 2 * R * Math.asin(Math.sqrt(a)); });
+    if (dkm) km = dkm;
     Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
       var W0 = 720, H0 = 1280, cv = document.createElement('canvas'), g = cv.getContext('2d'), serif = '"New York","Iowan Old Style",Georgia,serif', sans = '-apple-system,"Segoe UI",Roboto,sans-serif';
       cv.width = W0; cv.height = H0; cv.style.cssText = 'position:fixed;left:-9999px;top:0;width:10px;height:18px'; document.body.appendChild(cv);
-      var shots = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; }), INTRO = 1.6, SHOT = 2.1, OUTRO = 2.8, total = INTRO + shots.length * SHOT + OUTRO, title = tripTitle(t), stream;
-      function ease(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
-      function bg() { var b = g.createLinearGradient(0, 0, W0, H0); b.addColorStop(0, '#2b2d36'); b.addColorStop(1, '#14151a'); g.fillStyle = b; g.fillRect(0, 0, W0, H0); }
-      function cover(im, z, dx) { var r = Math.max(W0 / im.width, H0 / im.height) * z, w = im.width * r, h = im.height * r; g.drawImage(im, (W0 - w) / 2 + dx, (H0 - h) / 2, w, h); }
+      var shots = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
+      // fondo desenfocado de cada foto: se reduce y se vuelve a ampliar (Safari no tiene filtros en canvas)
+      shots.forEach(function (x) { var b = document.createElement('canvas'), r = 28 / Math.max(x.im.width, x.im.height); b.width = Math.max(4, Math.round(x.im.width * r)); b.height = Math.max(4, Math.round(x.im.height * r)); b.getContext('2d').drawImage(x.im, 0, 0, b.width, b.height); x.blur = b; });
+      // posición de cada cromo en la ruta
+      shots.forEach(function (x) { var k = -1; route.some(function (p, i) { if (p.id === x.c.id) { k = i; return true; } return false; }); x.at = k; });
+      var bx = [60, 150, 600, 330], b0 = { s: 90, n: -90, w: 180, e: -180 };
+      route.forEach(function (p) { b0.s = Math.min(b0.s, p.lat); b0.n = Math.max(b0.n, p.lat); b0.w = Math.min(b0.w, p.lon); b0.e = Math.max(b0.e, p.lon); });
+      var kx = Math.cos((b0.s + b0.n) / 2 * Math.PI / 180), sw = (b0.e - b0.w) * kx || 1e-6, shh = (b0.n - b0.s) || 1e-6, sc0 = Math.min(bx[2] / sw, bx[3] / shh);
+      var pts = route.map(function (p) { return { x: bx[0] + bx[2] / 2 + ((p.lon - b0.w) * kx - sw / 2) * sc0, y: bx[1] + bx[3] / 2 - ((p.lat - b0.s) - shh / 2) * sc0 }; });
+      var INTRO = 3.2, SHOT = 2.7, OUTRO = 4.6, total = INTRO + shots.length * SHOT + OUTRO, title = tripTitle(t), en = lg() === 'en';
+      var st = t.b.trip.defaultStart, nd = t.b.trip.days.length, dates = '';
+      if (st) { var d1 = new Date(st + 'T12:00:00Z'), d2 = new Date(d1.getTime() + (nd - 1) * 864e5), fo = { day: 'numeric', month: 'short', timeZone: 'UTC' }; dates = d1.toLocaleDateString(lg(), fo) + ' – ' + d2.toLocaleDateString(lg(), fo) + ' ' + d2.getUTCFullYear(); }
+      function cl(x) { return Math.max(0, Math.min(1, x)); }
+      function ease(x) { x = cl(x); return x * x * (3 - 2 * x); }
+      function back(x) { x = cl(x); var c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); }   // se pasa un poco y vuelve
+      function cover(im, z, dx, dy) { var r = Math.max(W0 / im.width, H0 / im.height) * z, w = im.width * r, h = im.height * r; g.drawImage(im, (W0 - w) / 2 + (dx || 0), (H0 - h) / 2 + (dy || 0), w, h); }
+      function shade(a) { var s = g.createLinearGradient(0, 0, 0, H0); s.addColorStop(0, 'rgba(10,10,14,' + (0.55 * a) + ')'); s.addColorStop(0.45, 'rgba(10,10,14,' + (0.25 * a) + ')'); s.addColorStop(1, 'rgba(10,10,14,' + (0.85 * a) + ')'); g.fillStyle = s; g.fillRect(0, 0, W0, H0); }
+      function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+      // la ruta hasta la posición p (índice con decimales): gris lo que falta, blanco lo hecho, bolita donde vas
+      function drawRoute(p, alpha) {
+        if (pts.length < 2) return;
+        g.save(); g.globalAlpha = alpha; g.lineCap = g.lineJoin = 'round';
+        g.beginPath(); pts.forEach(function (q, i) { if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 3; g.setLineDash([2, 8]); g.stroke(); g.setLineDash([]);
+        var n = Math.floor(p), f = p - n, end = pts[Math.min(n, pts.length - 1)];
+        g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+        for (var i = 1; i <= Math.min(n, pts.length - 1); i++) g.lineTo(pts[i].x, pts[i].y);
+        if (n + 1 < pts.length && f > 0) { end = { x: pts[n].x + (pts[n + 1].x - pts[n].x) * f, y: pts[n].y + (pts[n + 1].y - pts[n].y) * f }; g.lineTo(end.x, end.y); }
+        g.strokeStyle = '#fff'; g.lineWidth = 4; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 8; g.stroke(); g.shadowBlur = 0;
+        shots.forEach(function (x) { if (x.at < 0 || x.at > p + 0.01) return; var q = pts[x.at]; g.beginPath(); g.arc(q.x, q.y, 6.5, 0, 7); g.fillStyle = REEL_M[(x.c.rate || {}).tier || 'base'][2]; g.fill(); g.lineWidth = 2.5; g.strokeStyle = '#fff'; g.stroke(); });
+        g.beginPath(); g.arc(end.x, end.y, 11, 0, 7); g.fillStyle = '#14161b'; g.fill(); g.lineWidth = 3.5; g.strokeStyle = '#fff'; g.stroke();
+        g.restore();
+      }
+      // un cromo: borde de metal según su rareza, foto, nombre y clase; e = 0..1 entrada, gl = brillo que lo cruza
+      function drawCard(x, cx, cy, sc, rot, flip, gl) {
+        var w = 440, h = 600, tier = (x.c.rate || {}).tier || 'base', M = REEL_M[tier];
+        g.save(); g.translate(cx, cy); g.rotate(rot); g.scale(sc * flip, sc);
+        g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 50; g.shadowOffsetY = 26;
+        var mg = g.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); M.concat(M[0]).forEach(function (c, i, a) { mg.addColorStop(i / (a.length - 1), c); });
+        rr(-w / 2, -h / 2, w, h, 30); g.fillStyle = mg; g.fill(); g.shadowColor = 'transparent';
+        rr(-w / 2 + 14, -h / 2 + 14, w - 28, h - 28, 20); g.save(); g.clip();
+        var im = x.im, r = Math.max((w - 28) / im.width, (h - 28) / im.height), iw = im.width * r, ih = im.height * r; g.drawImage(im, -iw / 2, -ih / 2, iw, ih);
+        var sh = g.createLinearGradient(0, 40, 0, h / 2); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.82)'); g.fillStyle = sh; g.fillRect(-w / 2, 0, w, h / 2);
+        if (gl > 0 && gl < 1 && tier !== 'base') { var gx = -w + gl * w * 2, gg = g.createLinearGradient(gx - 90, 0, gx + 90, 0); gg.addColorStop(0, 'rgba(255,255,255,0)'); gg.addColorStop(0.5, 'rgba(255,255,255,.42)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.fillRect(-w / 2, -h / 2, w, h); }
+        g.restore();
+        g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 38px ' + serif;
+        var words = String(x.c.ti).split(' '), lines = [''], k;
+        words.forEach(function (wd) { k = lines.length - 1; var test = lines[k] ? lines[k] + ' ' + wd : wd; if (g.measureText(test).width > w - 70 && lines[k]) lines.push(wd); else lines[k] = test; });
+        lines = lines.slice(-2); lines.forEach(function (ln, i) { g.fillText(fit(g, ln, w - 60), 0, h / 2 - 78 - (lines.length - 1 - i) * 42); });
+        g.font = '800 17px ' + sans; g.fillStyle = M[3] === '#ffffff' && tier === 'base' ? 'rgba(255,255,255,.8)' : M[3];
+        g.fillText(((x.c.rate || {}).type ? tr(x.c.rate.type) + ' · ' : '') + (window.Juego ? tr(Juego.TIER[tier]) : ''), 0, h / 2 - 40);
+        g.restore();
+      }
       function frame(sec) {
-        g.globalAlpha = 1; g.textAlign = 'center'; bg();
+        g.globalAlpha = 1; g.textAlign = 'center'; g.fillStyle = '#121318'; g.fillRect(0, 0, W0, H0);
         if (sec < INTRO) {
-          var a = ease(sec / 0.6); g.globalAlpha = a; g.fillStyle = '#ffc48f'; g.font = '800 26px ' + sans; g.fillText(tr('Recuerdos de').toUpperCase(), W0 / 2, 560 + (1 - a) * 24);
-          g.fillStyle = '#fff'; g.font = 'italic 700 66px ' + serif; wrap(g, title, W0 / 2, 640 + (1 - a) * 24, 620, 74); return;
+          var f = sec / INTRO;
+          if (shots[0]) { g.globalAlpha = ease(sec / 0.8); cover(shots[0].im, 1.18 - f * 0.1, 0, 0); g.globalAlpha = 1; }
+          shade(1);
+          drawRoute(ease((sec - 0.7) / 2.2) * (pts.length - 1), ease((sec - 0.5) / 0.5));
+          var a = ease((sec - 0.2) / 0.7); g.globalAlpha = a; g.fillStyle = '#fff'; g.font = 'italic 700 70px ' + serif; wrap(g, title, W0 / 2, 860 + (1 - a) * 30, 620, 78);
+          g.globalAlpha = ease((sec - 0.6) / 0.7); g.font = '750 26px ' + sans; g.fillStyle = 'rgba(255,255,255,.82)'; g.fillText(dates.toUpperCase(), W0 / 2, 1040);
+          g.globalAlpha = 1 - ease((sec - INTRO + 0.35) / 0.35); if (g.globalAlpha < 1) { g.globalAlpha = 1 - g.globalAlpha; g.fillStyle = '#121318'; g.fillRect(0, 0, W0, H0); }
+          return;
         }
         var s0 = sec - INTRO, i = Math.floor(s0 / SHOT);
         if (i < shots.length) {
-          var f = (s0 - i * SHOT) / SHOT, x = shots[i];
-          cover(x.im, 1.05 + f * 0.12, (i % 2 ? 1 : -1) * f * 26);
-          var sh = g.createLinearGradient(0, H0 * 0.55, 0, H0); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.82)'); g.fillStyle = sh; g.fillRect(0, 0, W0, H0);
-          var t0 = ease(f / 0.22), o = ease((1 - f) / 0.1); g.globalAlpha = t0 * o; g.textAlign = 'left';
-          g.fillStyle = '#ffc48f'; g.font = '800 25px ' + sans; g.fillText((tr('Día') + ' ' + x.c.day).toUpperCase(), 50, H0 - 180 + (1 - t0) * 22);
-          g.fillStyle = '#fff'; g.font = '700 52px ' + serif; wrap(g, x.c.ti, 50, H0 - 122 + (1 - t0) * 22, 620, 58);
-          g.globalAlpha = 1 - ease(f / 0.12); bg(); g.globalAlpha = 1; return;
+          var x = shots[i], u = (s0 - i * SHOT) / SHOT, ts = s0 - i * SHOT;
+          g.imageSmoothingQuality = 'high'; cover(x.blur, 1.1 + u * 0.06, 0, 0); shade(0.9);
+          // la ruta avanza desde el cromo anterior hasta este
+          var from = i ? Math.max(0, shots[i - 1].at) : 0, to = Math.max(0, x.at);
+          drawRoute(from + (to - from) * ease(ts / 0.9), 1);
+          g.fillStyle = '#ffc48f'; g.font = '800 24px ' + sans; g.globalAlpha = ease(ts / 0.4);
+          g.fillText((tr('Día') + ' ' + x.c.day + ' · ' + (i + 1) + '/' + shots.length).toUpperCase(), W0 / 2, 400);
+          g.globalAlpha = 1;
+          // entra girando sobre sí mismo y se asienta con un pequeño rebote; al final sale hacia arriba
+          var e = back(ts / 0.75), out = ease((ts - SHOT + 0.35) / 0.35), flip = Math.cos((1 - cl(ts / 0.55)) * Math.PI / 2);
+          drawCard(x, W0 / 2, 790 - out * 140 + (1 - e) * 220, (0.6 + 0.4 * e) * (1 - out * 0.15), (1 - e) * -0.22 + (i % 2 ? 0.035 : -0.035) * e, Math.max(0.04, flip), (ts - 0.7) / 0.8);
+          if (out > 0) { g.globalAlpha = out; g.fillStyle = '#121318'; g.fillRect(0, 0, W0, H0); g.globalAlpha = 1; }
+          return;
         }
-        var e = ease((s0 - shots.length * SHOT) / 0.6), col = 3, sz = 190; g.globalAlpha = e;
-        shots.slice(0, 6).forEach(function (x, k) { var X = 60 + (k % col) * (sz + 15), Y = 300 + Math.floor(k / col) * (sz + 15); g.save(); g.beginPath(); g.rect(X, Y, sz, sz); g.clip(); var r = Math.max(sz / x.im.width, sz / x.im.height), w = x.im.width * r, h = x.im.height * r; g.drawImage(x.im, X + (sz - w) / 2, Y + (sz - h) / 2, w, h); g.restore(); });
-        g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = 'italic 700 58px ' + serif; g.fillText(title.length > 22 ? title.slice(0, 21) + '…' : title, W0 / 2, 800);
-        g.fillStyle = '#ffc48f'; g.font = '700 31px ' + sans; g.fillText(lg() === 'en' ? got.length + ' of ' + cs.length + ' cards' : got.length + ' de ' + cs.length + ' cromos', W0 / 2, 860);
-        g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '600 24px ' + sans; g.fillText(tr('Guía de viaje'), W0 / 2, 1190);
+        // final: las cifras suben y los cromos en abanico
+        var o = sec - INTRO - shots.length * SHOT, e2 = ease(o / 0.6);
+        if (shots[0]) { g.globalAlpha = 0.5 * e2; cover(shots[shots.length - 1].blur, 1.15, 0, 0); g.globalAlpha = 1; shade(1); }
+        drawRoute(pts.length - 1, e2 * 0.75);
+        var gold = got.filter(function (c) { return c.rate && c.rate.r >= 80; }).length;
+        var nums = [[nd, en ? (nd === 1 ? 'day' : 'days') : (nd === 1 ? 'día' : 'días')], [Math.round(km), 'km'], [got.length, en ? 'cards' : 'cromos'], [gold, en ? 'gold or better' : 'oro o más']];
+        nums.forEach(function (nm, k) {
+          var a = ease((o - 0.3 - k * 0.18) / 0.5), X = 210 + (k % 2) * 300, Y = 590 + Math.floor(k / 2) * 140;
+          g.globalAlpha = a; g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 74px ' + serif; g.fillText(String(Math.round(nm[0] * ease((o - 0.3 - k * 0.18) / 1.1))), X, Y + (1 - a) * 20);
+          g.font = '750 22px ' + sans; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(nm[1].toUpperCase(), X, Y + 38);
+        });
+        var fan = shots.slice(-5), fa = ease((o - 1.2) / 0.7);
+        fan.forEach(function (x, k) { var m = k - (fan.length - 1) / 2; drawCard(x, W0 / 2 + m * 92 * fa, 1000 + Math.abs(m) * 12 * fa + (1 - fa) * 300, 0.33, m * 0.12 * fa, 1, 0); });
+        g.globalAlpha = ease((o - 1.8) / 0.6); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = 'italic 700 46px ' + serif; g.fillText(fit(g, title, 640), W0 / 2, 1205);
+        g.font = '650 20px ' + sans; g.fillStyle = 'rgba(255,255,255,.55)'; g.fillText(tr('Guía de viaje'), W0 / 2, 1245);
+        g.globalAlpha = 1;
       }
-      try { frame(0); stream = cv.captureStream(30); } catch (e) { cv.remove(); restore(); makePostcard(id); return; }
-      var parts = [], rc = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 3500000 });
+      try { frame(0); var stream = cv.captureStream(30); } catch (e) { cv.remove(); restore(); makePostcard(id); return; }
+      var parts = [], rc = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 });
       rc.ondataavailable = function (e) { if (e.data && e.data.size) parts.push(e.data); };
       rc.onstop = function () {
         cv.remove(); restore();
@@ -397,29 +504,78 @@ window.Album = (function () {
     var a = document.createElement('a'); a.href = URL.createObjectURL(postBlob); a.download = postName; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 2000);
   }
 
+  /* ---------- Insignias: 12 categorías con 5 niveles, con los materiales de los cromos ---------- */
+  var BIC = {
+    pais: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.9 3 2.9 14 0 17M12 3.5c-2.9 3-2.9 14 0 17"/>',
+    viaje: '<rect x="3.5" y="7" width="17" height="12.5" rx="2.5"/><path d="M9 7V5h6v2M3.5 12.5h17"/>',
+    cromo: '<rect x="6" y="3" width="12" height="18" rx="2"/><circle cx="12" cy="9.5" r="2.5"/><path d="M9 15.5h6M9.5 18h5"/>',
+    must: '<path d="M12 3.8l2.5 5.1 5.6.8-4 3.9.9 5.6L12 16.6l-5 2.6.9-5.6-4-3.9 5.6-.8z"/>',
+    hist: '<path d="M4 20V9h3v2h2V9h2v2h2V9h2v2h2V9h3v11zM10 20v-4a2 2 0 0 1 4 0v4"/>',
+    natu: '<path d="M2.5 19.5l6.5-11 4 6.5 2.5-3.5 6 8z"/>',
+    arte: '<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M6.5 16.5l4-5 3 3.5 2-2 2 3.5"/><circle cx="15.5" cy="8.5" r="1.3"/>',
+    urbe: '<path d="M3.5 20.5V10l5-3v13.5M8.5 20.5V4h7v16.5M15.5 20.5V9.5h5v11M2.5 20.5h19"/>',
+    gps: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
+    quiz: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.4 2.4 0 1 1 3.4 2.2c-.7.4-1 1-1 1.7M12 16.6v.3"/>',
+    rare: '<path d="M7 4h10l3.5 5L12 20 3.5 9zM3.5 9h17M9.5 4L12 9l2.5-5M12 9v11"/>',
+    full: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H12v16h6.5a1.5 1.5 0 0 0 1.5-1.5z"/>'
+  };
+  // [id, nombre, qué cuenta, niveles]
+  var BTRACK = [['pais', 'Explorador', 'Países visitados', [1, 3, 6, 12, 25]], ['viaje', 'Viajero', 'Viajes hechos', [1, 3, 6, 10, 20]], ['cromo', 'Coleccionista', 'Cromos canjeados', [1, 10, 30, 75, 150]],
+    ['must', 'Imprescindibles', 'Imprescindibles canjeados', [1, 5, 15, 40, 80]], ['gps', 'En el sitio', 'Cromos con GPS', [1, 5, 15, 40, 80]], ['rare', 'Rareza', 'Cromos de oro o mejores', [1, 5, 12, 25, 50]],
+    ['hist', 'Historia', 'Castillos, ruinas, monumentos y templos', [1, 5, 12, 25, 50]], ['natu', 'Naturaleza', 'Naturaleza, jardines y miradores', [1, 5, 12, 25, 50]], ['arte', 'Arte', 'Museos y espectáculos', [1, 4, 10, 20, 40]],
+    ['urbe', 'Ciudad', 'Plazas, barrios, mercados y paseos', [1, 5, 12, 25, 50]], ['quiz', 'Sabio', 'Quizzes perfectos (5 de 5)', [1, 3, 7, 15, 30]], ['full', 'Álbum completo', 'Viajes con todos los cromos', [1, 2, 3, 5, 8]]];
+  var BMAT = ['copper', 'silver', 'gold', 'emerald', 'ruby'], BMAT_ES = { copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' };
+  function badgeList(v) {
+    return BTRACK.map(function (T) {
+      var have = v[T[0]] || 0, lv = T[3].filter(function (n) { return have >= n; }).length, need = T[3][lv] || 0;
+      var from = lv ? T[3][lv - 1] : 0;
+      return { id: T[0], name: T[1], what: T[2], steps: T[3], have: have, lv: lv, mat: lv ? BMAT[lv - 1] : '', next: lv < 5 ? BMAT[lv] : '', need: need, frac: lv >= 5 ? 1 : Math.max(0, (have - from) / (need - from)) };
+    });
+  }
+  function medal(b, mat) { mat = mat === undefined ? b.mat : mat; return '<i class="bdm' + (mat ? ' t-' + mat : ' off') + '"><svg viewBox="0 0 24 24">' + BIC[b.id] + '</svg></i>'; }
+  function badgeHTML(b) {
+    return '<button type="button" class="bdg sq' + (b.lv ? '' : ' off') + '" data-bdg="' + b.id + '">' + medal(b) + '<b>' + esc(b.name) + '</b>' +
+      '<small>' + (b.lv ? '<em>' + esc(BMAT_ES[b.mat]) + '</em> ' : '') + (b.lv >= 5 ? '' : '<span>' + b.have + '/' + b.need + '</span>') + '</small><span class="bdg-bar"><i style="width:' + Math.round(b.frac * 100) + '%"></i></span></button>';
+  }
+  // ficha de una insignia: qué cuenta y sus 5 niveles
+  function badgeInfo(b) {
+    return '<div class="bdi-h">' + medal(b) + '<span><b>' + esc(b.name) + '</b><small>' + esc(b.what) + '</small></span></div><div class="bdi-steps">' + b.steps.map(function (n, k) {
+      return '<span class="bdi-s' + (b.lv > k ? ' on' : '') + '">' + medal(b, b.lv > k ? BMAT[k] : '') + '<small>' + esc(BMAT_ES[BMAT[k]]) + '</small><b>' + n + '</b></span>';
+    }).join('') + '</div>';
+  }
+
   /* ---------- Perfil: mis viajes, cifras e insignias ---------- */
   function overview() {
     return trips().then(function (list) {
-      var alb = albumGet(), all = 0, got = 0, must = 0, mustGot = 0, castles = 0, full = 0, mustFull = 0, withCromo = 0, days = 0, dests = {}, gen = 0, out = [], recent = [];
+      var alb = albumGet(), all = 0, got = 0, must = 0, mustGot = 0, full = 0, days = 0, out = [], recent = [], v = { pais: 0, viaje: 0, gps: 0, rare: 0, hist: 0, natu: 0, arte: 0, urbe: 0 }, cc = {};
       var now = today();
       list.forEach(function (t) {
         var cs = cromosOf(t, alb), g0 = cs.filter(function (c) { return c.got; }), m = cs.filter(function (c) { return c.must; }), bt = t.b.trip, ph = t.b.photos || {};
         all += cs.length; got += g0.length; must += m.length; mustGot += m.filter(function (c) { return c.got; }).length;
-        castles += g0.filter(function (c) { return /castillo|castle|palacio|palace|alcázar|château/i.test(c.ti); }).length;
         if (cs.length && g0.length === cs.length) full++;
-        if (m.length && m.every(function (c) { return c.got; })) mustFull++;
-        if (g0.length) withCromo++;
-        days += bt.days.length; dests[(t.b.meta.dest || {}).es || t.id] = 1; if (t.b.meta.generated) gen++;
+        g0.forEach(function (c) {
+          if (c.got.gps) v.gps++;
+          if (c.rate && c.rate.r >= 80) v.rare++;
+          SETS.forEach(function (S) { if (S[2].indexOf((c.rate || {}).pos) >= 0) v[S[0]]++; });
+        });
+        days += bt.days.length;
         g0.forEach(function (c) { recent.push({ img: c.img, ph: c.ph, ti: c.ti, at: c.got.at }); });
         var start = bt.defaultStart, end = start ? new Date(new Date(start + 'T12:00:00Z').getTime() + (bt.days.length - 1) * 864e5).toISOString().slice(0, 10) : '';
         // el motor antiguo no decía qué es cada foto: en la web todas las fotos son direcciones
+        var st0 = !start ? 'next' : now > end ? 'past' : now >= start ? 'now' : 'next';
+        if (st0 === 'past') v.viaje++;
+        if (st0 !== 'next' && window.Mundo && Mundo.cached) (Mundo.cached(t) || []).forEach(function (c) { cc[c] = 1; });
         out.push({ id: t.id, title: tripTitle(t), start: start, end: end, days: bt.days.length, cover: ph[bt.cover] || '', got: g0.length, total: cs.length, mustGot: m.filter(function (c) { return c.got; }).length, must: m.length,
           status: !start ? 'next' : now > end ? 'past' : now >= start ? 'now' : 'next', top: m.slice(0, 3).map(function (c) { return c.ti; }), ref: t });
       });
       recent.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
-      var B = [['🌟', 'Primer cromo', got >= 1], ['📸', '10 cromos', got >= 10], ['🏆', '50 cromos', got >= 50], ['🏰', '5 castillos', castles >= 5],
-        ['⭐', 'Todos los imprescindibles de un viaje', mustFull >= 1], ['📖', 'Álbum completo', full >= 1], ['🧳', 'Cromos en 2 viajes', withCromo >= 2], ['🧭', 'Primer viaje creado', gen >= 1], ['🌍', '3 destinos', Object.keys(dests).length >= 3]];
-      return { trips: out, all: all, got: got, must: must, mustGot: mustGot, totalDays: days, badges: B, badgesOn: B.filter(function (b) { return b[2]; }).length, nextBadge: B.filter(function (b) { return !b[2]; })[0] || null, recent: recent };
+      var qs = {}; try { qs = JSON.parse(localStorage.getItem('guia-quiz') || '{}') || {}; } catch (e) {}
+      v.pais = Object.keys(cc).length; v.cromo = got; v.must = mustGot; v.full = full;
+      v.quiz = Math.max(qs.perfect || 0, Object.keys(qs.trips || {}).filter(function (k) { return qs.trips[k].best >= 5; }).length);
+      var B = badgeList(v), on = B.reduce(function (a, b) { return a + b.lv; }, 0);
+      // la siguiente: la que está más cerca de subir
+      var nx = B.filter(function (b) { return b.lv < 5; }).sort(function (a, b) { return b.frac - a.frac || a.need - b.need; })[0] || null;
+      return { trips: out, all: all, got: got, must: must, mustGot: mustGot, totalDays: days, badges: B, badgesOn: on, badgesMax: B.length * 5, nextBadge: nx, nextBadgeHTML: nx ? medal(nx, nx.next) : '', recent: recent };
     });
   }
   function shortRange(t) { return t.start ? shortDate(t.start) + ' – ' + shortDate(t.end) : ''; }
@@ -435,8 +591,8 @@ window.Album = (function () {
             '<div class="alb-bar"><i style="width:' + (t.total ? Math.round(t.got / t.total * 100) : 0) + '%"></i></div><small>' + t.got + ' de ' + t.total + ' cromos · ' + t.mustGot + ' de ' + t.must + ' imprescindibles</small>' +
             (cfg.single ? '' : '<div class="btn-row"><button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button></div>') + '</div></div>';
         }).join('') + (sorted.length > 3 ? '<button type="button" class="lst-more sq" data-go="trips">Ver todos (' + sorted.length + ')</button>' : '') : '<p class="note">Aún no hay viajes.</p>') +
-        '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + B.length + '</div><div class="card"><div class="badges">' +
-        B.map(function (b) { return '<div class="bdg' + (b[2] ? '' : ' off') + '"><i>' + b[0] + '</i>' + esc(b[1]) + '</div>'; }).join('') + '</div></div>';
+        '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + O.badgesMax + '</div><div class="card"><div class="badges">' + B.map(badgeHTML).join('') + '</div><div class="bdi" id="bdgInfo" hidden></div></div>';
+      box._badges = B;
       if (window.Mundo && window.Mapa) Mundo.mount($('#pfWorld'), O.trips, { base: O, single: cfg.single });
     });
   }
@@ -465,6 +621,19 @@ window.Album = (function () {
       if (crf) { crFilter = crf.getAttribute('data-crf'); renderAlbum(); return; }
       if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
+      var bd = t.closest('[data-bdg]');
+      if (bd) {
+        var pb0 = $('#profBox'), inf = $('#bdgInfo'), bb = ((pb0 && pb0._badges) || []).filter(function (x) { return x.id === bd.getAttribute('data-bdg'); })[0];
+        if (!inf || !bb) return;
+        var same = !inf.hidden && inf.getAttribute('data-id') === bb.id;
+        Array.prototype.forEach.call(document.querySelectorAll('.bdg.sel'), function (x) { x.classList.remove('sel'); });
+        if (same) { inf.hidden = true; return; }
+        inf.innerHTML = badgeInfo(bb); inf.setAttribute('data-id', bb.id); inf.hidden = false; bd.classList.add('sel');
+        return;
+      }
+      var so = t.closest('[data-setopen]');
+      if (so) { openS = so.getAttribute('data-setopen'); renderAlbum().then(function () { var b0 = $('#albumBox'); if (b0 && b0.scrollIntoView) b0.scrollIntoView({ block: 'start' }); }); return; }
+      if (t.closest('[data-setback]')) { openS = null; renderAlbum(); return; }
       var po = t.closest('[data-pkopen]');
       if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), po.getAttribute('data-pktrip') || '', cards, function () { renderAlbum(); }); }); return; }
       if (t.closest('[data-pkex]')) { Juego.exchange(); renderAlbum(); return; }

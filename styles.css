@@ -1345,3 +1345,32 @@ html[data-theme="dark"] .map-info.leg{color:var(--route-l);background:rgba(43,11
 @media (prefers-reduced-motion:reduce){.map-info.on{animation:none}}
 /* Se usa como una app: sin zoom de página con doble toque ni pellizco. El mapa del mundo tiene el suyo */
 html{touch-action:pan-x pan-y}
+
+/* Viajes largos: barra paginada (Home · Resumen · ‹ Día N de M ›) */
+.tabbar.paged{grid-template-columns:1fr 2.4fr}
+.tabbar.paged.has-home{grid-template-columns:1fr 1fr 2.4fr}
+.tabbar.paged .tab:not([data-tab="0"]){display:none}
+.tabbar.paged .tab-ind{transition:left .6s var(--spring),width .6s var(--spring)}
+.tab-days{position:relative;z-index:1;display:flex;align-items:center;min-width:0}
+.td-st{-webkit-appearance:none;appearance:none;border:0;background:none;width:34px;height:100%;display:grid;place-items:center;color:var(--txt3);cursor:pointer;border-radius:22px;touch-action:manipulation}
+.td-st .ic{width:16px;height:16px}
+.td-st[data-dstep="-1"] .ic{transform:scaleX(-1)}
+.td-st:disabled{opacity:.3}
+.td-n{-webkit-appearance:none;appearance:none;border:0;background:none;flex:1;min-width:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:var(--txt3);cursor:pointer;font:inherit;touch-action:manipulation}
+.td-n b{font-size:14px;font-weight:750;line-height:1.1}
+.td-n small{font-size:10px;font-weight:650;opacity:.8}
+.tab-days.on .td-n{color:var(--navy)}
+.tab-days.on .td-n b{color:var(--orange)}
+.tab-days.on .td-st{color:var(--txt2)}
+.dpk{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:14px}
+.dpk-d{-webkit-appearance:none;appearance:none;border:0;background:var(--fill);border-radius:16px;padding:10px 10px 11px;text-align:left;cursor:pointer;color:inherit;font:inherit;display:flex;flex-direction:column;gap:2px;min-width:0}
+.dpk-d b{font-size:20px;font-weight:800;line-height:1}
+.dpk-d small{font-size:11px;color:var(--txt3);font-weight:650}
+.dpk-d span{font-size:12px;font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dpk-d.on{background:var(--navy);color:#fff}
+.dpk-d.on small{color:rgba(255,255,255,.7)}
+.dpk-d.live{box-shadow:inset 0 0 0 2px var(--orange)}
+.seg.many{display:flex;overflow-x:auto;scrollbar-width:none;scroll-behavior:smooth}
+.seg.many::-webkit-scrollbar{display:none}
+.seg.many button{flex:0 0 34px}
+.seg.many .seg-ind{width:34px;transform:translateX(calc(var(--i,0) * 34px))}

@@ -60,7 +60,7 @@
     return Album.trips().then(function (list) {
       var now = new Date().toISOString().slice(0, 10);
       var rows = list.map(function (t) {
-        var bd = t.b, ph = bd.photos || {}, start = bd.trip.defaultStart, days = bd.trip.days.length, user = /^u-/.test(t.id), end = start ? addDays(start, Math.max(0, days - 1)) : '';
+        var bd = t.b, ph = bd.photos || {}, start = realStart(bd), days = bd.trip.days.length, user = /^u-/.test(t.id), end = start ? addDays(start, Math.max(0, days - 1)) : '';
         return { id: t.id, title: bd.meta.title, start: start, days: days, cover: ph[bd.trip.cover] || '', gen: !!bd.meta.generated, user: user, ref: t, past: !!start && end < now };
       }).sort(function (a, b) { return (a.past ? 1 : 0) - (b.past ? 1 : 0) || (a.past ? String(b.start).localeCompare(String(a.start)) : String(a.start).localeCompare(String(b.start))); });
       function paint() {
@@ -85,6 +85,11 @@
     else Promise.race([enWork[id], new Promise(function (r) { setTimeout(r, 12000); })]).then(go, go);
   }
   // viajes creados antes de guardar los dos idiomas: se completan en segundo plano, con conexión
+  // la fecha del viaje: la cambiada en la guía, si la hay
+  function realStart(b) {
+    var m = b.meta || {}, v = null; try { v = JSON.parse(localStorage.getItem((m.storage || m.id) + ':start') || 'null'); } catch (e) {}
+    return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : b.trip.defaultStart;
+  }
   var enWork = {};
   function completeEnglish() {
     DB.all().then(function (l) {
@@ -193,12 +198,17 @@
   }
   $$('.vn').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-vt')); }); });
   document.addEventListener('click', function (e) {
-    var g = e.target.closest('[data-go]'), n = e.target.closest('[data-new]');
+    var g = e.target.closest('[data-go]'), n = e.target.closest('[data-new]'), ix = e.target.closest('[data-idea]');
     if (g) setTab(g.getAttribute('data-go'));
     if (n) newTrip();
+    if (ix) { var I = IDEAS_NOW[+ix.getAttribute('data-idea')]; if (I) newTrip(I); }
   });
-  function newTrip() {
-    Asistente.open({ onSave: function (b) { return DB.put({ id: b.meta.id, at: Date.now(), bundle: b }).then(function () { Album.reset(); refreshAll(); }); }, onOpen: openTrip, aiBox: aiBoxHTML });
+  // idea de temporada: el asistente abre con su país elegido y la fecha en ese mes
+  var IDEAS_NOW = [];
+  function newTrip(idea) {
+    var pre = null;
+    if (idea) { var d = new Date(), y = d.getFullYear() + (idea.month < d.getMonth() + 1 ? 1 : 0), dd = idea.month === d.getMonth() + 1 ? Math.min(28, d.getDate() + 14) : 10, st = y + '-' + (idea.month < 10 ? '0' : '') + idea.month + '-' + (dd < 10 ? '0' : '') + dd; pre = { country: idea.country, start: st }; }
+    Asistente.open({ preset: pre, onSave: function (b) { return DB.put({ id: b.meta.id, at: Date.now(), bundle: b }).then(function () { Album.reset(); refreshAll(); }); }, onOpen: openTrip, aiBox: aiBoxHTML });
   }
   function refreshAll() { renderList(); var t = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (t && t.getAttribute('data-vt') === 'home') renderHome(); }
 
@@ -208,7 +218,9 @@
     var a = fetch('trips/index.json').then(function (r) { return r.json(); }).catch(function () { return []; }).then(function (idx) {
       return Promise.all(idx.map(function (t) { return fetch('trips/' + t.id + '.json').then(function (r) { return r.json(); }).then(function (b) { return { id: t.id, b: b }; }).catch(function () { return null; }); }));
     });
-    var u = DB.all().catch(function () { return []; }).then(function (l) { return (l || []).map(function (x) { return { id: x.id, b: x.bundle }; }); });
+    // Wikimedia ya solo sirve miniaturas de tamaños estándar: las de 800 px de viajes antiguos pasan a 960
+    var fx = function (u) { return String(u).replace(/(\/thumb\/.+\/)(\d+)px-/, function (m, a, n) { return a + ([250, 330, 500, 960, 1280].filter(function (x) { return x >= +n; })[0] || 1920) + 'px-'; }); };
+    var u = DB.all().catch(function () { return []; }).then(function (l) { return (l || []).map(function (x) { var ph = (x.bundle || {}).photos || {}; Object.keys(ph).forEach(function (k) { ph[k] = fx(ph[k]); }); return { id: x.id, b: x.bundle }; }); });
     return Promise.all([a, u]).then(function (r) { return r[0].filter(Boolean).concat(r[1]); });
   }
   Album.init({ trips: allTrips, backupTrips: function () { return DB.all().then(function (l) { return (l || []).map(function (x) { return { id: x.id, at: x.at, bundle: x.bundle }; }); }).catch(function () { return []; }); },
@@ -266,7 +278,7 @@
       // perfil y álbum, uno al lado del otro
       var fan = O.recent.slice(0, 3);
       h += '<div class="hm-two">' +
-        '<button type="button" class="card hm-t rv-h" data-go="profile" style="--d:60ms"><span class="hm-tt">' + ic('user') + 'Perfil</span><span class="hm-big">' + O.badgesOn + '<i>/' + O.badges.length + '</i></span><small>insignias</small><small>' + trips.length + (trips.length === 1 ? ' viaje' : ' viajes') + ' · ' + O.totalDays + ' días</small></button>' +
+        '<button type="button" class="card hm-t rv-h" data-go="profile" style="--d:60ms"><span class="hm-tt">' + ic('user') + 'Perfil</span><span class="hm-big">' + O.badgesOn + '<i>/' + O.badgesMax + '</i></span><small>insignias</small><small>' + trips.length + (trips.length === 1 ? ' viaje' : ' viajes') + ' · ' + O.totalDays + ' días</small></button>' +
         '<button type="button" class="card hm-t rv-h" data-go="album" style="--d:120ms"><span class="hm-tt">' + ic('star') + 'Álbum</span>' +
         (fan.length ? '<span class="hm-fan">' + fan.map(function (c, i) { return '<i class="' + (c.img ? '' : 'noph') + '" style="--r:' + (i - 1) * 9 + 'deg;--x:' + (i - 1) * 22 + 'px' + (c.img ? ';background-image:url(&quot;' + esc(c.img) + '&quot;)' : '') + '"></i>'; }).join('') + '</span>' : '<span class="hm-big">' + O.got + '<i>/' + O.all + '</i></span>') +
         '<small>' + O.got + ' de ' + O.all + ' cromos</small></button></div>';
@@ -281,11 +293,16 @@
           '<div class="card hm-t rv-h" id="hmWx" style="--d:240ms"><span class="hm-tt">' + ic('cloud') + 'Tiempo</span><span class="hm-big">–</span><small>' + esc((T.b.trip.wx[0] || {}).n || '') + '</small></div></div>';
       }
       // siguiente insignia y crear
-      if (O.nextBadge) h += '<div class="card hm-b rv-h" style="--d:280ms"><i>' + O.nextBadge[0] + '</i><span><small>Siguiente insignia</small><b>' + esc(O.nextBadge[1]) + '</b></span></div>';
+      if (O.nextBadge) h += '<button type="button" class="card hm-b rv-h" data-go="profile" style="--d:280ms">' + O.nextBadgeHTML + '<span><small>Siguiente insignia</small><b><span>' + esc(O.nextBadge.name) + '</span> · <span>' + esc({ copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' }[O.nextBadge.next]) + '</span></b><span class="bdg-bar"><i style="width:' + Math.round(O.nextBadge.frac * 100) + '%"></i></span></span><em class="hm-bn">' + O.nextBadge.have + '/' + O.nextBadge.need + '</em></button>';
       if (window.Juego && window.Mundo) {
         var known = {}; trips.forEach(function (t) { (Mundo.cached(t.ref) || []).forEach(function (c) { known[c] = 1; }); });
-        var idea = Juego.suggest(known);
-        if (idea) h += '<button type="button" class="card hm-row sq rv-h" data-new style="--d:300ms"><span class="hm-tt" style="margin:0;font-size:22px">' + (Mundo.flag(idea.cc) || '🌍') + '</span><span><b>¿Y ahora ' + esc(idea.name) + '?</b><small>País nuevo para tu pasaporte</small></span>' + ic('chev') + '</button>';
+        var IDS = Juego.ideas(known, 6), mon = new Date().toLocaleDateString(window.Lang ? Lang.get() : 'es', { month: 'long' });
+        if (IDS.length) {
+          h += '<div class="rv-h" style="--d:300ms"><div class="pf-h">' + (window.Lang && Lang.get() === 'en' ? 'Ideas for ' + mon : 'Ideas para ' + mon) + '</div><div class="idea-row">' + IDS.map(function (x, i) {
+            return '<button type="button" class="idea sq" data-idea="' + i + '"><span class="idea-ph" data-wiki="' + esc(x.wiki) + '"></span><span class="idea-t"><span class="idea-fl">' + (Mundo.flag(x.cc) || '') + '</span><b>' + esc(x.t) + '</b><small>' + esc(x.sub) + '</small></span></button>';
+          }).join('') + '</div></div>';
+          IDEAS_NOW = IDS;
+        }
         // copia de seguridad: los datos solo están en este dispositivo
         var GB = Juego.get(), hasData = O.got > 0 || trips.some(function (t) { return /^u-/.test(t.id); });
         if (hasData && Date.now() - (GB.backup || 0) > 30 * 864e5) h += '<button type="button" class="card hm-row sq rv-h" data-go="profile" style="--d:310ms"><span class="hm-tt" style="margin:0">' + ic('check') + '</span><span><b>Haz una copia de seguridad</b><small>Tus viajes solo están en este dispositivo</small></span>' + ic('chev') + '</button>';
@@ -293,6 +310,7 @@
       h += '<button type="button" class="btn navy sq big-btn rv-h" data-new style="--d:320ms">' + ic('plus') + 'Nuevo viaje</button>';
       box.innerHTML = h;
       if (nextT) homeWeather(nextT);
+      $$('.idea-ph[data-wiki]', box).forEach(function (el) { Juego.ideaImg(el.getAttribute('data-wiki')).then(function (u) { if (u) { el.style.backgroundImage = 'url("' + u + '")'; el.classList.add('on'); } }); });
     });
   }
   // previsión si faltan menos de 2 semanas; si no, temperaturas típicas de esas fechas
