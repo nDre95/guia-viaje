@@ -77,20 +77,51 @@ window.Album = (function () {
     var g = Juego.get(), groups = [], order = { r: 0, g: 1, s: 2, c: 3 };
     g.bag.forEach(function (b) { var f = groups.filter(function (x) { return x.k === b.k && x.t === b.t; })[0]; if (f) f.n++; else groups.push({ k: b.k, t: b.t, n: 1 }); });
     groups.sort(function (a, b) { return order[a.k] - order[b.k]; });
-    var head = '<div class="pk-row">' + (groups.length ? groups.map(function (x) {
+    var head = !groups.length ? '' : '<div class="pf-h">Tus sobres</div><div class="pk-row">' + (groups.length ? groups.map(function (x) {
       var tr0 = (TRIPS || []).filter(function (t) { return t.id === x.t; })[0];
       return '<button type="button" class="pk-mini k-' + x.k + ' sq" data-pkopen="' + x.k + '" data-pktrip="' + esc(x.t) + '"><span class="pk-foil"></span><b>' + x.n + '</b><small>' + esc(Juego.PACK[x.k]) + '</small>' + (tr0 ? '<small class="pk-trip">' + esc(tripTitle(tr0)) + '</small>' : '') + '</button>';
     }).join('') : '<p class="pk-none">Gana sobres con los quizzes: cuantos más aciertos, mejor sobre.</p>') +
       '</div>';
-    // colecciones: cuántos has canjeado de cada clase
+    return albHero(cards) + head;
+  }
+  // portada del álbum: tus cromos, los últimos que has canjeado y cuántos tienes de cada rareza
+  var TIERS = [['base', 'Normal'], ['copper', 'Cobre'], ['silver', 'Plata'], ['gold', 'Oro'], ['emerald', 'Esmeralda'], ['ruby', 'Rubí']];
+  function albHero(cards) {
+    var got = cards.filter(function (c) { return c.got; }), n = got.length, all = cards.length, pc = all ? Math.round(n / all * 100) : 0;
+    var fan = got.slice().sort(function (a, b) { return String(b.got.at || '').localeCompare(String(a.got.at || '')); }).filter(function (c) { return c.url; }).slice(0, 3);
+    cards.filter(function (c) { return !c.got && c.url; }).slice(0, 3 - fan.length).forEach(function (c) { fan.push(c); });
+    return '<div class="alh rv-h"><div class="alh-t"><small>Mi colección</small><b>' + n + '<i> / ' + all + '</i></b><span>' + (n === 1 ? 'cromo canjeado' : 'cromos canjeados') + '</span><span class="alh-bar"><i style="width:' + pc + '%"></i></span></div>' +
+      '<div class="alh-fan">' + fan.map(function (c, i) { return '<i class="t-' + ((c.rate || {}).tier || 'copper') + (c.got ? '' : ' dim') + '" style="--i:' + i + ';background-image:url(&quot;' + esc(c.url) + '&quot;)"></i>'; }).join('') + '</div>' +
+      '<div class="alh-tiers">' + TIERS.map(function (T) { return '<span class="t-' + T[0] + '"><i></i><b>' + got.filter(function (c) { return (c.rate || {}).tier === T[0]; }).length + '</b><small>' + T[1] + '</small></span>'; }).join('') + '</div></div>';
+  }
+  // colecciones con foto: la de un cromo que ya tienes de esa clase (o, si no, en gris)
+  function setsHTML(cards) {
     var sets = SETS.map(function (S) {
       var all = cards.filter(function (c) { return S[2].indexOf(c.rate.pos) >= 0; });
-      return all.length ? { k: S[0], n: S[1], have: all.filter(function (c) { return c.got; }).length, all: all.length } : null;
+      return all.length ? { k: S[0], n: S[1], have: all.filter(function (c) { return c.got; }).length, all: all.length, ph: all.filter(function (c) { return c.got && c.url; }).concat(all.filter(function (c) { return c.url; }))[0] } : null;
     }).filter(Boolean);
-    if (cards.length) sets.push({ k: 'top', n: 'Oro o mejores', have: cards.filter(function (c) { return c.got && c.rate.r >= 80; }).length, all: cards.length });
-    return head + (sets.length ? '<div class="pf-h">Colecciones</div><div class="set-row">' + sets.map(function (x) {
-      return '<button type="button" class="card set-c sq" data-setopen="' + x.k + '"><b>' + esc(x.n) + '</b><small>' + x.have + ' de ' + x.all + '</small><span class="alb-bar"><i style="width:' + Math.round(x.have / x.all * 100) + '%"></i></span></button>';
-    }).join('') + '</div><div class="pf-h">Mis viajes</div>' : '');
+    if (cards.length) sets.push({ k: 'top', n: 'Oro o mejores', have: cards.filter(function (c) { return c.got && c.rate.r >= 80; }).length, all: cards.length, ph: cards.filter(function (c) { return c.got && c.rate.r >= 80 && c.url; }).concat(cards.filter(function (c) { return c.url; }))[0] });
+    return sets.length ? '<div class="pf-h">Colecciones</div><div class="alc">' + sets.map(function (x, i) {
+      return '<button type="button" class="alc-c sq rv-h' + (x.have ? '' : ' none') + '" data-setopen="' + x.k + '" style="--d:' + i * 40 + 'ms"><span class="alc-ph"' + (x.ph ? ' style="background-image:url(&quot;' + esc(x.ph.url) + '&quot;)"' : '') + '></span><span class="hm-shade"></span>' +
+        '<b>' + esc(x.n) + '</b><small>' + x.have + ' de ' + x.all + '</small><span class="alf-bar"><i style="width:' + Math.round(x.have / x.all * 100) + '%"></i></span></button>';
+    }).join('') + '</div>' : '';
+  }
+  // los viajes del álbum como una revista: el principal en grande con su tira de cromos y los demás de dos en dos
+  var albAll = false;
+  function tripsEditorial(rows) {
+    if (!rows.length) return '<p class="note">Aún no hay viajes.</p>';
+    var show = rows.slice(0, 7), f = show[0], cv = coverOf(f.t), cs = f.cs;
+    var strip = cs.slice().sort(function (a, b) { return (b.got ? 1 : 0) - (a.got ? 1 : 0); }).filter(function (c) { return c.url; }).slice(0, 6);
+    var h = '<div class="pf-h">Mis viajes</div><button type="button" class="alf sq rv-h" data-albopen="' + esc(f.t.id) + '"><span class="alf-ph' + cv.cl + '"' + cv.st + '></span><span class="hm-shade"></span>' +
+      '<small class="alf-k">' + (f.got === f.total && f.total ? 'Álbum completo' : 'Tu álbum de') + '</small><b>' + esc(tripTitle(f.t)) + '</b>' +
+      '<span class="alf-s">' + f.got + ' de ' + f.total + ' cromos</span><span class="alf-bar"><i style="width:' + (f.total ? Math.round(f.got / f.total * 100) : 0) + '%"></i></span>' +
+      '<span class="alf-strip">' + strip.map(function (c) { return '<i class="t-' + ((c.rate || {}).tier || 'copper') + (c.got ? '' : ' dim') + '" style="background-image:url(&quot;' + esc(c.url) + '&quot;)"></i>'; }).join('') + '</span></button>';
+    if (show.length > 1) h += '<div class="al2">' + show.slice(1).map(function (r, i) {
+      var c2 = coverOf(r.t);
+      return '<button type="button" class="al2-c sq rv-h" data-albopen="' + esc(r.t.id) + '" style="--d:' + (i + 1) * 40 + 'ms"><span class="alf-ph' + c2.cl + '"' + c2.st + '></span><span class="hm-shade"></span><b>' + esc(tripTitle(r.t)) + '</b><small>' + r.got + ' de ' + r.total + '</small><span class="alf-bar"><i style="width:' + (r.total ? Math.round(r.got / r.total * 100) : 0) + '%"></i></span></button>';
+    }).join('') + '</div>';
+    if (rows.length > 7) h += '<button type="button" class="btn ghost sq alb-all" data-alball>Ver todos los viajes (' + rows.length + ')</button>';
+    return h;
   }
   function paintPacks(on) {
     var box = $('#albumBox'); if (!box || !window.Juego) return Promise.resolve();
@@ -186,7 +217,17 @@ window.Album = (function () {
       if (!cur) {
         openT = null;
         // al principio, solo los viajes: compacto
-        var rows = withC.map(function (t) { var cs = cromosOf(t, alb); return { t: t, total: cs.length, got: cs.filter(function (c) { return c.got; }).length }; });
+        var rows = withC.map(function (t) { var cs = cromosOf(t, alb); cs.forEach(function (c) { c.url = phUrl(c); c.trip = t.id; }); return { t: t, cs: cs, total: cs.length, got: cs.filter(function (c) { return c.got; }).length }; });
+        // primero el que tiene el último cromo canjeado; luego, los más avanzados
+        var last = function (r) { return r.cs.reduce(function (m, c) { return c.got && String(c.got.at || '') > m ? String(c.got.at || '') : m; }, ''); };
+        rows.sort(function (a, b) { return last(b).localeCompare(last(a)) || b.got - a.got; });
+        var cards = []; rows.forEach(function (r) { cards = cards.concat(r.cs); });
+        if (!albAll) {
+          box._lst = '';
+          box.innerHTML = tripsEditorial(rows) + setsHTML(cards);
+          if (window.Mundo) Mundo.detect(withC).catch(function () {});
+          return;
+        }
         function albumList() {
           listBox(box, { key: 'album', size: 5, placeholder: 'Buscar por viaje o país', empty: 'Aún no hay viajes.', items: rows,
             chips: [['all', 'Todos', function () { return true; }], ['part', 'Empezados', function (r) { return r.got && r.got < r.total; }], ['full', 'Completos', function (r) { return r.total && r.got === r.total; }], ['none', 'Sin empezar', function (r) { return !r.got; }]],
@@ -197,7 +238,9 @@ window.Album = (function () {
                 '<span class="alb-bar"><i style="width:' + (r.total ? Math.round(r.got / r.total * 100) : 0) + '%"></i></span></span><svg class="ic alb-go" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button>';
             } });
         }
+        box.innerHTML = ''; box._lst = '';
         albumList();
+        box.insertAdjacentHTML('afterbegin', '<button type="button" class="alb-back sq" data-albless><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg><span>Álbum</span></button>');
         if (window.Mundo) Mundo.detect(withC).then(function (ch) { if (ch && !openT) albumList(); }).catch(function () {});
         return;
       }
@@ -671,6 +714,8 @@ window.Album = (function () {
       if (crf) { crFilter = crf.getAttribute('data-crf'); renderAlbum(); return; }
       if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
+      if (t.closest('[data-alball]')) { albAll = true; renderAlbum(); window.scrollTo(0, 0); return; }
+      if (t.closest('[data-albless]')) { albAll = false; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-bdgall]')) { var pb1 = $('#profBox'); if (pb1 && pb1._badges) openBadges(pb1._badges); return; }
       var bd = t.closest('[data-bdg]');
       if (bd) {

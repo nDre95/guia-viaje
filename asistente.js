@@ -56,9 +56,21 @@ window.Asistente = (function () {
   }
   // vuelve a pintar la página de países cuando llegan los datos del país elegido de antemano
   function redraw() { var cs = document.querySelectorAll('#wzBody .wz-page .wz-c'), c0 = cs[cs.length - 1]; if (c0 && PAGES[page].id === 'pais') PAGES[page].draw(c0); }
-  function close() {
-    if (busy && !confirm('Se está creando la guía. ¿Cerrar de todos modos?')) return;
-    if (!busy && !done && A && (A.countries.length || A.cities.length) && !confirm('¿Salir sin crear el viaje?')) return;
+  // confirmar dentro de la app (los diálogos del navegador se bloquean en algunos visores y el botón parecía no hacer nada)
+  function ask(msg, yes, onYes) {
+    var old = $('#wzAsk'); if (old) old.remove();
+    var d = document.createElement('div'); d.id = 'wzAsk'; d.className = 'wz-ask';
+    d.innerHTML = '<div class="wz-ask-in"><p>' + esc(msg) + '</p><div class="btn-row"><button type="button" class="btn ghost sq" data-ask="no">Seguir aquí</button><button type="button" class="btn navy sq" data-ask="yes">' + esc(yes) + '</button></div></div>';
+    d.addEventListener('click', function (e) { var b = e.target.closest('[data-ask]'); if (!b && e.target !== d) return; d.classList.add('out'); setTimeout(function () { d.remove(); }, 220); if (b && b.getAttribute('data-ask') === 'yes') onYes(); });
+    if (window.Lang) Lang.watch(d);
+    $('#wz').appendChild(d);
+  }
+  function close(force) {
+    if (force !== true) {
+      if (busy) { ask('Se está creando la guía. ¿Salir de todos modos?', 'Salir', function () { close(true); }); return; }
+      if (!done && A && (A.countries.length || A.cities.length)) { ask('¿Salir sin crear el viaje? Lo elegido se pierde.', 'Salir', function () { close(true); }); return; }
+    }
+    var q = $('#wzAsk'); if (q) q.remove();
     if (window.Pj) Pj.stop();
     var w = $('#wz'); w.classList.remove('on'); document.documentElement.classList.remove('wz-open');
     setTimeout(function () { w.hidden = true; $('#wzBody').innerHTML = ''; }, 420);
@@ -462,7 +474,9 @@ window.Asistente = (function () {
   var inited = false;
   function init() {
     if (inited || !$('#wz')) return; inited = true;
-    $('#wzClose').onclick = close; $('#wzBack').onclick = back; $('#wzNext').onclick = next;
+    $('#wzClose').onclick = function () { close(); }; $('#wzBack').onclick = back; $('#wzNext').onclick = next;
+    // atrás arriba: la página anterior o, en la primera, salir
+    $('#wzPrev').onclick = function () { if (page > 0 && !busy && !done) back(); else close(); };
     window.addEventListener('resize', function () { if (A && PAGES[page] && PAGES[page].id === 'ciudades') miniMap($('#wzMap'), A.cities); });
   }
   return { open: open, close: close };

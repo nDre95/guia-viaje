@@ -523,6 +523,14 @@
   #wz.on{transform:none}
   .wz-head{flex:0 0 auto;padding:12px 16px 8px;max-width:var(--w);width:100%;margin:0 auto}
   .wz-toprow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:34px}
+  .wz-toprow #wzStep{flex:1}
+  .wz-prev .ic{transform:rotate(180deg)}
+  .wz-ask{position:absolute;inset:0;z-index:5;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(var(--safe-b) + 16px);background:rgba(0,0,0,.35);animation:welIn .2s ease both}
+  .wz-ask.out{animation:welIn .2s ease reverse both}
+  .wz-ask-in{width:100%;max-width:420px;padding:18px;border-radius:24px;background:var(--bone2);box-shadow:0 20px 50px -20px rgba(0,0,0,.6);animation:rvH .35s var(--smooth) both}
+  .wz-ask-in p{margin:0 2px 14px;font:600 17px/1.35 var(--serif)}
+  .wz-ask-in .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .wz-ask-in .btn{justify-content:center;padding:13px}
   #wzStep{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--orange-t)}
   #wzBar{display:block;height:5px;border-radius:3px;background:var(--fill2);margin-top:8px;overflow:hidden}
   #wzBar i{display:block;height:100%;width:10%;border-radius:3px;background:linear-gradient(90deg,var(--orange2),var(--orange));transition:width .6s var(--spring)}
@@ -681,7 +689,7 @@
   </div>
 </section>
 
-  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.24 · 2 nov 2026</p>
+  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.25 · 2 nov 2026</p>
 </main>
 <div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
 <nav class="vnav" role="tablist" aria-label="Secciones">
@@ -691,7 +699,7 @@
   <button type="button" role="tab" class="vn" data-vt="profile" aria-selected="false"><svg class="ic"><use href="#i-user"></use></svg><span>Perfil</span></button>
 </nav>
 <div id="wz" role="dialog" aria-modal="true" aria-label="Crear un viaje" hidden>
-  <div class="wz-head"><div class="wz-toprow"><span id="wzStep"></span><button type="button" class="wz-x" id="wzClose" aria-label="Cerrar"><svg class="ic"><use href="#i-x"></use></svg></button></div><span id="wzBar"><i></i></span></div>
+  <div class="wz-head"><div class="wz-toprow"><button type="button" class="wz-x wz-prev" id="wzPrev" aria-label="Atrás"><svg class="ic"><use href="#i-chev"></use></svg></button><span id="wzStep"></span><button type="button" class="wz-x" id="wzClose" aria-label="Cerrar"><svg class="ic"><use href="#i-x"></use></svg></button></div><span id="wzBar"><i></i></span></div>
   <div id="wzBody"></div>
   <div class="wz-foot"><span id="wzNeed"></span><div class="wz-nav"><button type="button" id="wzBack">Atrás</button><button type="button" id="wzNext">Siguiente</button></div></div>
 </div>
