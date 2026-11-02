@@ -590,5 +590,7 @@ html[data-theme="dark"] .mw-map .mw-pin path{fill:#f4f4f2}
 .pcv-f .pcv-gl{background:linear-gradient(105deg,transparent 28%,rgba(255,255,255,.7) var(--gx,50%),transparent 72%),linear-gradient(180deg,rgba(255,255,255,.1),transparent 40%)}
 .pcv-bk .pcv-gl{opacity:calc(var(--go,0) * .6)}
 .pcv.zoomed .pcv-stage{cursor:move}
+.pcv-bar{position:relative;z-index:2;display:flex;justify-content:center;gap:10px;padding:4px 16px}
+.pcv-b2.pri{color:#1a1f30;background:#fff}
 .pcv-hint{position:relative;z-index:2;margin:0;padding:8px 16px calc(var(--safe-b) + 16px);text-align:center;font-size:13px;color:rgba(255,255,255,.6)}
 .mw-pp{margin:-4px 4px 10px;font-size:13px;line-height:1.35;color:var(--txt3)}

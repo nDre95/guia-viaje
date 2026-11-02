@@ -142,8 +142,9 @@ window.Album = (function () {
     var best = cs.filter(function (c) { return c.got && (c.img || c.ph); }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0); })[0];
     var dest = (t.b.meta.dest || {})[lg()] || (t.b.meta.dest || {}).es || tripTitle(t);
     return '<button type="button" class="pc-cta sq"' + (got ? ' data-post="' + esc(t.id) + '"' : ' disabled') + '><span class="pc-in"><span class="pc-st"><i class="' + (best ? phCls(best) : '') + '"' + (best ? phStyle(best) : '') + '></i></span>' +
-      '<span class="pc-m"><small>Postal</small><b>Crea tu postal de ' + esc(dest) + '</b><span>' + (got ? 'Una postal de verdad: delante tu mejor foto; detrás, más fotos, sello y matasellos.' : 'Canjea un cromo para crear tu postal.') + '</span></span>' +
-      (got ? '<span class="pc-go">Crear</span>' : '') + '</span></button>';
+      (postIdx()[t.id] ? '<span class="pc-m"><small>Postal</small><b>Tu postal de ' + esc(dest) + '</b><span>Toca para verla, girarla y compartirla.</span></span><span class="pc-go">Ver</span>' :
+        '<span class="pc-m"><small>Postal</small><b>Crea tu postal de ' + esc(dest) + '</b><span>' + (got ? 'Una postal de verdad: delante tu mejor foto; detrás, más fotos, sello y matasellos.' : 'Canjea un cromo para crear tu postal.') + '</span></span>' +
+        (got ? '<span class="pc-go">Crear</span>' : '')) + '</span></button>';
   }
   // un cromo en la cuadrícula (álbum de un viaje o colección)
   function tileHTML(tid, c) {
@@ -314,13 +315,26 @@ window.Album = (function () {
     c.getContext('2d').drawImage(im, (c.width - iw) / 2, (c.height - ih) / 2, iw, ih);
     try { return c.toDataURL('image/jpeg', 0.9); } catch (e) { return ''; }
   }
-  function makePostcard(id, btn) {
+  // las postales hechas se guardan (IndexedDB guia-postales; el índice, en localStorage guia-postales)
+  function postIdx(o) { try { if (o) localStorage.setItem('guia-postales', JSON.stringify(o)); return JSON.parse(localStorage.getItem('guia-postales') || '{}') || {}; } catch (e) { return o || {}; } }
+  function postDb(mode, fn) {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) return rej(new Error('nodb'));
+      var q = indexedDB.open('guia-postales', 1);
+      q.onupgradeneeded = function () { q.result.createObjectStore('p', { keyPath: 'id' }); };
+      q.onerror = function () { rej(q.error); };
+      q.onsuccess = function () { var tx = q.result.transaction('p', mode), r = fn(tx.objectStore('p')); tx.oncomplete = function () { res(r && r.result); }; tx.onerror = function () { rej(tx.error); }; };
+    });
+  }
+  function makePostcard(id, btn, redo) {
     var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t || (btn && btn.classList.contains('busy'))) return;
+    // ya hecha: se abre la guardada
+    if (!redo && postIdx()[id]) { postDb('readonly', function (s) { return s.get(id); }).then(function (p) { if (p) postcard3d(p.front, p.back, id); else makePostcard(id, btn, true); }, function () { makePostcard(id, btn, true); }); return; }
     var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), en = lg() === 'en';
     var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; }).slice(0, 6);
     // mientras se hace: la tarjeta cambia solo el texto de su botón
     var go = btn && btn.querySelector('.pc-go');
-    function busy(on) { if (!btn) return; btn.classList.toggle('busy', on); if (go) go.textContent = tr(on ? 'Creando…' : 'Crear'); }
+    function busy(on) { if (!btn) { if (on && window.Juego) Juego.toast('Creando postal…'); return; } btn.classList.toggle('busy', on); if (go) go.textContent = tr(on ? 'Creando…' : 'Crear'); }
     busy(true);
     Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
       var ph = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
@@ -390,16 +404,29 @@ window.Album = (function () {
         '<filter id="pcSh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#3b2f1c" flood-opacity=".28"/></filter>' +
         '<mask id="pcPerf"><rect x="' + (sx - 10) + '" y="' + (sy - 10) + '" width="' + (sw + 20) + '" height="' + (sh + 20) + '" fill="#fff"/><g fill="#000">' + holes + '</g></mask>', g);
       busy(false);
-      postcard3d(front, back);
+      var ix = postIdx(); ix[id] = Date.now(); postIdx(ix);
+      postDb('readwrite', function (s) { return s.put({ id: id, at: Date.now(), front: front, back: back }); }).catch(function () {});
+      postcard3d(front, back, id);
+      renderAlbum();
     }, function () { busy(false); });
   }
   // el visor: girar con un dedo (se asienta de frente o de espaldas), pellizcar para acercar, doble toque, rueda
-  function postcard3d(front, back) {
+  // las dos caras en PNG de 1920×1080, para compartir (se preparan al abrir: Safari solo comparte justo tras el toque)
+  function postPng(svgTxt) {
+    return new Promise(function (res) {
+      var u = URL.createObjectURL(new Blob([svgTxt.replace('<svg ', '<svg width="1920" height="1080" ')], { type: 'image/svg+xml' })), im = new Image();
+      im.onload = function () { var c = document.createElement('canvas'); c.width = 1920; c.height = 1080; c.getContext('2d').drawImage(im, 0, 0, 1920, 1080); URL.revokeObjectURL(u); try { c.toBlob(function (b) { res(b); }, 'image/png'); } catch (e) { res(null); } };
+      im.onerror = function () { res(null); }; im.src = u;
+    });
+  }
+  function postcard3d(front, back, id) {
+    var files = null, name = 'postal-' + (id || 'viaje');
+    Promise.all([postPng(front), postPng(back)]).then(function (b) { files = b.map(function (x, i) { try { return x && new File([x], name + (i ? '-detras' : '-delante') + '.png', { type: 'image/png' }); } catch (e) { return null; } }).filter(Boolean); });
     var old = document.getElementById('pcView'); if (old) old.remove();
     var v = document.createElement('div'); v.className = 'pcv'; v.id = 'pcView';
-    v.innerHTML = '<div class="pcv-top"><button type="button" class="pcv-b2 sq" data-pv="flip">Darle la vuelta</button><button type="button" class="pcv-x sq" data-pv="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
+    v.innerHTML = '<div class="pcv-top">' + (id ? '<button type="button" class="pcv-b2 sq" data-pv="redo">Rehacer</button>' : '<span></span>') + '<button type="button" class="pcv-x sq" data-pv="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>' +
       '<div class="pcv-stage"><div class="pcv-zoom"><div class="pcv-card in"><div class="pcv-face pcv-f">' + front + '<i class="pcv-gl"></i></div><div class="pcv-face pcv-bk">' + back + '<i class="pcv-gl"></i></div></div></div></div>' +
-      '<p class="pcv-hint">Arrastra para girarla · pellizca para acercar</p>';
+      '<div class="pcv-bar"><button type="button" class="pcv-b2 sq" data-pv="flip">Darle la vuelta</button><button type="button" class="pcv-b2 pri sq" data-pv="share">Compartir</button></div><p class="pcv-hint">Arrastra para girarla · pellizca para acercar</p>';
     var stage = v.querySelector('.pcv-stage'), zoom = v.querySelector('.pcv-zoom'), card = v.querySelector('.pcv-card');
     var S = { rx: 0, ry: 0, s: 1, x: 0, y: 0 }, P = {}, rot = null, pinch = null, pan = null, lastTap = 0;
     function size() { var w = Math.min(window.innerWidth - 28, (window.innerHeight - 170) * 16 / 9, 1100); card.style.width = w + 'px'; card.style.height = (w * 9 / 16) + 'px'; }
@@ -463,6 +490,13 @@ window.Album = (function () {
       var b = e.target.closest('[data-pv]'), a = b && b.getAttribute('data-pv');
       if (a === 'close') { v.classList.add('out'); window.removeEventListener('resize', size); setTimeout(function () { v.remove(); }, 260); }
       else if (a === 'flip') { if (S.s > 1) zoomTo(1, 0, 0, true); turn(0, S.ry + 180, true); }
+      else if (a === 'redo') { if (!confirm(tr('¿Hacer la postal otra vez con tus cromos de ahora?'))) return; v.remove(); window.removeEventListener('resize', size); makePostcard(id, null, true); }
+      else if (a === 'share') {
+        if (!files || !files.length) { if (window.Juego) Juego.toast('Preparando la postal…'); return; }
+        var two = navigator.canShare && navigator.canShare({ files: files }), one = !two && navigator.canShare && navigator.canShare({ files: [files[0]] });
+        if (two || one) { navigator.share({ files: two ? files : [files[0]], title: name }).catch(function () {}); return; }
+        files.forEach(function (f, i) { setTimeout(function () { var l = document.createElement('a'); l.href = URL.createObjectURL(f); l.download = f.name; document.body.appendChild(l); l.click(); setTimeout(function () { l.remove(); }, 2000); }, i * 400); });
+      }
     });
     window.addEventListener('resize', size);
     if (window.Lang) Lang.watch(v);
