@@ -2729,6 +2729,7 @@ var View = (function () {
     $$('.page').forEach(function (pg, k) { pg.setAttribute('aria-label', k ? L('day') + ' ' + k : L('tabPrep')); });
   }
   applyStatic();
+  if (window.Lang && Lang.tip) Lang.tip('guia', 'Abajo, cada pestaña es un día del viaje. Toca una parada para ver sus detalles y cómo llegar.');
 
   /* ---------- Háptica (iOS 18: truco del switch nativo; Android: vibrate) ---------- */
   var hapt = $('#haptic');

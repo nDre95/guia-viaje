@@ -74,6 +74,7 @@ window.Album = (function () {
   }
   var SETS = [['hist', 'Historia', ['CAS', 'RUI', 'MON', 'TEM']], ['arte', 'Arte y espectáculos', ['MUS', 'ESP']], ['natu', 'Naturaleza y miradores', ['NAT', 'JAR', 'MIR']], ['urbe', 'Ciudad', ['PLZ', 'BAR', 'MER', 'PAS', 'FAM']]];
   function packsHTML(cards) {
+    if (window.Lang && Lang.simple && Lang.simple()) return '';
     var g = Juego.get(), groups = [], order = { r: 0, g: 1, s: 2, c: 3 };
     g.bag.forEach(function (b) { var f = groups.filter(function (x) { return x.k === b.k && x.t === b.t; })[0]; if (f) f.n++; else groups.push({ k: b.k, t: b.t, n: 1 }); });
     groups.sort(function (a, b) { return order[a.k] - order[b.k]; });
@@ -176,6 +177,7 @@ window.Album = (function () {
   }
   function renderAlbum() {
     var box = $('#albumBox'); if (!box) return Promise.resolve();
+    if (window.Lang && Lang.tip) Lang.tip('album', 'Cada sitio que visitas es un cromo: en la guía, cuando estés allí, pulsa «Canjear cromo».');
     if (!TRIPS) box.innerHTML = '<p class="note">Cargando…</p>';
     return trips().then(function (list) {
       var alb = albumGet(), withC = list.filter(function (t) { return cromosOf(t, alb).length; });
@@ -588,6 +590,13 @@ window.Album = (function () {
     if (window.Lang) Lang.watch(box);
     document.body.appendChild(box);
   }
+  // la vista de la app: sencilla (lo esencial) o completa (con todo el juego)
+  function modeHTML() {
+    var sm = !window.Lang || !Lang.simple || Lang.simple();
+    return '<div class="pf-h">Vista de la app</div><div class="card md-card"><button type="button" class="md-o sq' + (sm ? ' on' : '') + '" data-mode="simple"><b>Sencilla</b><small>Lo esencial: tus viajes, el plan de cada día y tu álbum.</small></button>' +
+      '<button type="button" class="md-o sq' + (sm ? '' : ' on') + '" data-mode="full"><b>Completa</b><small>Además, sobres, rarezas, colecciones, quizzes, insignias y niveles.</small></button>' +
+      (window.showWelcome ? '<button type="button" class="md-w sq" data-welcome>Ver la bienvenida</button>' : '') + '</div>';
+  }
   function badgeInfo(b) {
     return '<div class="bdi-h">' + medal(b) + '<span><b>' + esc(b.name) + '</b><small>' + esc(b.what) + '</small></span></div><div class="bdi-steps">' + b.steps.map(function (n, k) {
       return '<span class="bdi-s' + (b.lv > k ? ' on' : '') + '">' + medal(b, b.lv > k ? BMAT[k] : '') + '<small>' + esc(BMAT_ES[BMAT[k]]) + '</small><b>' + n + '</b></span>';
@@ -641,7 +650,7 @@ window.Album = (function () {
             '<div class="alb-bar"><i style="width:' + (t.total ? Math.round(t.got / t.total * 100) : 0) + '%"></i></div><small>' + t.got + ' de ' + t.total + ' cromos · ' + t.mustGot + ' de ' + t.must + ' imprescindibles</small>' +
             (cfg.single ? '' : '<div class="btn-row"><button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button></div>') + '</div></div>';
         }).join('') + (sorted.length > 3 ? '<button type="button" class="lst-more sq" data-go="trips">Ver todos (' + sorted.length + ')</button>' : '') : '<p class="note">Aún no hay viajes.</p>') +
-        '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + O.badgesMax + '</div><div class="card"><div class="badges">' + B.slice().sort(function (a, b) { return b.lv - a.lv || b.frac - a.frac; }).slice(0, 6).map(badgeHTML).join('') + '</div><button type="button" class="lst-more sq bdg-all" data-bdgall>Ver todas (' + B.length * 5 + ')</button><div class="bdi" id="bdgInfo" hidden></div></div>';
+        (window.Lang && Lang.simple && Lang.simple() ? '' : '<div class="pf-h">Insignias · ' + O.badgesOn + ' de ' + O.badgesMax + '</div><div class="card"><div class="badges">' + B.slice().sort(function (a, b) { return b.lv - a.lv || b.frac - a.frac; }).slice(0, 6).map(badgeHTML).join('') + '</div><button type="button" class="lst-more sq bdg-all" data-bdgall>Ver todas (' + B.length * 5 + ')</button><div class="bdi" id="bdgInfo" hidden></div></div>') + modeHTML();
       box._badges = B;
       if (window.Mundo && window.Mapa) Mundo.mount($('#pfWorld'), O.trips, { base: O, single: cfg.single });
     });
@@ -671,6 +680,9 @@ window.Album = (function () {
       if (crf) { crFilter = crf.getAttribute('data-crf'); renderAlbum(); return; }
       if (ao) { openT = ao.getAttribute('data-albopen'); crFilter = 'all'; renderAlbum(); window.scrollTo(0, 0); return; }
       if (t.closest('[data-albback]')) { openT = null; renderAlbum(); window.scrollTo(0, 0); return; }
+      var md = t.closest('[data-mode]');
+      if (md && window.Lang && Lang.setSimple) { Lang.setSimple(md.getAttribute('data-mode') === 'simple'); renderProfile(); renderAlbum(); document.dispatchEvent(new Event('guia:modo')); return; }
+      if (t.closest('[data-welcome]') && window.showWelcome) { window.showWelcome(); return; }
       if (t.closest('[data-bdgall]')) { var pb1 = $('#profBox'); if (pb1 && pb1._badges) openBadges(pb1._badges); return; }
       var bd = t.closest('[data-bdg]');
       if (bd) {

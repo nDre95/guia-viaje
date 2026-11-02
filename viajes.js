@@ -251,19 +251,36 @@
     var box = $('#homeBox');
     return Album.overview().then(function (O) {
       var trips = O.trips, nextT = trips.filter(function (t) { return t.status !== 'past'; }).sort(function (a, b) { return String(a.start).localeCompare(String(b.start)); })[0];
-      var h = '';
-      if (nextT) {
+      var h = '', sm = window.Lang && Lang.simple && Lang.simple(), more = '';
+      if (nextT && nextT.status === 'now') {
+        // durante el viaje: el siguiente sitio de hoy (el primero sin canjear) y cómo llegar
+        var di = Math.max(0, Math.min(nextT.days - 1, -daysTo(nextT.start))), TT = nextT.ref, day = TT.b.trip.days[di] || { items: [] }, cs0 = Album.cromosOf(TT, Album.get());
+        var stops = day.items.filter(function (it) { return it.lat != null && window.Mapa && Mapa.isSight(it); });
+        var nx = stops.filter(function (it) { return !cs0.some(function (c) { return c.id === it.id && c.got; }); })[0] || stops[0];
+        var nc = nx && cs0.filter(function (c) { return c.id === nx.id; })[0], en0 = window.Lang && Lang.get() === 'en' ? ((TT.b.trip_en || {}).items || {})[nx ? nx.id : ''] || {} : {};
+        // en coche si el viaje tiene trayectos en coche (Escocia no lo dice en meta)
+        var md0 = (TT.b.meta || {}).mode || (TT.b.trip.days.some(function (d) { return d.items.some(function (it) { return it.t === 'drive'; }); }) ? 'car' : 'transit');
+        var mode = md0 === 'car' ? 'driving' : md0 === 'walk' ? 'walking' : 'transit', dEn = window.Lang && Lang.get() === 'en' ? ((TT.b.trip_en || {}).days || {})[day.id] || {} : {};
+        h += '<div class="hm-now rv-h"' + (nc && nc.img ? ' style="background-image:url(&quot;' + esc(nc.img) + '&quot;)"' : nextT.cover ? ' style="background-image:url(&quot;' + esc(nextT.cover) + '&quot;)"' : '') + '><span class="hm-shade"></span>' +
+          '<span class="hm-ey">' + 'Hoy · Día ' + (di + 1) + ' de ' + nextT.days + '</span><small class="hm-nk">Ahora toca</small><b>' + esc(nx ? en0.ti || nx.ti : (dEn.title || day.title || nextT.title)) + '</b><small>' + esc(dEn.title || day.title || '') + '</small>' +
+          '<span class="hm-acts">' + (nx ? '<a class="hm-a pri" href="https://www.google.com/maps/dir/?api=1&destination=' + nx.lat + ',' + nx.lon + '&travelmode=' + mode + '" target="_blank" rel="noopener">' + ic('route') + 'Cómo llegar</a>' : '') +
+          '<button type="button" class="hm-a" data-open="' + esc(nextT.id) + '">Abrir el día</button></span></div>';
+      } else if (nextT) {
         var dd = daysTo(nextT.start), when = nextT.status === 'now' ? 'En curso · día ' + (1 - dd) + ' de ' + nextT.days : dd === 0 ? '¡Es hoy!' : dd === 1 ? 'Mañana' : 'Faltan ' + dd + ' días';
         h += '<button type="button" class="hm-next rv-h" data-open="' + esc(nextT.id) + '"' + (nextT.cover ? ' style="background-image:url(&quot;' + esc(nextT.cover) + '&quot;)"' : '') + '><span class="hm-shade"></span>' +
           '<span class="hm-ey">Tu próximo viaje</span><span class="hm-cd">' + esc(when) + '</span><b>' + esc(nextT.title) + '</b><small>' + esc(dateLbl(nextT.start)) + ' – ' + esc(dateLbl(addDays(nextT.start, Math.max(0, nextT.days - 1)))) + '</small><span class="hm-go">Abrir la guía' + ic('chev') + '</span></button>';
+        var T1 = nextT.ref, st1 = checklistStat(T1), pc1 = st1.all ? Math.round(st1.done / st1.all * 100) : 0;
+        h += '<div class="hm-two">' +
+          '<button type="button" class="card hm-t rv-h" data-open="' + esc(nextT.id) + '" style="--d:40ms"><span class="hm-tt">' + ic('check') + 'Listo para salir</span><span class="hm-big">' + pc1 + '<i>%</i></span><span class="hm-prog"><i style="width:' + pc1 + '%"></i></span><small>' + st1.done + ' de ' + st1.all + ' tareas</small></button>' +
+          '<div class="card hm-t rv-h" id="hmWx" style="--d:80ms"><span class="hm-tt">' + ic('cloud') + 'Tiempo</span><span class="hm-big">–</span><small>' + esc((T1.b.trip.wx[0] || {}).n || '') + '</small></div></div>';
       } else {
         h += '<button type="button" class="hm-next empty rv-h" data-new><span class="hm-ey">Sin viajes a la vista</span><b>¿A dónde vamos?</b><small>Crea una guía nueva en un par de minutos, con datos reales.</small><span class="hm-go">Crear un viaje' + ic('chev') + '</span></button>';
       }
       if (window.Juego) {
         var G = Juego.get(), nP = Juego.total(G), kP = ['r', 'g', 's', 'c'].filter(function (k) { return G.bag.some(function (b) { return b.k === k; }); })[0] || 'c';
-        if (nP) h += '<button type="button" class="card hm-row sq rv-h" data-go="album" style="--d:30ms"><span class="hm-pk k-' + kP + '"><span class="pk-foil"></span></span><span><b>' + (nP === 1 ? 'Tienes 1 sobre' : 'Tienes ' + nP + ' sobres') + '</b><small>Ábrelo en tu álbum</small></span>' + ic('chev') + '</button>';
+        if (nP && !sm) more += '<button type="button" class="card hm-row sq rv-h" data-go="album" style="--d:30ms"><span class="hm-pk k-' + kP + '"><span class="pk-foil"></span></span><span><b>' + (nP === 1 ? 'Tienes 1 sobre' : 'Tienes ' + nP + ' sobres') + '</b><small>Ábrelo en tu álbum</small></span>' + ic('chev') + '</button>';
         // durante un viaje: los retos de hoy
-        if (nextT && nextT.status === 'now') h += '<div class="card hm-ret rv-h"><b>Retos de hoy</b><ul>' + Juego.challenges().map(function (c) { return '<li class="' + (c.done ? 'ok' : '') + '">' + esc(c.t) + '</li>'; }).join('') + '</ul></div>';
+        if (nextT && nextT.status === 'now' && !sm) more += '<div class="card hm-ret rv-h"><b>Retos de hoy</b><ul>' + Juego.challenges().map(function (c) { return '<li class="' + (c.done ? 'ok' : '') + '">' + esc(c.t) + '</li>'; }).join('') + '</ul></div>';
         // recuerdos: un viaje de estas fechas en otros años
         var nowD = new Date(), mem = trips.filter(function (t) {
           if (t.status !== 'past' || !t.start) return false;
@@ -272,13 +289,13 @@
         })[0];
         if (mem) {
           var yrs = nowD.getFullYear() - +mem.start.slice(0, 4);
-          h += '<button type="button" class="card hm-row sq rv-h" data-open="' + esc(mem.id) + '"><span class="hm-ph"' + (mem.cover ? ' style="background-image:url(&quot;' + esc(mem.cover) + '&quot;)"' : '') + '></span><span><b>' + (yrs === 1 ? 'Hace 1 año' : 'Hace ' + yrs + ' años') + '</b><small>' + esc(mem.title) + '</small></span>' + ic('chev') + '</button>';
+          more += '<button type="button" class="card hm-row sq rv-h" data-open="' + esc(mem.id) + '"><span class="hm-ph"' + (mem.cover ? ' style="background-image:url(&quot;' + esc(mem.cover) + '&quot;)"' : '') + '></span><span><b>' + (yrs === 1 ? 'Hace 1 año' : 'Hace ' + yrs + ' años') + '</b><small>' + esc(mem.title) + '</small></span>' + ic('chev') + '</button>';
         }
       }
       // perfil y álbum, uno al lado del otro
       var fan = O.recent.slice(0, 3);
       h += '<div class="hm-two">' +
-        '<button type="button" class="card hm-t rv-h" data-go="profile" style="--d:60ms"><span class="hm-tt">' + ic('user') + 'Perfil</span><span class="hm-big">' + O.badgesOn + '<i>/' + O.badgesMax + '</i></span><small>insignias</small><small>' + trips.length + (trips.length === 1 ? ' viaje' : ' viajes') + ' · ' + O.totalDays + ' días</small></button>' +
+        '<button type="button" class="card hm-t rv-h" data-go="profile" style="--d:60ms"><span class="hm-tt">' + ic('user') + 'Perfil</span>' + (sm ? '<span class="hm-big">' + trips.length + '</span><small>' + (trips.length === 1 ? 'viaje' : 'viajes') + '</small>' : '<span class="hm-big">' + O.badgesOn + '<i>/' + O.badgesMax + '</i></span><small>insignias</small>') + '<small>' + trips.length + (trips.length === 1 ? ' viaje' : ' viajes') + ' · ' + O.totalDays + ' días</small></button>' +
         '<button type="button" class="card hm-t rv-h" data-go="album" style="--d:120ms"><span class="hm-tt">' + ic('star') + 'Álbum</span>' +
         (fan.length ? '<span class="hm-fan">' + fan.map(function (c, i) { return '<i class="' + (c.img ? '' : 'noph') + '" style="--r:' + (i - 1) * 9 + 'deg;--x:' + (i - 1) * 22 + 'px' + (c.img ? ';background-image:url(&quot;' + esc(c.img) + '&quot;)' : '') + '"></i>'; }).join('') + '</span>' : '<span class="hm-big">' + O.got + '<i>/' + O.all + '</i></span>') +
         '<small>' + O.got + ' de ' + O.all + ' cromos</small></button></div>';
@@ -288,17 +305,14 @@
         if (must.length) h += '<div class="hm-sec rv-h" style="--d:160ms"><div class="hm-h"><b>Imprescindibles</b><small>' + must.filter(function (c) { return c.got; }).length + ' de ' + must.length + '</small></div><div class="hm-scroll">' + must.map(function (c) {
           return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(T.id + '|' + c.id) + '"' + (c.img ? ' style="background-image:url(&quot;' + esc(c.img) + '&quot;)"' : '') + '><span>' + esc(c.ti) + '</span></button>';
         }).join('') + '</div></div>';
-        h += '<div class="hm-two">' +
-          '<button type="button" class="card hm-t rv-h" data-open="' + esc(nextT.id) + '" style="--d:200ms"><span class="hm-tt">' + ic('check') + 'Listo para salir</span><span class="hm-big">' + pc + '<i>%</i></span><span class="hm-prog"><i style="width:' + pc + '%"></i></span><small>' + st.done + ' de ' + st.all + ' tareas</small></button>' +
-          '<div class="card hm-t rv-h" id="hmWx" style="--d:240ms"><span class="hm-tt">' + ic('cloud') + 'Tiempo</span><span class="hm-big">–</span><small>' + esc((T.b.trip.wx[0] || {}).n || '') + '</small></div></div>';
       }
       // siguiente insignia y crear
-      if (O.nextBadge) h += '<button type="button" class="card hm-b rv-h" data-go="profile" style="--d:280ms">' + O.nextBadgeHTML + '<span><small>Siguiente insignia</small><b><span>' + esc(O.nextBadge.name) + '</span> · <span>' + esc({ copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' }[O.nextBadge.next]) + '</span></b><span class="bdg-bar"><i style="width:' + Math.round(O.nextBadge.frac * 100) + '%"></i></span></span><em class="hm-bn">' + O.nextBadge.have + '/' + O.nextBadge.need + '</em></button>';
+      if (O.nextBadge && !sm) more += '<button type="button" class="card hm-b rv-h" data-go="profile" style="--d:280ms">' + O.nextBadgeHTML + '<span><small>Siguiente insignia</small><b><span>' + esc(O.nextBadge.name) + '</span> · <span>' + esc({ copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' }[O.nextBadge.next]) + '</span></b><span class="bdg-bar"><i style="width:' + Math.round(O.nextBadge.frac * 100) + '%"></i></span></span><em class="hm-bn">' + O.nextBadge.have + '/' + O.nextBadge.need + '</em></button>';
       if (window.Juego && window.Mundo) {
         var known = {}; trips.forEach(function (t) { (Mundo.cached(t.ref) || []).forEach(function (c) { known[c] = 1; }); });
         var IDS = Juego.ideas(known, 6), mon = new Date().toLocaleDateString(window.Lang ? Lang.get() : 'es', { month: 'long' });
         if (IDS.length) {
-          h += '<div class="rv-h" style="--d:300ms"><div class="pf-h">' + (window.Lang && Lang.get() === 'en' ? 'Ideas for ' + mon : 'Ideas para ' + mon) + '</div><div class="idea-row">' + IDS.map(function (x, i) {
+          more += '<div class="rv-h" style="--d:300ms"><div class="pf-h">' + (window.Lang && Lang.get() === 'en' ? 'Ideas for ' + mon : 'Ideas para ' + mon) + '</div><div class="idea-row">' + IDS.map(function (x, i) {
             return '<button type="button" class="idea sq" data-idea="' + i + '"><span class="idea-ph" data-wiki="' + esc(x.wiki) + '"></span><span class="idea-t"><span class="idea-fl">' + (Mundo.flag(x.cc) || '') + '</span><b>' + esc(x.t) + '</b><small>' + esc(x.sub) + '</small></span></button>';
           }).join('') + '</div></div>';
           IDEAS_NOW = IDS;
@@ -308,6 +322,7 @@
         if (hasData && Date.now() - (GB.backup || 0) > 30 * 864e5) h += '<button type="button" class="card hm-row sq rv-h" data-go="profile" style="--d:310ms"><span class="hm-tt" style="margin:0">' + ic('check') + '</span><span><b>Haz una copia de seguridad</b><small>Tus viajes solo están en este dispositivo</small></span>' + ic('chev') + '</button>';
       }
       h += '<button type="button" class="btn navy sq big-btn rv-h" data-new style="--d:320ms">' + ic('plus') + 'Nuevo viaje</button>';
+      if (more) h += '<details class="hm-more rv-h" style="--d:340ms"><summary>Más ideas y novedades' + ic('chev') + '</summary>' + more + '</details>';
       box.innerHTML = h;
       if (nextT) homeWeather(nextT);
       $$('.idea-ph[data-wiki]', box).forEach(function (el) { Juego.ideaImg(el.getAttribute('data-wiki')).then(function (u) { if (u) { el.style.backgroundImage = 'url("' + u + '")'; el.classList.add('on'); } }); });
@@ -323,7 +338,40 @@
       .then(function (r) { return r.json(); }).then(function (j) { big.innerHTML = Math.round(j.daily.temperature_2m_max[0]) + '<i>°</i>'; el.lastChild.textContent = w.n + ' · mín. ' + Math.round(j.daily.temperature_2m_min[0]) + '°'; }).catch(typical);
   }
 
+  document.addEventListener('guia:modo', function () { renderHome(); });
   document.addEventListener('juego:change', function () { var v = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (v && v.getAttribute('data-vt') === 'home') renderHome(); });
+  // bienvenida de la primera vez (guia-bienvenida): qué es, crear un viaje, los cromos; y la vista sencilla o completa
+  function showWelcome() {
+    var old = document.getElementById('welBox'); if (old) old.remove();
+    var S = [['route', 'Tu guía de viaje', 'Cada viaje con su plan día a día, el mapa, los horarios, el tiempo y lo que no te puedes perder.'],
+      ['plus', 'Crea un viaje en un minuto', 'Dinos adónde vas y cuándo: la app prepara el plan con datos reales. Luego cambias lo que quieras.'],
+      ['star', 'Colecciona los sitios que visitas', 'Cada sitio es un cromo. Cuando estés allí, pulsa «Canjear cromo». Con ellos haces tu postal y sellas tu pasaporte.']];
+    var i = 0, box = document.createElement('div'), sm = !window.Lang || Lang.simple();
+    box.id = 'welBox'; box.className = 'wel';
+    function paint(dir) {
+      var last = i === S.length, x = S[i] || [];
+      box.innerHTML = '<div class="wel-in"><button type="button" class="wel-skip" data-w="end">Saltar</button>' +
+        '<div class="wel-pg ' + (dir < 0 ? 'l' : 'r') + '">' + (last ? '<span class="wel-ic">' + ic('user') + '</span><h2>¿Cómo la quieres?</h2>' +
+          '<button type="button" class="md-o sq' + (sm ? ' on' : '') + '" data-w="simple"><b>Sencilla <em>Recomendada</em></b><small>Lo esencial: tus viajes, el plan de cada día y tu álbum.</small></button>' +
+          '<button type="button" class="md-o sq' + (sm ? '' : ' on') + '" data-w="full"><b>Completa</b><small>Además, sobres, rarezas, colecciones, quizzes, insignias y niveles.</small></button><p class="wel-p">Puedes cambiarlo cuando quieras en tu perfil.</p>'
+          : '<span class="wel-ic">' + ic(x[0]) + '</span><h2>' + x[1] + '</h2><p class="wel-p">' + x[2] + '</p>') + '</div>' +
+        '<div class="wel-dots">' + S.concat([0]).map(function (_, k) { return '<i' + (k === i ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
+        '<button type="button" class="btn navy sq wel-go" data-w="' + (last ? 'end' : 'next') + '">' + (last ? 'Empezar' : 'Siguiente') + '</button></div>';
+    }
+    function end() { try { localStorage.setItem('guia-bienvenida', '1'); } catch (e) {} if (window.Lang) Lang.setSimple(sm); box.classList.add('out'); setTimeout(function () { box.remove(); }, 300); renderHome(); }
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-w]'); if (!b) return; var w = b.getAttribute('data-w');
+      if (w === 'next') { i++; paint(1); } else if (w === 'end') end(); else { sm = w === 'simple'; paint(0); }
+    });
+    var x0 = null;
+    box.addEventListener('pointerdown', function (e) { x0 = e.clientX; });
+    box.addEventListener('pointerup', function (e) { if (x0 == null) return; var dx = e.clientX - x0; x0 = null; if (dx < -50 && i < S.length) { i++; paint(1); } else if (dx > 50 && i > 0) { i--; paint(-1); } });
+    paint(1);
+    if (window.Lang) Lang.watch(box);
+    document.body.appendChild(box);
+  }
+  window.showWelcome = showWelcome;
+  try { if (!localStorage.getItem('guia-bienvenida')) setTimeout(showWelcome, 400); } catch (e) {}
   renderList();
   completeEnglish();
   var t0 = location.hash.slice(1);
