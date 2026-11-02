@@ -323,17 +323,53 @@ window.Juego = (function () {
     ['Estambul en otoño', 'Istanbul in autumn', 'Bazares, mezquitas y el Bósforo', 'Bazaars, mosques and the Bosphorus', [9, 10, 11, 4, 5], 'Santa_Sofía', 'TR', 'Turquía', 'Turkey', 'Q43'],
     ['Camino Inca a Machu Picchu', 'Inca Trail to Machu Picchu', 'Cuatro días a pie en temporada seca', 'Four days on foot in the dry season', [5, 6, 7, 8, 9], 'Machu_Picchu', 'PE', 'Perú', 'Peru', 'Q419'],
     ['México en Día de Muertos', 'Mexico for the Day of the Dead', 'Altares, cempasúchil y desfiles', 'Altars, marigolds and parades', [10, 11], 'Día_de_Muertos', 'MX', 'México', 'Mexico', 'Q96'],
+    // islas
+    ['Maldivas', 'The Maldives', 'Atolones, agua turquesa y casas sobre el mar', 'Atolls, turquoise water and overwater villas', [1, 2, 3, 4, 11, 12], 'Malé', 'MV', 'Maldivas', 'Maldives', 'Q826', 'isla playa'],
+    ['Lanzarote', 'Lanzarote', 'Volcanes, viñedos negros y calas', 'Volcanoes, black vineyards and coves', [10, 11, 12, 1, 2, 3, 4, 5], 'Parque_nacional_de_Timanfaya', 'ES', 'España', 'Spain', 'Q29', 'isla playa naturaleza'],
+    ['Mallorca sin multitudes', 'Mallorca without the crowds', 'Calas, la Serra de Tramuntana y Palma', 'Coves, the Tramuntana hills and Palma', [5, 6, 9, 10], 'Caló_des_Moro', 'ES', 'España', 'Spain', 'Q29', 'isla playa'],
+    ['Madeira, la isla jardín', 'Madeira, the garden island', 'Levadas entre bosques y acantilados', 'Levada walks through forests and cliffs', [3, 4, 5, 6, 9, 10], 'Pico_Ruivo', 'PT', 'Portugal', 'Portugal', 'Q45', 'isla naturaleza'],
+    ['Las Azores', 'The Azores', 'Lagos en cráteres y ballenas', 'Crater lakes and whales', [5, 6, 7, 8, 9], 'Sete_Cidades', 'PT', 'Portugal', 'Portugal', 'Q45', 'isla naturaleza'],
+    ['Sicilia y Taormina', 'Sicily and Taormina', 'El Etna, templos griegos y cannoli', 'Etna, Greek temples and cannoli', [4, 5, 6, 9, 10], 'Taormina', 'IT', 'Italia', 'Italy', 'Q38', 'isla comida'],
+    ['Creta', 'Crete', 'Playas rosas, gargantas y palacios minoicos', 'Pink beaches, gorges and Minoan palaces', [5, 6, 9, 10], 'Elafonisi', 'GR', 'Grecia', 'Greece', 'Q41', 'isla playa'],
+    ['Bali', 'Bali', 'Arrozales en terrazas y templos junto al mar', 'Rice terraces and temples by the sea', [5, 6, 7, 8, 9], 'Bali', 'ID', 'Indonesia', 'Indonesia', 'Q252', 'isla playa'],
+    ['Zanzíbar', 'Zanzibar', 'Stone Town, especias y playas blancas', 'Stone Town, spices and white beaches', [6, 7, 8, 9, 1, 2], 'Stone_Town', 'TZ', 'Tanzania', 'Tanzania', 'Q924', 'isla playa comida'],
+    ['Seychelles', 'The Seychelles', 'Rocas de granito y playas de postal', 'Granite boulders and postcard beaches', [4, 5, 10, 11], 'La_Digue', 'SC', 'Seychelles', 'Seychelles', 'Q1042', 'isla playa'],
+    // viajes de comida
+    ['San Sebastián de pintxos', 'San Sebastián for pintxos', 'Barras de la Parte Vieja y La Concha', 'Old Town bars and La Concha bay', [4, 5, 6, 9, 10], 'Bahía_de_La_Concha', 'ES', 'España', 'Spain', 'Q29', 'comida ciudad'],
+    ['Bolonia y Emilia-Romaña', 'Bologna and Emilia-Romagna', 'Tortellini, parmesano y vinagre de Módena', 'Tortellini, Parmesan and Modena balsamic', [4, 5, 9, 10, 11], 'Tortellini', 'IT', 'Italia', 'Italy', 'Q38', 'comida ciudad'],
+    ['Nápoles y la pizza', 'Naples and its pizza', 'Pizzerías históricas y la costa de Amalfi', 'Historic pizzerias and the Amalfi Coast', [4, 5, 6, 9, 10], 'Pizza_napolitana', 'IT', 'Italia', 'Italy', 'Q38', 'comida ciudad'],
+    ['Lyon, capital del buen comer', 'Lyon, capital of good food', 'Bouchons, mercados y vino del Ródano', 'Bouchons, markets and Rhône wines', [4, 5, 6, 9, 10], 'Lyon', 'FR', 'Francia', 'France', 'Q142', 'comida ciudad'],
+    ['Tokio de mercado en mercado', 'Tokyo, market by market', 'Sushi, ramen e izakayas', 'Sushi, ramen and izakayas', [3, 4, 5, 10, 11], 'Sushi', 'JP', 'Japón', 'Japan', 'Q17', 'comida ciudad'],
+    ['Bangkok a pie de calle', 'Bangkok street food', 'Puestos nocturnos y mercados flotantes', 'Night stalls and floating markets', [11, 12, 1, 2], 'Pad_thai', 'TH', 'Tailandia', 'Thailand', 'Q869', 'comida ciudad'],
+    ['Oaxaca y el mole', 'Oaxaca and its mole', 'Mercados, cacao y mezcal', 'Markets, cacao and mezcal', [10, 11, 12, 1, 2, 3], 'Oaxaca_de_Juárez', 'MX', 'México', 'Mexico', 'Q96', 'comida ciudad'],
+    ['Lima y el ceviche', 'Lima and ceviche', 'La cocina peruana frente al Pacífico', 'Peruvian cooking by the Pacific', [12, 1, 2, 3, 4], 'Ceviche', 'PE', 'Perú', 'Peru', 'Q419', 'comida ciudad'],
     ['El desierto de Merzouga', 'The Merzouga desert', 'Dunas de Erg Chebbi en camello', 'The Erg Chebbi dunes by camel', [10, 11, 3, 4], 'Erg_Chebbi', 'MA', 'Marruecos', 'Morocco', 'Q1028']
   ];
+  // categorías de las ideas (las nuevas la llevan en x[10])
+  var TAGS = { Laponia_finlandesa: 'nieve', Praga: 'ciudad', Viena: 'ciudad', 'Jökulsárlón': 'nieve naturaleza', 'Tromsø': 'nieve', Zermatt: 'nieve naturaleza', Marrakech: 'ciudad comida',
+    Teide: 'isla playa naturaleza', Glaciar_Perito_Moreno: 'naturaleza', Chiang_Mai: 'playa comida', Rockefeller_Center: 'ciudad nieve', Edimburgo: 'ciudad', Kioto: 'ciudad', Keukenhof: 'naturaleza',
+    'Plaza_de_España_(Sevilla)': 'ciudad comida', 'Val_d%27Orcia': 'naturaleza comida', Cinque_Terre: 'playa naturaleza', Lisboa: 'ciudad comida', Petra: 'naturaleza', 'Acrópolis_de_Atenas': 'ciudad',
+    Geirangerfjord: 'naturaleza', Eilean_Donan: 'naturaleza', Santorini: 'isla playa', Tre_Cime_di_Lavaredo: 'naturaleza', Dubrovnik: 'playa ciudad', Seljalandsfoss: 'naturaleza',
+    Catedral_de_Santiago_de_Compostela: 'naturaleza comida', Gordes: 'naturaleza', Lago_Moraine: 'naturaleza', Nueva_Inglaterra: 'naturaleza', 'Kiyomizu-dera': 'ciudad', Oporto: 'ciudad comida',
+    Oktoberfest: 'comida ciudad', Coliseo: 'ciudad comida', 'Santa_Sofía': 'ciudad comida', Machu_Picchu: 'naturaleza', 'Día_de_Muertos': 'ciudad comida', Erg_Chebbi: 'naturaleza' };
+  function tagsOf(x) { return (x[10] || TAGS[x[5]] || '').split(' '); }
+  var CATS = [['isla', 'Islas', 'Islands', 'La_Digue'], ['comida', 'Viaje culinario', 'Food trip', 'Pizza_napolitana'], ['playa', 'Playa', 'Beach', 'Santorini'], ['nieve', 'Nieve', 'Snow', 'Laponia_finlandesa'], ['ciudad', 'Ciudades', 'Cities', 'Praga'], ['naturaleza', 'Naturaleza', 'Nature', 'Geirangerfjord']];
+  // el mes bueno más cercano desde ahora (0 = este mes)
+  function nearest(x, m) { var dist = 99, best = m; x[4].forEach(function (mm) { var d = (mm - m + 12) % 12; if (d < dist) { dist = d; best = mm; } }); return { d: dist, m: best }; }
   // las de este mes y el siguiente; primero las de países que aún no tienes. Cambian cada semana
-  function ideas(known, n) {
+  function ideas(known, n, cat) {
     var d = new Date(), m = d.getMonth() + 1, m2 = m % 12 + 1, en = window.Lang && Lang.get() === 'en', wk = Math.floor(d.getTime() / 6048e5);
     var list = IDEAS.filter(function (x) { return x[4].indexOf(m) >= 0 || x[4].indexOf(m2) >= 0; }).map(function (x, i) {
-      return { t: en ? x[1] : x[0], sub: en ? x[3] : x[2], wiki: x[5], cc: x[6], country: { name: en ? x[8] : x[7], cc: x[6], wd: x[9] }, month: x[4].indexOf(m) >= 0 ? m : m2, months: x[4], k: (i * 7 + wk * 13) % 17 + (known[x[6]] ? 100 : 0) };
+      return { t: en ? x[1] : x[0], sub: en ? x[3] : x[2], wiki: x[5], cc: x[6], country: { name: en ? x[8] : x[7], cc: x[6], wd: x[9] }, month: x[4].indexOf(m) >= 0 ? m : m2, months: x[4], tags: tagsOf(x), k: (i * 7 + wk * 13) % 17 + (known[x[6]] ? 100 : 0) };
     });
+    if (cat) {
+      list = list.filter(function (o) { return o.tags.indexOf(cat) >= 0; });
+      var have = {}; list.forEach(function (o) { have[o.wiki] = 1; });
+      IDEAS.forEach(function (x) { if (have[x[5]] || tagsOf(x).indexOf(cat) < 0) return; var N = nearest(x, m), o = ideaOf(x, N.m); o.k = 200 + N.d * 10 + (known[x[6]] ? 5 : 0); list.push(o); });
+    }
     return list.sort(function (a, b) { return a.k - b.k; }).slice(0, n || 6);
   }
-  function ideaOf(x, mon) { var en = window.Lang && Lang.get() === 'en'; return { t: en ? x[1] : x[0], sub: en ? x[3] : x[2], wiki: x[5], cc: x[6], country: { name: en ? x[8] : x[7], cc: x[6], wd: x[9] }, month: mon, months: x[4] }; }
+  function ideaOf(x, mon) { var en = window.Lang && Lang.get() === 'en'; return { t: en ? x[1] : x[0], sub: en ? x[3] : x[2], wiki: x[5], cc: x[6], country: { name: en ? x[8] : x[7], cc: x[6], wd: x[9] }, month: mon, months: x[4], tags: tagsOf(x) }; }
   // ideas de un mes concreto (la línea del tiempo de Home), sin repetir las ya usadas
   function ideasIn(known, mon, n, skip) {
     var wk = Math.floor(Date.now() / 6048e5);
@@ -342,11 +378,11 @@ window.Juego = (function () {
       .sort(function (a, b) { return a.k - b.k; }).slice(0, n || 3).map(function (o) { return ideaOf(o.x, mon); });
   }
   // «Recomiéndame un viaje»: lo que mejor cuadra pronto, mejor en un país nuevo, con algo de azar
-  function recommend(known, seen) {
+  function recommend(known, seen, cat) {
     var m = new Date().getMonth() + 1;
-    var c = IDEAS.filter(function (x) { return !(seen || {})[x[5]]; }).map(function (x) {
-      var dist = 99, best = m; x[4].forEach(function (mm) { var d = (mm - m + 12) % 12; if (d < dist) { dist = d; best = mm; } });
-      return { x: x, mon: best, s: dist + (known[x[6]] ? 3 : 0) + Math.random() * 4 };
+    var c = IDEAS.filter(function (x) { return !(seen || {})[x[5]] && (!cat || tagsOf(x).indexOf(cat) >= 0); }).map(function (x) {
+      var N = nearest(x, m);
+      return { x: x, mon: N.m, s: N.d + (known[x[6]] ? 3 : 0) + Math.random() * 4 };
     }).sort(function (a, b) { return a.s - b.s; })[0];
     return c ? ideaOf(c.x, c.mon) : null;
   }
@@ -362,5 +398,5 @@ window.Juego = (function () {
     }).catch(function () { return ''; });
   }
 
-  return { TEST: TEST, presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideasIn: ideasIn, recommend: recommend, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
+  return { TEST: TEST, presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideasIn: ideasIn, recommend: recommend, CATS: CATS, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
 })();

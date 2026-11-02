@@ -495,6 +495,35 @@
   /* quietos, en la bienvenida */
   .pj.pj-still{position:relative;left:auto;top:auto;will-change:auto;margin:0 auto}
   @media (prefers-reduced-motion:reduce){.pj *,.pj::before{animation:none!important}}
+  /* la islita */
+  .pj-isla .pj-shadow{display:none}
+  .pj.pj-isla.drive .pj-fig{animation:pjSea 1.3s ease-in-out infinite alternate}
+  @keyframes pjSea{from{transform:translateY(0) rotate(-1deg)}to{transform:translateY(-5px) rotate(1deg)}}
+  .pj-palm{transform-origin:151px 116px;animation:pjPalm 2.4s ease-in-out infinite alternate}
+  @keyframes pjPalm{from{transform:rotate(-2.5deg)}to{transform:rotate(2.5deg)}}
+  .pj-waves{animation:pjWaves 1.8s ease-in-out infinite alternate}
+  @keyframes pjWaves{to{transform:translateX(-8px)}}
+  .pj.act-lounge .pj-foot{transform-origin:131px 104px;animation:pjFoot .3s ease-in-out infinite alternate}
+  @keyframes pjFoot{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+  .pj.act-lounge .pj-sipA{transform-origin:80px 99px;animation:pjSipA 1.5s ease-in-out infinite}
+  @keyframes pjSipA{0%,100%{transform:none}45%,65%{transform:rotate(-38deg)}}
+  /* «¿Sin ideas?»: categorías con foto */
+  .rec-top{position:relative}
+  .rec-bk{position:absolute;left:0;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:2px;border:0;background:none;padding:6px 0;font:750 14px -apple-system,system-ui,sans-serif;color:var(--orange-t);cursor:pointer}
+  .rec-bk .ic{width:16px;height:16px;transform:rotate(180deg)}
+  .rec-bk:not([hidden]) + small{visibility:hidden}
+  .rec-cats{position:absolute;inset:0;overflow-y:auto;padding-bottom:8px;scrollbar-width:none}
+  .rec-cats h2{margin:4px 2px 4px;font:700 32px/1.1 var(--serif)}
+  .rec-cats > p{margin:0 2px 16px;font-size:15px;color:var(--txt2)}
+  .rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .rec-cat{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:1px;height:150px;padding:12px;border:0;border-radius:20px;overflow:hidden;font:inherit;color:#fff;text-align:left;cursor:pointer;background:#4a4f5c;box-shadow:0 12px 26px -18px rgba(0,0,0,.7);animation:rvH .55s var(--smooth) both;animation-delay:var(--d,0ms)}
+  .rec-cph{position:absolute;inset:0;background:center/cover no-repeat;opacity:0;transform:scale(1.06);transition:opacity .5s,transform 1.2s var(--smooth)}
+  .rec-cph.on{opacity:1;transform:none}
+  .rec-cat > b,.rec-cat > small,.rec-cat > span:not(.rec-cph):not(.hm-shade){position:relative;z-index:1}
+  .rec-cat b{font:700 19px/1.1 var(--serif)}
+  .rec-cat small{font-size:12px;font-weight:600;opacity:.88}
+  .rec-cat.any{grid-column:span 2;height:96px;justify-content:center;background:radial-gradient(120% 120% at 100% 0%,rgba(242,154,82,.5),transparent 55%),linear-gradient(150deg,#3b3e46,#1f2126)}
+  .rec-cat.any > span{position:absolute!important;right:18px;top:50%;margin-top:-20px;width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:19px;background:var(--orange)}
   /* bienvenida */
   .wel{position:fixed;inset:0;z-index:95;display:flex;align-items:stretch;justify-content:center;background:var(--bone);animation:welIn .4s ease both;touch-action:pan-y}
   .wel.out{animation:welIn .3s ease reverse both}
@@ -693,7 +722,7 @@
   </div>
 </section>
 
-  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.17 · 2 nov 2026</p>
+  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.18 · 2 nov 2026</p>
 </main>
 <div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
 <nav class="vnav" role="tablist" aria-label="Secciones">

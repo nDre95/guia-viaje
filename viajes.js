@@ -208,7 +208,7 @@
   var IDEAS_NOW = [];
   function newTrip(idea) {
     var pre = null;
-    if (idea) { var d = new Date(), y = d.getFullYear() + (idea.month < d.getMonth() + 1 ? 1 : 0), dd = idea.month === d.getMonth() + 1 ? Math.min(28, d.getDate() + 14) : 10, st = y + '-' + (idea.month < 10 ? '0' : '') + idea.month + '-' + (dd < 10 ? '0' : '') + dd; pre = { country: idea.country, start: st }; }
+    if (idea) { var d = new Date(), y = d.getFullYear() + (idea.month < d.getMonth() + 1 ? 1 : 0), dd = idea.month === d.getMonth() + 1 ? Math.min(28, d.getDate() + 14) : 10, st = y + '-' + (idea.month < 10 ? '0' : '') + idea.month + '-' + (dd < 10 ? '0' : '') + dd; pre = { country: idea.country, start: st, pj: ideaPj(idea) }; }
     Asistente.open({ preset: pre, onSave: function (b) { return DB.put({ id: b.meta.id, at: Date.now(), bundle: b }).then(function () { Album.reset(); refreshAll(); }); }, onOpen: openTrip, aiBox: aiBoxHTML });
   }
   function refreshAll() { renderList(); var t = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (t && t.getAttribute('data-vt') === 'home') renderHome(); }
@@ -524,36 +524,60 @@
       .then(function (r) { return r.json(); }).then(function (j) { put(Math.round(j.daily.temperature_2m_max[0]), w.n + ' · ' + tx('mín. ', 'min ') + Math.round(j.daily.temperature_2m_min[0]) + '°'); }).catch(typical);
   }
 
-  /* ---------- Recomiéndame un viaje: una idea de temporada a pantalla completa ---------- */
+  // el personaje de cada idea según su categoría
+  var CAT_PJ = { isla: 'isla', comida: 'chef', nieve: 'nieve', playa: 'playa', naturaleza: 'monte', ciudad: 'ciudad' };
+  function ideaPj(x) { var t = (x && x.tags) || []; return ['isla', 'comida', 'nieve', 'playa', 'naturaleza', 'ciudad'].map(function (k) { return t.indexOf(k) >= 0 ? CAT_PJ[k] : ''; }).filter(Boolean)[0] || ''; }
+  /* ---------- Recomiéndame un viaje: «¿Sin ideas?» con categorías en fotos y después una propuesta ---------- */
+  var CAT_SUB = { isla: ['Arena, palmeras y mar', 'Sand, palms and sea'], comida: ['Viajar para comer bien', 'Travel to eat well'], playa: ['Sol y agua templada', 'Sun and warm water'],
+    nieve: ['Auroras, montañas y Navidad', 'Auroras, mountains and Christmas'], ciudad: ['Museos, plazas y barrios', 'Museums, squares and neighbourhoods'], naturaleza: ['Fiordos, lagos y senderos', 'Fjords, lakes and trails'] };
   function openRec() {
     if (!window.Juego || $('#recBox')) return;
-    var known = HOME ? HOME.known : {}, seen = {}, cur = null;
+    var known = HOME ? HOME.known : {}, seen = {}, cur = null, cat = null;
     var box = document.createElement('div'); box.id = 'recBox'; box.className = 'rcm';
-    box.innerHTML = '<div class="rec-top"><small>' + tx('Te recomendamos', 'We recommend') + '</small><button type="button" class="wz-x" data-recx aria-label="' + tx('Cerrar', 'Close') + '">' + ic('x') + '</button></div><div class="rec-stage"></div>' +
-      '<div class="rec-act"><button type="button" class="btn ghost sq" data-recnext>' + tx('Otra idea', 'Another idea') + '</button><button type="button" class="btn navy sq" data-recgo>' + tx('Crear este viaje', 'Plan this trip') + ic('chev') + '</button></div>';
+    box.innerHTML = '<div class="rec-top"><button type="button" class="rec-bk" data-recback hidden>' + ic('chev') + tx('Categorías', 'Categories') + '</button><small>' + tx('Recomiéndame un viaje', 'Recommend me a trip') + '</small><button type="button" class="wz-x" data-recx aria-label="' + tx('Cerrar', 'Close') + '">' + ic('x') + '</button></div><div class="rec-stage"></div>' +
+      '<div class="rec-act" hidden><button type="button" class="btn ghost sq" data-recnext>' + tx('Otra idea', 'Another idea') + '</button><button type="button" class="btn navy sq" data-recgo>' + tx('Crear este viaje', 'Plan this trip') + ic('chev') + '</button></div>';
     document.body.appendChild(box);
+    function photo(el, wiki, big) { Juego.ideaImg(wiki).then(function (u) { if (u && el) { el.style.backgroundImage = 'url("' + (big ? u.replace('/500px-', '/960px-') : u) + '")'; el.classList.add('on'); } }); }
+    // 1 · las categorías
+    function cats() {
+      cat = null; seen = {}; if (window.Pj) Pj.stop();
+      $('[data-recback]', box).hidden = true; $('.rec-act', box).hidden = true;
+      var stg = $('.rec-stage', box);
+      stg.innerHTML = '<div class="rec-cats"><h2>' + tx('¿Sin ideas?', 'Out of ideas?') + '</h2><p>' + tx('Elige qué te apetece y te proponemos un destino para la mejor época.', 'Pick what you fancy and we’ll suggest a destination for the best time of year.') + '</p><div class="rec-grid">' +
+        Juego.CATS.map(function (c, i) { return '<button type="button" class="rec-cat sq" data-cat="' + c[0] + '" style="--d:' + i * 50 + 'ms"><span class="rec-cph" data-w="' + esc(c[3]) + '"></span><span class="hm-shade"></span><b>' + esc(tx(c[1], c[2])) + '</b><small>' + esc(tx(CAT_SUB[c[0]][0], CAT_SUB[c[0]][1])) + '</small></button>'; }).join('') +
+        '<button type="button" class="rec-cat any sq" data-cat="" style="--d:300ms"><span>✦</span><b>' + tx('Sorpréndeme', 'Surprise me') + '</b><small>' + tx('Cualquier tipo de viaje', 'Any kind of trip') + '</small></button></div></div>';
+      $$('.rec-cph', stg).forEach(function (el) { photo(el, el.getAttribute('data-w')); });
+    }
+    // 2 · una propuesta de esa categoría, con su personaje
     function show(dir) {
-      cur = Juego.recommend(known, seen); if (!cur) { seen = {}; cur = Juego.recommend(known, seen); }
+      cur = Juego.recommend(known, seen, cat); if (!cur) { seen = {}; cur = Juego.recommend(known, seen, cat); }
       if (!cur) return;
       seen[cur.wiki] = 1;
-      var stg = $('.rec-stage', box), old = $('.rec-card', stg);
+      $('[data-recback]', box).hidden = false; $('.rec-act', box).hidden = false;
+      var stg = $('.rec-stage', box), old = $('.rec-card', stg), oc = $('.rec-cats', stg);
+      if (oc) oc.remove();
       if (old) { old.classList.add('out'); setTimeout(function () { old.remove(); }, 380); }
       var why = [tx('Buen momento: ', 'Good time: ') + monName(cur.month)];
       if (!known[cur.cc]) why.push(tx('Un país nuevo para ti', 'A new country for you'));
-      var c = document.createElement('div'); c.className = 'rec-card' + (dir ? ' in' : '');
+      var c = document.createElement('div'); c.className = 'rec-card in';
       c.innerHTML = '<span class="rec-ph" data-wiki="' + esc(cur.wiki) + '"></span><span class="hm-shade"></span><div class="rec-t"><span class="rec-fl">' + (Mundo.flag(cur.cc) || '') + ' ' + esc(cur.country.name) + '</span><b>' + esc(cur.t) + '</b><p>' + esc(cur.sub) + '</p>' +
         '<span class="rec-why">' + why.map(function (w) { return '<i>' + esc(w) + '</i>'; }).join('') + '</span><span class="rec-ms">' + tx('Mejor época', 'Best time') + ': ' + cur.months.map(function (m) { return monName(m).slice(0, 3); }).join(' · ') + '</span></div>';
       stg.appendChild(c);
-      Juego.ideaImg(cur.wiki).then(function (u) { var p = $('.rec-ph', c); if (u && p) { p.style.backgroundImage = 'url("' + u.replace('/500px-', '/960px-') + '")'; p.classList.add('on'); } });
+      photo($('.rec-ph', c), cur.wiki, true);
+      var k = (cat && CAT_PJ[cat]) || ideaPj(cur), act = $('.rec-act', box);
+      if (window.Pj && k) setTimeout(function () { if (box.isConnected) Pj.play(k, { ground: act.getBoundingClientRect().top - 10 }); }, 450);
     }
-    function close() { box.classList.add('out'); setTimeout(function () { box.remove(); }, 280); }
+    function close() { if (window.Pj) Pj.stop(); box.classList.add('out'); setTimeout(function () { box.remove(); }, 280); }
     box.addEventListener('click', function (e) {
+      var ct = e.target.closest('[data-cat]');
       if (e.target.closest('[data-recx]')) close();
+      else if (e.target.closest('[data-recback]')) cats();
+      else if (ct) { cat = ct.getAttribute('data-cat') || ''; show(1); }
       else if (e.target.closest('[data-recnext]')) { show(1); try { if (navigator.vibrate) navigator.vibrate(8); } catch (err) {} }
       else if (e.target.closest('[data-recgo]') && cur) { close(); newTrip(cur); }
     });
     if (window.Lang) Lang.watch(box);
-    show(0);
+    cats();
   }
   window.addEventListener('pageshow', function () { var x = $('#recBox'); if (x) x.remove(); });
 

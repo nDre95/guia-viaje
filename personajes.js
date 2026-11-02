@@ -31,6 +31,7 @@ window.Pj = (function () {
     globo:   { top: '#2f8f5b', bot: '#f2c14e', shoe: '#e8574a', hat: 'cap', hatC: '#2b8fc9', balloon: '#e8574a', kid: 1, idle: 'hop', gear: '', fx: '', say: ['¡Bieeen!', 'Yay!'] },
     maleta:  { top: '#6b7fb3', bot: '#3b3e46', shoe: '#5a3b2a', hat: '', case: '#e2782f', idle: 'wave', gear: '', fx: '', say: ['¡Nos vamos!', 'Off we go!'] },
     fiesta:  { top: '#e2782f', bot: '#3b4a6b', shoe: '#f7f3ec', hat: 'party', hatC: '#6b7fb3', idle: 'jump', gear: '', fx: 'confetti', say: ['¡Viaje listo!', 'Trip ready!'] },
+    isla:    { vehicle: 'isle', idle: 'lounge', fx: 'sun', say: ['¡Esto es vida!', 'This is the life!'] },
     coche:   { vehicle: 'car', body: '#e2782f', say: ['¡Pi, pi!', 'Beep beep!'] },
     bus:     { vehicle: 'tram', body: '#c8323c', say: ['¡Próxima parada!', 'Next stop!'] }
   };
@@ -106,7 +107,29 @@ window.Pj = (function () {
     s += '</g>';
     return '<svg class="pj-fig" viewBox="0 0 100 170" width="96" height="163" aria-hidden="true">' + s + '</svg>';
   }
+  // la islita: arena, palmera y alguien tumbado en la toalla con su bebida
+  function isle() {
+    var sk = pick(SKIN), hr = pick(HAIR), tw = pick(['#e8574a', '#2b8fc9', '#f2c14e', '#8f7fc4']), tr = pick(['#2b8fc9', '#e2782f', '#2f8f5b']);
+    return '<svg class="pj-fig" viewBox="0 0 210 140" width="177" height="118" aria-hidden="true"><defs>' +
+      '<linearGradient id="pjSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd8f2"/><stop offset="1" stop-color="#2b8fc9"/></linearGradient>' +
+      '<radialGradient id="pjSand" cx=".4" cy=".25" r=".85"><stop offset="0" stop-color="#fcebbd"/><stop offset="1" stop-color="#e5bd6c"/></radialGradient></defs><g class="pj-all">' +
+      '<ellipse cx="105" cy="124" rx="103" ry="15" fill="url(#pjSea)"/>' +
+      '<g class="pj-waves"><path d="M8 126 q8 -4 16 0 t16 0 t16 0 M150 128 q8 -4 16 0 t16 0 t16 0 M40 133 q8 -3 16 0 t16 0 M120 134 q8 -3 16 0 t16 0" stroke="#fff" stroke-opacity=".75" stroke-width="2" fill="none" stroke-linecap="round"/></g>' +
+      '<path d="M26 125 Q58 93 105 92 Q152 93 184 125 Z" fill="url(#pjSand)"/><path d="M60 108 Q80 99 100 98" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none"/>' +
+      '<g class="pj-palm"><path d="M151 116 Q158 82 141 45" stroke="#8a5a32" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M148 104 l8 -2 M151 92 l8 -1 M150 80 l8 0 M147 68 l8 1 M144 57 l7 2" stroke="#6e4524" stroke-width="2"/>' +
+      '<path d="M141 45 Q118 30 96 48 Q118 39 141 47 Z" fill="#2f8f5b"/><path d="M141 45 Q128 17 104 20 Q126 27 141 47 Z" fill="#3aa36a"/><path d="M141 45 Q153 15 178 22 Q157 27 142 47 Z" fill="#2f8f5b"/>' +
+      '<path d="M141 45 Q168 34 184 53 Q163 43 142 48 Z" fill="#3aa36a"/><path d="M141 45 Q148 60 137 76 Q141 59 140 47 Z" fill="#2a7d50"/><circle cx="138" cy="49" r="4" fill="#6e4524"/><circle cx="145" cy="50" r="4" fill="#5a3a1e"/></g>' +
+      '<path d="M46 107 L120 102 L122 111 L48 116 Z" fill="' + tw + '"/><path d="M62 106 L64 115 M78 105 L80 114 M94 104 L96 113" stroke="#fff" stroke-width="3" opacity=".75"/>' +
+      '<path d="M68 101 Q60 89 53 98" stroke="' + sk + '" stroke-width="6" fill="none" stroke-linecap="round"/>' +
+      '<rect x="64" y="97" width="31" height="11" rx="5.5" fill="' + sk + '"/><rect x="92" y="97" width="12" height="11" rx="3" fill="' + tr + '"/>' +
+      '<path d="M103 104 L130 104" stroke="' + sk + '" stroke-width="8" stroke-linecap="round"/><g class="pj-foot"><ellipse cx="134" cy="101" rx="3.2" ry="5.5" fill="' + sk + '"/></g>' +
+      '<path d="M101 100 L113 87 L125 100" stroke="' + sk + '" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="57" cy="100" r="8.5" fill="' + sk + '"/><path d="M49 99 Q50 90 59 91 Q54 94 51 102 Z" fill="' + hr + '"/><rect x="57" y="95.5" width="8" height="4.5" rx="1.8" fill="#1f2126"/><path d="M59 104 Q62 106 64 103" stroke="#2a2a2e" stroke-width="1.3" fill="none" stroke-linecap="round"/>' +
+      '<g class="pj-sipA"><path d="M80 99 L86 84" stroke="' + sk + '" stroke-width="5.5" stroke-linecap="round"/><path d="M81 72 L92 72 L86.5 80 Z" fill="#f29a52" stroke="#fff" stroke-width="1"/><line x1="86.5" y1="80" x2="86.5" y2="86" stroke="#fff" stroke-width="1.5"/><circle cx="91" cy="71.5" r="2.2" fill="#e8574a"/><line x1="84" y1="72" x2="80" y2="64" stroke="#2f8f5b" stroke-width="1.4"/></g>' +
+      '</g></svg>';
+  }
   function vehicle(K) {
+    if (K.vehicle === 'isle') return isle();
     var c = K.body, heads = function (xs, y) { return xs.map(function (x) { return '<circle cx="' + x + '" cy="' + y + '" r="8" fill="' + pick(SKIN) + '"/><path d="M' + (x - 8) + ' ' + (y - 1) + ' Q' + x + ' ' + (y - 12) + ' ' + (x + 8) + ' ' + (y - 1) + '" fill="' + pick(HAIR) + '"/><circle cx="' + (x + 3) + '" cy="' + (y + 1) + '" r="1.3" fill="#222"/>'; }).join(''); };
     if (K.vehicle === 'car') return '<svg class="pj-fig pj-car" viewBox="0 0 150 90" width="150" height="90" aria-hidden="true"><g class="pj-all">' +
       '<path d="M30 32 Q38 12 70 12 Q98 12 108 32 Z" fill="' + shade(c, 10) + '"/><path d="M40 31 Q46 18 66 18 L66 31 Z M72 18 Q94 18 100 31 L72 31 Z" fill="#bfe0f2"/>' + heads([56, 86], 27) +
@@ -184,7 +207,7 @@ window.Pj = (function () {
     var wrap = document.createElement('div'); wrap.className = 'pj pj-' + kind + (veh ? ' pj-veh' : '');
     wrap.innerHTML = (veh ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
     L.appendChild(wrap); run.els.push(wrap);
-    var w = veh ? (K.vehicle === 'car' ? 150 : 180) : 96, hgt = veh ? (K.vehicle === 'car' ? 90 : 95) : 163;
+    var SZ = { car: [150, 90], tram: [180, 95], isle: [177, 118] }, w = veh ? SZ[K.vehicle][0] : 96, hgt = veh ? SZ[K.vehicle][1] : 163;
     var x0 = o.x != null ? o.x : Math.round(rnd(.18, .62) * (W - w)), pos = { x: x0, y: gy - hgt };
     function at(x, y, extra) { return 'translate(' + x + 'px,' + y + 'px)' + (extra || ''); }
     var F = K.fx ? fx(K.fx, L) : null; if (F) run.els.push(F);
@@ -207,7 +230,7 @@ window.Pj = (function () {
       // 2 · su gesto (frío, calor, foto…) con un bocadillo
       if (K.idle) wrap.classList.add('act-' + K.idle);
       if (K.say) bubble(run, wrap, en() ? K.say[1] : K.say[0]);
-      return wait(veh ? 900 : 1700, run);
+      return wait(K.vehicle === 'isle' ? 2400 : veh ? 900 : 1700, run);
     }).then(function () {
       if (run.dead) return;
       if (K.idle) wrap.classList.remove('act-' + K.idle);
@@ -261,6 +284,7 @@ window.Pj = (function () {
   }
 
   /* ---------- Qué personaje toca según el destino y la fecha ---------- */
+  var ISLE = 'MV SC MU FJ PF BS BB'.split(' ');
   var TROPIC = 'TH MX ID MV DO CU BR PH VN MY SG CR CO KE TZ EG IN LK JM PR PA AE QA OM SC MU KH LA CV BS BB'.split(' ');
   var SOUTH = 'AR CL AU NZ ZA UY'.split(' ');
   var COLD = 'FI NO SE IS CH AT CA EE LV LT DK PL CZ SK RU GL'.split(' ');
@@ -269,6 +293,7 @@ window.Pj = (function () {
   var HIKE = 'NP CH AT NZ PE SI'.split(' ');
   function theme(ccs, iso) {
     var m = iso ? +iso.slice(5, 7) : new Date().getMonth() + 1, cc = (ccs || [])[0] || '';
+    if (ISLE.indexOf(cc) >= 0) return 'isla';
     if (TROPIC.indexOf(cc) >= 0) return 'playa';
     if (SOUTH.indexOf(cc) >= 0) m = (m + 5) % 12 + 1;
     var winter = m === 12 || m <= 2, cold = COLD.indexOf(cc) >= 0, summer = m >= 6 && m <= 9;

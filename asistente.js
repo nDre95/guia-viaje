@@ -44,6 +44,8 @@ window.Asistente = (function () {
       Motor.placeInfo(k.name).then(function (i) { if (i) { k.text = i.text; redraw(); } }).catch(function () {});
       Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; redraw(); });
       if (pre.start) A.start = pre.start;
+      // desde una idea: su personaje (islas, comida…) entra en la tarjeta del país
+      if (pre.pj) setTimeout(function () { pj(pre.pj, function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; }); }, 500);
     }
     var w = $('#wz'); w.hidden = false; document.documentElement.classList.add('wz-open');
     requestAnimationFrame(function () { w.classList.add('on'); });
