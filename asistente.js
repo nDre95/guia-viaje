@@ -7,11 +7,12 @@ window.Asistente = (function () {
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function ic(n) { return '<svg class="ic"><use href="#i-' + n + '"></use></svg>'; }
   var MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'], DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  function sLbl(iso) { var d = new Date(iso + 'T12:00:00Z'); return d.getUTCDate() + ' ' + MES[d.getUTCMonth()]; }
   function dLbl(iso) { var d = new Date(iso + 'T12:00:00Z'); return DIAS[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MES[d.getUTCMonth()]; }
   function flag(cc) { return /^[A-Z]{2}$/.test(cc || '') ? String.fromCodePoint(127397 + cc.charCodeAt(0), 127397 + cc.charCodeAt(1)) : '🌍'; }
   var MAX_DAYS = 10, COLORS = ['#e2782f', '#3b3e46', '#2f8f5b', '#b4551a', '#6b7fb3', '#a8481a', '#8b9099'];
 
-  var A, page = 0, cfg = {}, debounce = 0, busy = false, done = null, repaintDays = null, lastPj = '';
+  var A, page = 0, cfg = {}, debounce = 0, busy = false, done = null, repaintDays = null, lastPj = '', JR = null;
   // personajes animados (personajes.js): aparecen al elegir y se meten en la opción elegida
   function pj(kind, target) { if (!window.Pj || !kind) return; lastPj = kind; setTimeout(function () { Pj.play(kind, { target: target }); }, 300); }
   function ccs() { return A.countries.map(function (k) { return k.cc; }); }
@@ -90,6 +91,8 @@ window.Asistente = (function () {
     var P = PAGES[page];
     if (P.last) { create(); return; }
     if (P.ok && !P.ok()) return;
+    // al pasar de las fechas, los días que se ven quedan fijos: una sugerencia que llegue tarde ya no los cambia
+    if (P.id === 'dias') A.cities.forEach(function (x) { x.touched = true; });
     page++; show(1);
   }
   function back() { if (page > 0 && !busy) { page--; show(-1); } }
@@ -410,29 +413,34 @@ window.Asistente = (function () {
   function defTitle() { var n = totalDays(), c = A.cities; return Lang.translate((c.length === 1 ? c[0].name : c.length === 2 ? c[0].name + (Lang.get() === 'en' ? ' and ' : ' y ') + c[1].name : A.countries.length === 1 ? A.countries[0].name : c[0].name + (Lang.get() === 'en' ? ' and more' : ' y más')) + ' en ' + n + (n === 1 ? ' día' : ' días')); }
   function drawSummary(c) {
     var n = totalDays();
-    c.innerHTML = '<div class="wz-sum card">' + (A.cities[0].img ? '<div class="wz-sumph" style="background-image:url(&quot;' + esc(A.cities[0].img) + '&quot;)"></div>' : '') +
-      '<label class="wz-fld"><span>Nombre del viaje</span><input type="text" id="wzTitle" value="' + esc(A.title) + '" placeholder="' + esc(defTitle()) + '"></label><dl>' +
-      '<dt>Destinos</dt><dd>' + A.cities.map(function (x) { return flag(x.cc) + ' ' + esc(x.name) + ' (' + x.days + ')'; }).join(' → ') + '</dd>' +
-      '<dt>Fechas</dt><dd>' + esc(dLbl(A.start)) + ' – ' + esc(dLbl(Motor.addDays(A.start, n - 1))) + '</dd>' +
-      '<dt>Moverse</dt><dd>' + L_MODE[A.mode] + '</dd><dt>Ritmo</dt><dd>' + L_PACE[A.pace] + ' · ' + L_STYLE[A.style] + '</dd></dl></div>' +
-      '<ul class="wz-log" id="wzLog"></ul><div id="wzAfter"></div>' +
+    // el viaje como tarjeta de embarque: códigos de origen y destino, fechas, días y cómo os movéis
+    var code = function (x) { return String(x.name || '').normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase(); }, c0 = A.cities[0], c1 = A.cities[A.cities.length - 1];
+    c.innerHTML = '<div class="hp-pass wz-bp"><div class="hp-top"' + (c0.img ? ' style="background-image:url(&quot;' + esc(c0.img) + '&quot;)"' : '') + '><span class="hm-shade"></span><small>Tarjeta de embarque</small><b id="wzBpT">' + esc(A.title || defTitle()) + '</b></div>' +
+      '<div class="wz-bpr"><span><b>' + esc(code(c0)) + '</b><small>' + flag(c0.cc) + ' ' + esc(c0.name) + '</small></span><i class="wz-bpl"><em>✈</em></i><span><b>' + esc(code(c1)) + '</b><small>' + flag(c1.cc) + ' ' + esc(c1.name) + '</small></span></div>' +
+      '<div class="hp-grid"><span><small>Salida</small><b>' + esc(sLbl(A.start)) + '</b></span><span><small>Regreso</small><b>' + esc(sLbl(Motor.addDays(A.start, n - 1))) + '</b></span><span><small>Días</small><b>' + n + '</b></span><span><small>Ritmo</small><b>' + L_PACE[A.pace] + '</b></span></div>' +
+      '<div class="hp-cut"></div><div class="wz-bps"><span><small>Destinos</small><b>' + A.cities.map(function (x) { return esc(x.name) + ' (' + x.days + ')'; }).join(' → ') + '</b><small>' + L_MODE[A.mode] + ' · ' + L_STYLE[A.style] + '</small></span><span class="hp-code"></span></div></div>' +
+      '<label class="wz-fld"><span>Nombre del viaje</span><input type="text" id="wzTitle" value="' + esc(A.title) + '" placeholder="' + esc(defTitle()) + '"></label>' +
+      '<div id="wzJourney"></div><ul class="wz-log" id="wzLog"></ul><div id="wzAfter"></div>' +
       '<p class="wz-note">Datos reales y gratis: Wikidata, Wikipedia, OpenStreetMap, OSRM y Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.</p>';
-    $('#wzTitle', c).oninput = function () { A.title = this.value.trim(); };
+    $('#wzTitle', c).oninput = function () { A.title = this.value.trim(); var t = $('#wzBpT'); if (t) t.textContent = A.title || defTitle(); };
   }
   function step(txt) {
-    var ul = $('#wzLog'), li = document.createElement('li'); li.className = 'run'; li.textContent = txt; if (ul) { ul.appendChild(li); li.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    if (JR) JR.tick();
+    var ul = $('#wzLog'), li = document.createElement('li'), jz = $('#wzJourney'); li.className = 'run'; li.textContent = txt; if (ul) { ul.appendChild(li); if (!jz || !jz.firstChild) li.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     return { ok: function (t2) { li.className = 'ok'; if (t2) li.textContent = t2; }, warn: function (t2) { li.className = 'warn'; if (t2) li.textContent = t2; } };
   }
   function create() {
     if (busy) return; busy = true; foot(); $('#wzLog').innerHTML = '';
-    pj('maleta');
+    // la escena del viaje dura lo que tarde la guía (y se recoge si tarda demasiado)
+    var jr = JR = window.Pj && Pj.journey ? Pj.journey($('#wzJourney'), Pj.theme(ccs(), A.start)) : null;
+    if ($('#wzJourney')) $('#wzJourney').scrollIntoView({ behavior: 'smooth', block: 'start' });
     var fixed = A.fixed.filter(function (f) { return f.n && f.at; }).map(function (f) { return { n: f.n, day: f.day, at: f.at }; });
     var sp = { title: A.title, start: A.start, mode: A.mode, pace: A.pace, style: A.style, ints: A.ints, fin: A.fin, fout: A.fout, fixed: fixed,
       stops: A.cities.map(function (x) { return { name: x.name, lat: x.lat, lon: x.lon, bb: x.bb, cc: x.cc, country: x.country, days: x.days, stay: x.stay || '' }; }) };
     Motor.generate(sp, step).then(function (b) {
       return cfg.onSave(b).then(function () {
         done = b; busy = false; step('Guía guardada en este móvil').ok(); foot();
-        pj('fiesta');
+        if (jr) jr.done();
         $('#wzAfter').innerHTML = '<div id="wzMapa"></div>' + (cfg.aiBox ? cfg.aiBox(b) : '');
         if (window.Mapa) {
           Mapa.mount($('#wzMapa'), { pj: 1, start: A.start, id: b.meta.id, title: b.meta.title.es, heading: 'Tu viaje en un mapa', dayLabel: Lang.t('Día 1').replace(' 1', ''), lang: Lang.get(), mode: b.meta.mode, land: b.trip.mapLand || null, photos: b.photos, days: Mapa.fromTrip(Motor.localized(b)) });
@@ -440,6 +448,7 @@ window.Asistente = (function () {
         }
       });
     }).catch(function (err) {
+      if (jr) jr.stop();
       busy = false; step('Algo falló: ' + (err && err.message || err) + '. Comprueba la conexión y vuelve a intentarlo.').warn(); foot();
     });
   }

@@ -410,6 +410,72 @@
   .rec-cat small{font-size:12px;font-weight:600;opacity:.88}
   .rec-cat.any{grid-column:span 2;height:96px;justify-content:center;background:radial-gradient(120% 120% at 100% 0%,rgba(242,154,82,.5),transparent 55%),linear-gradient(150deg,#3b3e46,#1f2126)}
   .rec-cat.any > span{position:absolute!important;right:18px;top:50%;margin-top:-20px;width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:19px;background:var(--orange)}
+  /* Viajes: tarjetas de embarque en una línea del tiempo */
+  #list,.wz-bp{--pass:#fbf8f2}
+  html[data-theme="dark"] #list,html[data-theme="dark"] .wz-bp{--pass:#25272c}
+  .tl-n{position:relative;padding-left:28px;margin-bottom:4px}
+  .tl-n::before{content:"";position:absolute;left:9px;top:0;bottom:-4px;width:2px;background:var(--line)}
+  .tl-dot{position:absolute;left:3px;top:13px;z-index:1;width:14px;height:14px;border-radius:50%;background:var(--bone2);border:3px solid var(--txt3)}
+  .tl-n:not(.past) .tl-dot{border-color:var(--orange)}
+  .tl-n.now .tl-dot{background:var(--orange);animation:htPulse 2.4s ease-out infinite}
+  .tl-m{display:block;margin:0 0 8px 2px;padding-top:12px;font-size:11.5px;font-weight:800;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3)}
+  .tl-gap{position:relative;padding:2px 0 8px 28px;font:italic 600 13.5px var(--serif);color:var(--txt3)}
+  .tl-gap::before{content:"";position:absolute;left:9px;top:0;bottom:0;width:2px;background:repeating-linear-gradient(180deg,var(--line) 0 4px,transparent 4px 8px)}
+  .tl-today{display:flex;align-items:center;gap:8px;margin:8px 0 10px}
+  .tl-today span{padding:4px 11px;border-radius:999px;font:800 11.5px -apple-system,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--orange)}
+  .tl-today::after{content:"";flex:1;height:2px;background:linear-gradient(90deg,var(--orange),transparent)}
+  .tp-bp{margin-bottom:10px}
+  .tp-bp .hp-top{height:140px}
+  .tp-code{position:absolute!important;top:12px;right:14px;font:700 25px/1 ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.04em;text-shadow:0 2px 10px rgba(0,0,0,.45)}
+  .tp-stub{display:flex;align-items:center;gap:12px;padding:12px 16px 14px}
+  .tp-stub .btn-row{flex:1;flex-wrap:wrap;gap:6px}
+  .tp-stub .btn{padding:7px 12px;font-size:13px}
+  .tp-stub .hp-code{flex-basis:56px;height:34px}
+  .tl-n.past .hp-pass{filter:saturate(.8)}
+  /* asistente: el viaje como tarjeta de embarque y los pasos como línea del tiempo */
+  .wz-bp{margin-bottom:14px}
+  .wz-bp .hp-top{height:118px;cursor:default}
+  .wz-bpr{display:flex;align-items:center;gap:10px;padding:14px 18px 0}
+  .wz-bpr > span{display:flex;flex-direction:column;min-width:0}
+  .wz-bpr > span:last-child{align-items:flex-end;text-align:right}
+  .wz-bpr b{font:700 30px/1 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  .wz-bpr small{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--txt3)}
+  .wz-bpl{position:relative;flex:1;display:grid;place-items:center;height:2px;border-top:2px dashed var(--line)}
+  .wz-bpl em{position:absolute;top:-13px;padding:0 6px;font-style:normal;font-size:18px;color:var(--orange);background:var(--pass)}
+  .wz-bps{display:flex;align-items:center;gap:12px;padding:12px 18px 14px}
+  .wz-bps > span:first-child{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .wz-bps b{font-size:13.5px;line-height:1.3}
+  .wz-bps small{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3)}
+  .wz-log{gap:0;padding-left:2px}
+  .wz-log li{position:relative;padding-bottom:12px}
+  .wz-log li::after{content:"";position:absolute;left:4px;top:16px;bottom:0;width:1px;background:var(--line)}
+  .wz-log li:last-child::after{display:none}
+  /* la escena mientras se crea la guía */
+  #wzJourney{transition:opacity .5s,transform .5s}
+  #wzJourney.jr-out{opacity:0;transform:scale(.96)}
+  .jr{position:relative;height:200px;margin:4px 0 14px;border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#8fcbee,#d6ecf7 72%,#f3efe6)}
+  html[data-theme="dark"] .jr{background:linear-gradient(180deg,#1d3550,#2c4a66 72%,#343c46)}
+  .jr-cl{position:absolute;inset:0}
+  .jr-cl i{position:absolute;left:0;width:64px;height:20px;border-radius:20px;background:#fff;opacity:.85;box-shadow:18px -8px 0 -2px #fff,36px 0 0 -4px #fff}
+  .jr-cl i:nth-child(1){top:20px;transform:translateX(40px)}.jr-cl i:nth-child(2){top:58px;transform:translateX(210px)}.jr-cl i:nth-child(3){top:96px;transform:translateX(120px);opacity:.6}.jr-cl i:nth-child(4){top:36px;transform:translateX(300px);opacity:.7}
+  .jr-cl.on i{animation:jrCl 2.6s linear infinite}
+  .jr-cl.on i:nth-child(2){animation-duration:3.4s;animation-delay:-1.2s}.jr-cl.on i:nth-child(3){animation-duration:2.1s;animation-delay:-.6s}.jr-cl.on i:nth-child(4){animation-duration:3s;animation-delay:-2s}
+  @keyframes jrCl{from{transform:translateX(400px)}to{transform:translateX(-120px)}}
+  .jr-dest{position:absolute;left:0;right:0;bottom:0;height:120px;transform:translateY(100%)}
+  .jr-dest svg{display:block;width:100%;height:100%}
+  .jr-gr{position:absolute;left:0;right:0;bottom:0;height:46px;background:#8b9099}
+  html[data-theme="dark"] .jr-gr{background:#4a4f5c}
+  .jr-road{position:absolute;left:0;right:0;top:21px;height:3px;background:repeating-linear-gradient(90deg,#fff 0 16px,transparent 16px 30px);opacity:.85}
+  .jr-tw{position:absolute;right:14px;bottom:44px;width:28px;height:42px}
+  .jr-tw svg{width:100%;height:100%}
+  .jr-pl,.jr-car,.jr-pax{position:absolute;left:0;top:0;transform-origin:0 0}
+  .jr-pax{opacity:0}
+  .jr-pl.fly .pj-fig{animation:pjFly 1.3s ease-in-out infinite alternate}
+  .jr .pj-shadow{display:none}
+  .jr-end{position:absolute;left:22%;bottom:18px;width:96px;height:163px;transform:scale(.5);transform-origin:50% 100%;animation:pjIn .5s cubic-bezier(.3,1.5,.5,1) both}
+  .jr-end:empty{display:none}
+  .jr-end.on-isle{left:50%;bottom:30px}
+  .jr-end .pj-say{font-size:24px;padding:9px 15px;border-radius:20px}
   /* bienvenida */
   .wel{position:fixed;inset:0;z-index:95;display:flex;align-items:stretch;justify-content:center;background:var(--bone);animation:welIn .4s ease both;touch-action:pan-y}
   .wel.out{animation:welIn .3s ease reverse both}
@@ -608,7 +674,7 @@
   </div>
 </section>
 
-  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.19 · 2 nov 2026</p>
+  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.20 · 2 nov 2026</p>
 </main>
 <div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
 <nav class="vnav" role="tablist" aria-label="Secciones">

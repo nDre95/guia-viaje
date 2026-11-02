@@ -46,16 +46,33 @@
   })();
 
   /* ---------- Lista de viajes ---------- */
-  function tripCard(t, user) {
-    var title = (t.title && (t.title[Lang.get()] || t.title.es || t.title.en)) || t.id, days = t.days || 0;
-    var dates = t.start ? dateLbl(t.start) + ' – ' + dateLbl(addDays(t.start, Math.max(0, days - 1))) : '';
-    return '<div class="card trip"><div class="trip-ph"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '></div>' +
-      '<div class="trip-m">' + (user ? '<span class="tag-gen">' + (t.gen ? 'Creado con el asistente' : 'Importado') + '</span>' : '') +
-      '<b>' + esc(title) + '</b><small>' + esc(dates) + (days ? ' · ' + days + ' días' : '') + '</small>' +
-      '<div class="btn-row"><button type="button" class="btn navy sq" data-open="' + esc(t.id) + '">Abrir</button>' +
-      '<button type="button" class="btn ghost sq" data-exp="' + esc(t.id) + '">Exportar</button>' +
-      (user ? '<button type="button" class="btn ghost sq" data-del="' + esc(t.id) + '">Borrar</button>' : '') + '</div></div></div>';
+  // cada viaje como una tarjeta de embarque, colgado de una línea del tiempo (cuánto pasa entre uno y otro, y «Hoy»)
+  function gapTxt(a, b) {
+    var d = Math.abs(Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 864e5)), m = Math.round(d / 30.4), en = Lang.get() === 'en';
+    if (d < 45) return d + (en ? (d === 1 ? ' day' : ' days') : (d === 1 ? ' día' : ' días'));
+    if (m < 12) return m + (en ? (m === 1 ? ' month' : ' months') : (m === 1 ? ' mes' : ' meses'));
+    var y = Math.floor(m / 12), r = m % 12;
+    return y + (en ? (y === 1 ? ' year' : ' years') : (y === 1 ? ' año' : ' años')) + (r ? (en ? ' and ' : ' y ') + r + (en ? (r === 1 ? ' month' : ' months') : (r === 1 ? ' mes' : ' meses')) : '');
   }
+  function tripCard(t, i, arr) {
+    var en = Lang.get() === 'en', title = (t.title && (t.title[Lang.get()] || t.title.es || t.title.en)) || t.id, days = t.days || 0, user = t.user, prev = i ? arr[i - 1] : null, today = new Date().toISOString().slice(0, 10);
+    var end = t.start ? addDays(t.start, Math.max(0, days - 1)) : '', now = t.start && t.start <= today && end >= today, cc = (window.Mundo && Mundo.cached(t.ref)) || [];
+    var city = (((t.ref.b.meta || {}).generated || {}).cities || [])[0] || title, code = String(city).normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+    var mon = t.start ? new Date(t.start + 'T12:00:00Z').toLocaleDateString(en ? 'en-GB' : 'es', { month: 'short', year: 'numeric', timeZone: 'UTC' }).replace('.', '') : '';
+    var h = '';
+    if (prev && !prev.past && t.past) h += '<div class="tl-today"><span>' + (en ? 'Today' : 'Hoy') + '</span></div>';
+    else if (prev && prev.start && t.start) h += '<div class="tl-gap">' + (t.past ? (en ? gapTxt(t.start, prev.start) + ' earlier' : gapTxt(t.start, prev.start) + ' antes') : (en ? gapTxt(prev.start, t.start) + ' later' : gapTxt(prev.start, t.start) + ' después')) + '</div>';
+    else if (!prev && t.start && !now) h += '<div class="tl-gap first">' + (t.past ? (en ? gapTxt(t.start, today) + ' ago' : 'Hace ' + gapTxt(t.start, today)) : (en ? 'In ' + gapTxt(today, t.start) : 'Dentro de ' + gapTxt(today, t.start))) + '</div>';
+    var st = now ? (en ? 'Now' : 'En curso') : t.past ? (en ? 'Done' : 'Hecho') : t.start ? (en ? 'in ' : 'en ') + Math.max(0, Math.round((new Date(t.start + 'T12:00:00Z') - new Date(today + 'T12:00:00Z')) / 864e5)) + ' d' : '–';
+    return h + '<div class="tl-n' + (t.past ? ' past' : '') + (now ? ' now' : '') + '"><span class="tl-dot"></span><small class="tl-m">' + esc(mon) + '</small>' +
+      '<div class="hp-pass tp-bp"><button type="button" class="hp-top" data-open="' + esc(t.id) + '"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '><span class="hm-shade"></span>' +
+      '<small>' + (en ? 'Boarding pass' : 'Tarjeta de embarque') + (user ? ' · ' + (t.gen ? (en ? 'Created with the assistant' : 'Creado con el asistente') : (en ? 'Imported' : 'Importado')) : '') + '</small><b>' + esc(title) + '</b><span class="tp-code">' + (cc[0] && Mundo.flag(cc[0]) ? Mundo.flag(cc[0]) + ' ' : '') + esc(code) + '</span></button>' +
+      '<div class="hp-grid"><span><small>' + (en ? 'Departs' : 'Salida') + '</small><b>' + esc(t.start ? sdate(t.start) : '–') + '</b></span><span><small>' + (en ? 'Returns' : 'Regreso') + '</small><b>' + esc(end ? sdate(end) : '–') + '</b></span><span><small>' + (en ? 'Days' : 'Días') + '</small><b>' + days + '</b></span><span><small>' + (en ? 'Status' : 'Estado') + '</small><b>' + esc(st) + '</b></span></div>' +
+      '<div class="hp-cut"></div><div class="tp-stub"><div class="btn-row"><button type="button" class="btn navy sq" data-open="' + esc(t.id) + '">' + (en ? 'Open' : 'Abrir') + '</button>' +
+      '<button type="button" class="btn ghost sq" data-exp="' + esc(t.id) + '">' + (en ? 'Export' : 'Exportar') + '</button>' +
+      (user ? '<button type="button" class="btn ghost sq" data-del="' + esc(t.id) + '">' + (en ? 'Delete' : 'Borrar') + '</button>' : '') + '</div><span class="hp-code"></span></div></div></div>';
+  }
+  function sdate(iso) { var d = new Date(iso + 'T12:00:00Z'); return d.getUTCDate() + ' ' + d.toLocaleDateString(Lang.get() === 'en' ? 'en-GB' : 'es', { month: 'short', timeZone: 'UTC' }).replace('.', ''); }
   function renderList() {
     return Album.trips().then(function (list) {
       var now = new Date().toISOString().slice(0, 10);
@@ -72,7 +89,7 @@
             return Object.keys(seen).map(function (c) { return [c, (Mundo.flag(c) ? Mundo.flag(c) + ' ' : '') + Mundo.name(c)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
           } },
           selectVal: function (r) { return Mundo.cached(r.ref) || []; },
-          render: function (r) { return tripCard(r, r.user); } });
+          render: function (r, i, arr) { return tripCard(r, i, arr); } });
       }
       paint();
       Mundo.detect(list).then(function (ch) { if (ch) paint(); }).catch(function () {});

@@ -148,6 +148,7 @@ window.Pj = (function () {
     if (K.vehicle === 'plane') return plane();
     var c = K.body, heads = function (xs, y) { return xs.map(function (x) { return '<circle cx="' + x + '" cy="' + y + '" r="8" fill="' + pick(SKIN) + '"/><path d="M' + (x - 8) + ' ' + (y - 1) + ' Q' + x + ' ' + (y - 12) + ' ' + (x + 8) + ' ' + (y - 1) + '" fill="' + pick(HAIR) + '"/><circle cx="' + (x + 3) + '" cy="' + (y + 1) + '" r="1.3" fill="#222"/>'; }).join(''); };
     if (K.vehicle === 'car') return '<svg class="pj-fig pj-car" viewBox="0 0 150 90" width="150" height="90" aria-hidden="true"><g class="pj-all">' +
+      (K.lug ? '<g class="pj-lug"><path d="M38 13 L104 13" stroke="#333" stroke-width="2.5"/><rect x="42" y="-1" width="28" height="14" rx="3" fill="#e8574a"/><rect x="72" y="1" width="24" height="12" rx="3" fill="#2f8f5b"/><rect x="54" y="-12" width="22" height="12" rx="3" fill="#f2c14e"/><path d="M56 -1 L56 13 M88 1 L88 13" stroke="#000" stroke-opacity=".2" stroke-width="2"/></g>' : '') +
       '<path d="M30 32 Q38 12 70 12 Q98 12 108 32 Z" fill="' + shade(c, 10) + '"/><path d="M40 31 Q46 18 66 18 L66 31 Z M72 18 Q94 18 100 31 L72 31 Z" fill="#bfe0f2"/>' + heads([56, 86], 27) +
       '<rect x="10" y="30" width="130" height="34" rx="14" fill="' + c + '"/><rect x="10" y="30" width="130" height="34" rx="14" fill="url(#pjCarSh)"/><circle cx="133" cy="42" r="4" fill="#fff6c8"/><rect x="12" y="42" width="6" height="6" rx="2" fill="#e8574a"/>' +
       '<defs><linearGradient id="pjCarSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient></defs>' +
@@ -299,6 +300,74 @@ window.Pj = (function () {
     return e;
   }
 
+  /* ---------- El viaje mientras se crea la guía: coche con maletas → avión → vuelo → destino ----------
+     Pj.journey(caja, tema): las fases van solas; done() hace aterrizar en el destino (isla, nieve, ciudad…)
+     en cuanto se pueda; si la guía tarda demasiado, la escena se recoge sola en vez de quedarse colgada. */
+  function dest(kind) {
+    var sea = '<rect x="0" y="70" width="360" height="50" fill="#5bb4e8"/><path d="M0 76 q10 -4 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" stroke="#fff" stroke-opacity=".6" stroke-width="2" fill="none"/>';
+    if (kind === 'isla' || kind === 'playa') return '<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMax slice">' + sea +
+      '<path d="M150 92 Q215 58 290 92 Z" fill="#f2d38b"/><path d="M262 88 Q268 60 254 34" stroke="#8a5a32" stroke-width="6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M254 34 Q234 22 216 36 Q236 30 254 36Z M254 34 Q244 12 224 14 Q242 20 254 36Z M254 34 Q266 12 288 18 Q270 22 255 36Z M254 34 Q276 26 290 42 Q272 34 255 37Z" fill="#2f8f5b"/>' +
+      (kind === 'playa' ? '<path d="M120 100 L120 74" stroke="#666" stroke-width="2"/><path d="M98 76 Q120 58 142 76 Z" fill="#e8574a"/><path d="M0 100 L360 100 L360 120 L0 120Z" fill="#f2d38b"/>' : '') + '</svg>';
+    if (kind === 'nieve') return '<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMax slice"><path d="M0 120 L0 70 L60 22 L110 64 L170 12 L240 70 L300 30 L360 66 L360 120Z" fill="#8fa3bf"/>' +
+      '<path d="M60 22 L74 34 L66 36 L56 30 L46 34Z M170 12 L188 30 L176 30 L168 24 L156 32Z M300 30 L314 42 L304 42 L294 38Z" fill="#fff"/><path d="M0 120 L0 92 Q180 78 360 94 L360 120Z" fill="#f4f7fb"/>' +
+      [40, 70, 290, 320].map(function (x) { return '<path d="M' + x + ' 100 l10 -26 l10 26Z" fill="#2f6b4f"/><rect x="' + (x + 8) + '" y="100" width="4" height="6" fill="#6e4524"/>'; }).join('') + '</svg>';
+    if (kind === 'monte') return '<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMax slice"><path d="M0 120 L0 72 L70 26 L130 70 L200 20 L270 74 L330 40 L360 60 L360 120Z" fill="#6f9a7a"/><path d="M0 120 L0 96 Q180 80 360 98 L360 120Z" fill="#4f8a5f"/>' +
+      [30, 60, 300, 330].map(function (x) { return '<path d="M' + x + ' 104 l10 -28 l10 28Z" fill="#2a6a45"/>'; }).join('') + '</svg>';
+    // ciudad: siluetas de edificios con ventanas encendidas
+    var b = '', xs = [[0, 46, 60], [40, 70, 36], [100, 40, 76], [136, 60, 50], [190, 34, 88], [220, 66, 44], [280, 44, 70], [320, 40, 54]];
+    xs.forEach(function (q) { b += '<rect x="' + q[0] + '" y="' + (120 - q[2]) + '" width="' + q[1] + '" height="' + q[2] + '" fill="#6b7088"/>'; for (var y = 120 - q[2] + 8; y < 112; y += 12) for (var x = q[0] + 6; x < q[0] + q[1] - 6; x += 12) b += '<rect x="' + x + '" y="' + y + '" width="5" height="6" fill="#f2c14e" opacity="' + (Math.random() > .4 ? .9 : .25) + '"/>'; });
+    return '<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMax slice">' + b + '<rect x="0" y="112" width="360" height="8" fill="#555a6b"/></svg>';
+  }
+  function journey(box, kind) {
+    if (!box || off() || reduced()) return { done: function () {}, stop: function () {}, tick: function () {} };
+    var J = { t: [], dead: false, fin: false, cruise: false, landed: false }, W = box.clientWidth || 340;
+    var car = vehicle({ vehicle: 'car', body: pick(['#e2782f', '#2b8fc9', '#2f8f5b', '#c8323c']), lug: 1 });
+    box.innerHTML = '<div class="jr"><div class="jr-sky"></div><div class="jr-cl"><i></i><i></i><i></i><i></i></div><div class="jr-dest">' + dest(kind) + '</div>' +
+      '<div class="jr-gr"><i class="jr-road"></i><span class="jr-tw"><svg viewBox="0 0 40 60"><rect x="16" y="10" width="8" height="46" fill="#9aa3b5"/><rect x="8" y="2" width="24" height="12" rx="3" fill="#6b7fb3"/><rect x="11" y="5" width="18" height="6" fill="#bfe0f2"/></svg></span></div>' +
+      '<div class="jr-pl pj drive">' + plane() + '</div><div class="jr-car pj drive">' + car + '</div><div class="jr-pax">' + person(KINDS.maleta, 'jx') + '</div><div class="jr-end"></div></div>';
+    var R = box.firstChild, car0 = R.querySelector('.jr-car'), pl = R.querySelector('.jr-pl'), px = R.querySelector('.jr-pax'), gr = R.querySelector('.jr-gr'), ds = R.querySelector('.jr-dest'), cl = R.querySelector('.jr-cl');
+    function w(ms) { return new Promise(function (r) { J.t.push(setTimeout(r, ms)); }); }
+    function go(el, kf, ms, ease) { return anim(el, kf, { duration: ms, easing: ease || 'ease-in-out', fill: 'forwards' }); }
+    var cx = Math.round(W * .1), plx = Math.round(W * .5);
+    // 1 · el coche llega cargado de maletas; el avión espera en la pista
+    go(pl, [{ transform: 'translate(' + plx + 'px,104px) scale(.62)' }, { transform: 'translate(' + plx + 'px,104px) scale(.62)' }], 10);
+    go(car0, [{ transform: 'translate(-170px,112px) scale(.55)' }, { transform: 'translate(' + cx + 'px,112px) scale(.55)' }], 2000, 'cubic-bezier(.2,.8,.3,1)').then(function () {
+      if (J.dead) return; car0.classList.remove('drive');
+      // 2 · salta del coche al avión
+      px.style.opacity = 1;
+      return go(px, [{ transform: 'translate(' + (cx + 50) + 'px,100px) scale(.36)' }, { transform: 'translate(' + ((cx + plx) / 2 + 30) + 'px,40px) scale(.36) rotate(20deg)', offset: .5 }, { transform: 'translate(' + (plx + 40) + 'px,96px) scale(.2) rotate(40deg)', opacity: 0 }], 1100, 'cubic-bezier(.3,.6,.5,1)');
+    }).then(function () {
+      if (J.dead) return;
+      // 3 · el coche se va y el avión despega; la pista baja y quedan el cielo y las nubes
+      go(car0, [{ transform: 'translate(' + cx + 'px,112px) scale(.55)' }, { transform: 'translate(-200px,112px) scale(.55) scaleX(-1)' }], 1400, 'ease-in'); car0.classList.add('drive', 'left');
+      return go(pl, [{ transform: 'translate(' + plx + 'px,104px) scale(.62)' }, { transform: 'translate(' + (plx + 40) + 'px,104px) scale(.62)', offset: .3 }, { transform: 'translate(' + Math.round(W * .32) + 'px,30px) scale(.7) rotate(-14deg)', offset: .8 }, { transform: 'translate(' + Math.round(W * .3) + 'px,46px) scale(.7) rotate(0deg)' }], 2600, 'ease-in-out');
+    }).then(function () {
+      if (J.dead) return;
+      go(gr, [{ transform: 'none' }, { transform: 'translateY(260%)' }], 900);
+      cl.classList.add('on'); pl.classList.add('fly');
+      J.cruise = true;
+      if (J.fin) land();
+    });
+    // 4 · al terminar la guía: aparece el destino, el avión baja y sale su personaje
+    function land() {
+      if (J.landed || J.dead) return; J.landed = true;
+      go(ds, [{ transform: 'translateY(100%)' }, { transform: 'none' }], 1300, 'cubic-bezier(.2,.8,.3,1)');
+      go(pl, [{ transform: 'translate(' + Math.round(W * .3) + 'px,46px) scale(.7)' }, { transform: 'translate(' + Math.round(W * .62) + 'px,70px) scale(.4) rotate(8deg)', opacity: 1, offset: .8 }, { transform: 'translate(' + Math.round(W * .7) + 'px,92px) scale(.3)', opacity: 0 }], 1700).then(function () {
+        if (J.dead) return;
+        cl.classList.remove('on');
+        var f = figure(kind === 'isla' ? 'playa' : kind), end = R.querySelector('.jr-end'); if (kind === 'isla' || kind === 'playa') end.classList.add('on-isle'); end.appendChild(f);
+        var b = document.createElement('span'); b.className = 'pj-say'; b.textContent = en() ? 'We’re here!' : '¡Hemos llegado!'; f.appendChild(b);
+        return w(2600);
+      }).then(function () { collapse(); });
+    }
+    function collapse() { if (J.dead) return; J.dead = true; J.t.forEach(clearTimeout); box.classList.add('jr-out'); setTimeout(function () { box.innerHTML = ''; box.classList.remove('jr-out'); }, 600); }
+    // dura lo que dure la guía: cada paso la mantiene viva; si se queda parada (o tarda demasiado), se recoge
+    J.last = Date.now(); J.t0 = J.last;
+    var iv = setInterval(function () { if (J.dead) { clearInterval(iv); return; } if (!J.fin && (Date.now() - J.last > 75000 || Date.now() - J.t0 > 180000)) { clearInterval(iv); collapse(); } }, 2000);
+    return { done: function () { J.fin = true; if (J.cruise) land(); }, stop: collapse, tick: function () { J.last = Date.now(); } };
+  }
+
   /* ---------- Un acompañante dentro de un recuadro (los mapas animados) ----------
      Es siempre la misma persona, vestida según el viaje (base); cambia a coche, autobús o avión en los trayectos
      y hace gestos en cada parada. show(tipo, estado): estado = 'walk', 'drive', 'idle' o 'act-…' */
@@ -357,5 +426,5 @@ window.Pj = (function () {
     return 'ciudad';
   }
 
-  return { play: play, stop: stop, figure: figure, cast: cast, theme: theme, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
+  return { play: play, stop: stop, figure: figure, cast: cast, journey: journey, theme: theme, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
 })();
