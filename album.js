@@ -74,14 +74,14 @@ window.Album = (function () {
   }
   var SETS = [['hist', 'Historia', ['CAS', 'RUI', 'MON', 'TEM']], ['arte', 'Arte y espectáculos', ['MUS', 'ESP']], ['natu', 'Naturaleza y miradores', ['NAT', 'JAR', 'MIR']], ['urbe', 'Ciudad', ['PLZ', 'BAR', 'MER', 'PAS', 'FAM']]];
   function packsHTML(cards) {
-    var g = Juego.get(), d = Juego.dups(g), groups = [], order = { r: 0, g: 1, s: 2, c: 3 };
+    var g = Juego.get(), groups = [], order = { r: 0, g: 1, s: 2, c: 3 };
     g.bag.forEach(function (b) { var f = groups.filter(function (x) { return x.k === b.k && x.t === b.t; })[0]; if (f) f.n++; else groups.push({ k: b.k, t: b.t, n: 1 }); });
     groups.sort(function (a, b) { return order[a.k] - order[b.k]; });
     var head = '<div class="pk-row">' + (groups.length ? groups.map(function (x) {
       var tr0 = (TRIPS || []).filter(function (t) { return t.id === x.t; })[0];
       return '<button type="button" class="pk-mini k-' + x.k + ' sq" data-pkopen="' + x.k + '" data-pktrip="' + esc(x.t) + '"><span class="pk-foil"></span><b>' + x.n + '</b><small>' + esc(Juego.PACK[x.k]) + '</small>' + (tr0 ? '<small class="pk-trip">' + esc(tripTitle(tr0)) + '</small>' : '') + '</button>';
     }).join('') : '<p class="pk-none">Gana sobres con los quizzes: cuantos más aciertos, mejor sobre.</p>') +
-      (d >= 5 ? '<button type="button" class="pk-ex sq" data-pkex>Cambiar 5 repetidos por un sobre</button>' : '') + '</div>';
+      '</div>';
     // colecciones: cuántos has canjeado de cada clase
     var sets = SETS.map(function (S) {
       var all = cards.filter(function (c) { return S[2].indexOf(c.rate.pos) >= 0; });
@@ -141,7 +141,7 @@ window.Album = (function () {
   function tileHTML(tid, c) {
     var R = c.rate || { r: '', pos: '', tier: 'copper' };
     return '<button type="button" class="cr fc t-' + R.tier + (c.got ? ' got' : '') + (c.own ? ' own' : '') + phCls(c) + '" data-cr="' + esc(tid + '|' + c.id) + '"' + phStyle(c) + '>' +
-      '<i class="fc-b"></i>' + (c.got ? '<i class="sheen"></i>' : '') + (c.own && c.own.n > 1 ? '<i class="fc-x">×' + c.own.n + '</i>' : '') + (c.got ? '<i class="fc-v">' + (c.got.gps ? '✓ GPS' : '✓') + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
+      '<i class="fc-b"></i>' + (c.got ? '<i class="sheen"></i>' : '') + (c.got ? '<i class="fc-v">' + (c.got.gps ? '✓ GPS' : '✓') + '</i>' : '') + '<span>' + esc(c.ti) + '</span></button>';
   }
   // una colección abierta: sus cromos de todos los viajes, separados por viaje
   var openS = null;
@@ -201,7 +201,7 @@ window.Album = (function () {
           '<div class="alb-bar"><i style="width:' + (cs.length ? Math.round(got / cs.length * 100) : 0) + '%"></i></div>' +
           (cs.length > 8 ? '<div class="lst-chips">' + [['all', 'Todos', cs.length], ['got', 'Canjeados', got], ['miss', 'Faltan', cs.length - got], ['top', 'Oro o más', cs.filter(function (c) { return c.got && c.rate && c.rate.r >= 80; }).length]].map(function (f) { return '<button type="button" class="opt' + (crFilter === f[0] ? ' on' : '') + '" data-crf="' + f[0] + '">' + f[1] + ' <i>' + f[2] + '</i></button>'; }).join('') + '</div>' : '') +
           '<div class="crs">' + seen.map(function (c) { return tileHTML(t.id, c); }).join('') + '</div>' +
-          '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">' + (reelMime() ? 'Crear vídeo' : 'Crear postal') + '</button>' : '') +
+          '<div class="btn-row" style="margin-top:10px">' + (got ? '<button type="button" class="btn navy sq" data-post="' + esc(t.id) + '">' + 'Crear postal' + '</button>' : '') +
           (cfg.single ? '' : '<button type="button" class="btn ghost sq" data-open="' + esc(t.id) + '">Abrir guía</button>') + '</div></div>';
     });
   }
@@ -288,8 +288,112 @@ window.Album = (function () {
   }
   function closeCromo() { var v = $('#crView'); if (!v) return; v.classList.remove('on'); setTimeout(function () { if (!v.classList.contains('on')) v.innerHTML = ''; }, 350); }
 
-  /* ---------- Postal: collage de los cromos conseguidos, con sello y matasellos ---------- */
-  var postBlob = null, postName = '';
+  /* ---------- Postal: SVG vectorial de 1920×1080 (Full HD). Collage de tus fotos, sello dentado, matasellos,
+     borde de correo aéreo, mensaje a mano, datos del viaje y la ruta. Se comparte en PNG o se guarda en SVG ---------- */
+  var postBlob = null, postName = '', postSvg = null;
+  var PC_M = { base: ['#9a917f', '#e8e1d3'], copper: ['#8a4b24', '#efb48a'], silver: ['#7f8893', '#eef1f5'], gold: ['#a2780f', '#ffe08a'], emerald: ['#0e7a54', '#7ff5c4'], ruby: ['#a01232', '#ff8ea3'] };
+  function xml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]; }); }
+  // la foto recortada al tamaño en que sale, ya en JPEG dentro del SVG (así no depende de nada externo)
+  function jpeg(im, w, h) {
+    var c = document.createElement('canvas'), k = Math.min(2, Math.max(1, Math.max(w / im.width, h / im.height) > 1 ? 1 : 1.6)); c.width = Math.round(w * k); c.height = Math.round(h * k);
+    var r = Math.max(c.width / im.width, c.height / im.height), iw = im.width * r, ih = im.height * r;
+    c.getContext('2d').drawImage(im, (c.width - iw) / 2, (c.height - ih) / 2, iw, ih);
+    try { return c.toDataURL('image/jpeg', 0.88); } catch (e) { return ''; }
+  }
+  function makePostcard(id, btn) {
+    var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t) return;
+    var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), en = lg() === 'en';
+    var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; }).slice(0, 5);
+    if (btn) { btn.disabled = true; btn.textContent = tr('Creando postal…'); }
+    function restore() { if (btn) { btn.disabled = false; btn.textContent = tr('Crear postal'); } }
+    Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
+      var ph = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
+      var m = t.b.meta || {}, bt = t.b.trip, nd = bt.days.length, st = bt.defaultStart;
+      var dest = (m.dest || {})[lg()] || (m.dest || {}).es || tripTitle(t), cc = window.Mundo && Mundo.cached ? (Mundo.cached(t) || [])[0] : '', country = cc && Mundo.name ? Mundo.name(cc) : dest;
+      var d1 = st ? new Date(st + 'T12:00:00Z') : null, d2 = d1 ? new Date(d1.getTime() + (nd - 1) * 864e5) : null;
+      var year = d1 ? d1.getUTCFullYear() : '';
+      var cities = ((m.generated || {}).cities || (m.mapCities || []).map(function (c) { return c[lg()] || c.es; })).slice(0, 4);
+      var km = 0; bt.days.forEach(function (d) { d.items.forEach(function (it) { if (it.t === 'drive' && it.km) km += it.km; }); });
+      var best = ph[0] ? (ph[0].c.rate || {}).tier || 'base' : 'base', gold = got.filter(function (c) { return c.rate && c.rate.r >= 80; }).length, M = PC_M[best];
+      var W = 1920, H = 1080, ink = '#23324f', hand = "'Bradley Hand','Segoe Script','Snell Roundhand','Noteworthy','Comic Sans MS',cursive", serif = "'New York','Iowan Old Style',Georgia,serif", sans = "-apple-system,'Segoe UI',Roboto,Helvetica,sans-serif";
+      var mc = document.createElement('canvas').getContext('2d');
+      function lines(txt, font, max) { mc.font = font; var out = [''], words = String(txt).split(' '); words.forEach(function (w) { var k = out.length - 1, tt = out[k] ? out[k] + ' ' + w : w; if (mc.measureText(tt).width > max && out[k]) out.push(w); else out[k] = tt; }); return out; }
+      function photo(x, y, w, h, im, rot, cap, pad) {
+        var u = jpeg(im, w, h), p = pad == null ? 16 : pad, bh = cap ? 64 : p;
+        return '<g transform="rotate(' + rot + ' ' + (x + w / 2) + ' ' + (y + h / 2) + ')"><rect x="' + (x - p) + '" y="' + (y - p) + '" width="' + (w + 2 * p) + '" height="' + (h + p + bh) + '" fill="#fffdf8" filter="url(#sh)"/>' +
+          (u ? '<image href="' + u + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid slice"/>' : '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#cfc6b4"/>') +
+          (cap ? '<text x="' + (x + w / 2) + '" y="' + (y + h + 44) + '" text-anchor="middle" font-family="' + hand + '" font-size="28" fill="' + ink + '">' + xml(fitTxt(cap, '28px ' + hand, w)) + '</text>' : '') + '</g>';
+      }
+      function fitTxt(s, font, max) { mc.font = font; s = String(s); if (mc.measureText(s).width <= max) return s; while (s.length > 3 && mc.measureText(s + '…').width > max) s = s.slice(0, -1); return s.trim() + '…'; }
+      var g = '';
+      // papel, borde de correo aéreo y línea central
+      g += '<rect width="' + W + '" height="' + H + '" fill="#f4ecdc"/><rect width="' + W + '" height="' + H + '" fill="url(#air)"/><rect x="26" y="26" width="' + (W - 52) + '" height="' + (H - 52) + '" fill="#f6efe0" filter="url(#paper)"/>';
+      g += '<line x1="1080" y1="110" x2="1080" y2="' + (H - 110) + '" stroke="#b9ac94" stroke-width="2"/>';
+      // collage: la mejor foto grande, otras tres pequeñas debajo
+      if (ph[0]) g += photo(92, 92, 900, 560, ph[0].im, -1.2, '', 18);
+      var title = dest;
+      g += '<g filter="url(#tsh)"><text x="128" y="540" font-family="' + sans + '" font-size="30" font-weight="800" letter-spacing="6" fill="#fff">' + xml(tr('RECUERDOS DE')) + '</text>' +
+        '<text x="124" y="626" font-family="' + serif + '" font-style="italic" font-weight="700" font-size="' + (title.length > 14 ? 76 : 104) + '" fill="#fff">' + xml(fitTxt(title, 'italic 700 ' + (title.length > 14 ? 76 : 104) + 'px ' + serif, 820)) + '</text></g>';
+      [[110, 760, -4], [420, 772, 2.5], [730, 758, -2]].forEach(function (p, k) { var x = ph[k + 1]; if (x) g += photo(p[0], p[1], 260, 180, x.im, p[2], x.c.ti); });
+      // sello dentado con la foto de otro sitio y el color del cromo más raro
+      var sx = 1590, sy = 90, sw = 230, sh = 280, sp = ph[1] || ph[0];
+      g += '<g filter="url(#sh)"><rect x="' + sx + '" y="' + sy + '" width="' + sw + '" height="' + sh + '" fill="#fffdf8" mask="url(#perf)"/></g>' +
+        '<rect x="' + (sx + 16) + '" y="' + (sy + 16) + '" width="' + (sw - 32) + '" height="' + (sh - 32) + '" fill="' + M[0] + '"/>' +
+        (sp ? '<image href="' + jpeg(sp.im, sw - 48, sh - 96) + '" x="' + (sx + 24) + '" y="' + (sy + 24) + '" width="' + (sw - 48) + '" height="' + (sh - 96) + '" preserveAspectRatio="xMidYMid slice"/>' : '') +
+        '<text x="' + (sx + sw / 2) + '" y="' + (sy + sh - 48) + '" text-anchor="middle" font-family="' + sans + '" font-weight="800" font-size="18" letter-spacing="2" fill="' + M[1] + '">' + xml(fitTxt(String(country).toUpperCase(), '800 18px ' + sans, sw - 56)) + '</text>' +
+        '<text x="' + (sx + sw / 2) + '" y="' + (sy + sh - 25) + '" text-anchor="middle" font-family="' + serif + '" font-weight="700" font-size="21" fill="' + M[1] + '">' + year + '</text>';
+      // matasellos: doble círculo, texto en curva y ondas
+      var mx = 1545, my = 270, r = 96;
+      g += '<g opacity=".78" fill="none" stroke="' + ink + '" transform="rotate(-12 ' + mx + ' ' + my + ')"><circle cx="' + mx + '" cy="' + my + '" r="' + r + '" stroke-width="4"/><circle cx="' + mx + '" cy="' + my + '" r="' + (r - 30) + '" stroke-width="2.5"/>' +
+        '<path id="pmT" d="M' + (mx - r + 16) + ' ' + my + ' A' + (r - 16) + ' ' + (r - 16) + ' 0 0 1 ' + (mx + r - 16) + ' ' + my + '"/><path id="pmB" d="M' + (mx - r + 34) + ' ' + my + ' A' + (r - 34) + ' ' + (r - 34) + ' 0 0 0 ' + (mx + r - 34) + ' ' + my + '"/>' +
+        '<text font-family="' + sans + '" font-weight="800" font-size="20" letter-spacing="3" fill="' + ink + '" stroke="none"><textPath href="#pmT" startOffset="50%" text-anchor="middle">' + xml(fitTxt(String(cities[0] || dest).toUpperCase(), '800 20px ' + sans, 230)) + '</textPath></text>' +
+        '<text font-family="' + sans + '" font-weight="800" font-size="17" letter-spacing="2" fill="' + ink + '" stroke="none"><textPath href="#pmB" startOffset="50%" text-anchor="middle">' + xml(tr('GUÍA DE VIAJE')) + '</textPath></text>' +
+        '<text x="' + mx + '" y="' + (my + 9) + '" text-anchor="middle" font-family="' + sans + '" font-weight="800" font-size="25" fill="' + ink + '" stroke="none">' + xml(d1 ? d1.toLocaleDateString(lg(), { day: '2-digit', month: 'short', timeZone: 'UTC' }).toUpperCase() : '') + '</text>';
+      for (var k = 0; k < 5; k++) { var yy = my - 44 + k * 22, dpath = 'M' + (mx - r - 250) + ' ' + yy; for (var q = 0; q < 6; q++) dpath += ' q 20 ' + (q % 2 ? 14 : -14) + ' 40 0'; g += '<path d="' + dpath + '" stroke-width="3"/>'; }
+      g += '</g>';
+      // mensaje a mano
+      var top3 = ph.slice(0, 2).map(function (x) { return x.c.ti; }), msg = (en ? 'Hi! ' + nd + ' days in ' + dest + '. The best bits: ' : '¡Hola! ' + nd + ' días por ' + dest + '. Lo mejor: ') +
+        (top3.length > 1 ? top3.slice(0, -1).join(', ') + (en ? ' and ' : ' y ') + top3[top3.length - 1] : top3[0] || '') + '. ' + (en ? 'Wish you were here!' : '¡Ojalá estuvieras aquí!');
+      lines(msg, '38px ' + hand, 390).slice(0, 9).forEach(function (ln, i) { g += '<text x="1130" y="' + (480 + i * 54) + '" font-family="' + hand + '" font-size="38" fill="' + ink + '">' + xml(ln) + '</text>'; });
+      // «dirección»: los datos del viaje en líneas
+      var fo2 = { day: 'numeric', month: 'short', timeZone: 'UTC' }, dd = d1 ? d1.toLocaleDateString(lg(), fo2) + ' – ' + d2.toLocaleDateString(lg(), fo2) : '';
+      var rows = [dd, cities.length > 1 ? cities[0] + ' → ' + cities[cities.length - 1] : cities[0] || dest, nd + (en ? (nd === 1 ? ' day' : ' days') : (nd === 1 ? ' día' : ' días')) + (km ? ' · ' + Math.round(km) + ' km' : ''), got.length + (en ? ' cards' : ' cromos'), gold ? gold + (en ? ' gold or better' : ' de oro o más') : ''].filter(Boolean);
+      rows.forEach(function (rw, i) { var y = 480 + i * 66; g += '<line x1="1560" y1="' + (y + 14) + '" x2="1830" y2="' + (y + 14) + '" stroke="#b9ac94" stroke-width="2"/><text x="1564" y="' + y + '" font-family="' + hand + '" font-size="26" fill="' + ink + '">' + xml(fitTxt(rw, '26px ' + hand, 280)) + '</text>'; });
+      // la ruta, a mano alzada
+      var pts = []; bt.days.forEach(function (d) { d.items.forEach(function (it) { if (it.lat != null && (!window.Mapa || Mapa.isSight(it))) pts.push(it); }); });
+      if (pts.length > 1) {
+        var b0 = { s: 90, n: -90, w: 180, e: -180 }; pts.forEach(function (p) { b0.s = Math.min(b0.s, p.lat); b0.n = Math.max(b0.n, p.lat); b0.w = Math.min(b0.w, p.lon); b0.e = Math.max(b0.e, p.lon); });
+        var kx = Math.cos((b0.s + b0.n) / 2 * Math.PI / 180), bw = (b0.e - b0.w) * kx || 1e-6, bh = (b0.n - b0.s) || 1e-6, box = [1570, 820, 250, 150], s0 = Math.min(box[2] / bw, box[3] / bh);
+        var P = pts.map(function (p) { return [box[0] + box[2] / 2 + ((p.lon - b0.w) * kx - bw / 2) * s0, box[1] + box[3] / 2 - ((p.lat - b0.s) - bh / 2) * s0]; });
+        g += '<polyline points="' + P.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + '" fill="none" stroke="#c8382e" stroke-width="3.5" stroke-dasharray="2 9" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '<circle cx="' + P[0][0].toFixed(1) + '" cy="' + P[0][1].toFixed(1) + '" r="8" fill="' + ink + '"/><circle cx="' + P[P.length - 1][0].toFixed(1) + '" cy="' + P[P.length - 1][1].toFixed(1) + '" r="8" fill="none" stroke="' + ink + '" stroke-width="3.5"/>';
+      }
+      g += '<text x="1130" y="' + (H - 66) + '" text-anchor="start" font-family="' + sans + '" font-size="18" font-weight="700" letter-spacing="3" fill="#a0937b">' + xml(tr('GUÍA DE VIAJE')) + '</text>';
+      // perforado del sello: círculos que se comen el borde
+      var holes = ''; for (var hx = sx; hx <= sx + sw + 1; hx += 23) holes += '<circle cx="' + hx + '" cy="' + sy + '" r="8"/><circle cx="' + hx + '" cy="' + (sy + sh) + '" r="8"/>';
+      for (var hy = sy; hy <= sy + sh + 1; hy += 23.3) holes += '<circle cx="' + sx + '" cy="' + hy + '" r="8"/><circle cx="' + (sx + sw) + '" cy="' + hy + '" r="8"/>';
+      var defs = '<defs><pattern id="air" width="90" height="90" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="22" height="90" fill="#c8382e"/><rect x="45" width="22" height="90" fill="#22396b"/></pattern>' +
+        '<filter id="sh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#3b2f1c" flood-opacity=".28"/></filter>' +
+        '<filter id="tsh"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter>' +
+        '<filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" values="0 0 0 0 .55  0 0 0 0 .47  0 0 0 0 .35  0 0 0 .07 0" result="c"/><feComposite in="c" in2="SourceGraphic" operator="in" result="t"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="t"/></feMerge></filter>' +
+        '<mask id="perf"><rect x="' + (sx - 10) + '" y="' + (sy - 10) + '" width="' + (sw + 20) + '" height="' + (sh + 20) + '" fill="#fff"/><g fill="#000">' + holes + '</g></mask></defs>';
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + defs + g + '</svg>';
+      postSvg = new Blob([svg], { type: 'image/svg+xml' });
+      var name = 'postal-' + id, url = URL.createObjectURL(postSvg), im = new Image();
+      im.onload = function () {
+        // PNG en Full HD para compartir; si el navegador no deja leer el lienzo, se comparte el SVG
+        var c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(im, 0, 0, W, H);
+        function show(bl, nm) {
+          restore(); postBlob = bl; postName = nm;
+          var box = $('#postBox'); if (!box) return;
+          $('#postImg').src = url; box.hidden = false; box.scrollIntoView({ behavior: 'smooth' });
+        }
+        try { c.toBlob(function (bl) { show(bl || postSvg, bl ? name + '.png' : name + '.svg'); }, 'image/png'); } catch (e) { show(postSvg, name + '.svg'); }
+      };
+      im.onerror = function () { restore(); };
+      im.src = url;
+    });
+  }
   function loadImg(src) {
     return new Promise(function (res) {
       if (!src) return res(null);
@@ -299,209 +403,12 @@ window.Album = (function () {
       (window.Mapa ? Mapa.corsUrl(abs).catch(function () { return abs; }) : Promise.resolve(abs)).then(function (u) { im.src = u; });
     });
   }
-  function makePostcard(id) {
-    var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t) return;
-    var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; });
-    var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; }).slice(0, 6);
-    var Wd = 1500, Ht = 1000, cv = document.createElement('canvas'); cv.width = Wd; cv.height = Ht;
-    var g = cv.getContext('2d'), serif = '"New York","Iowan Old Style",Georgia,serif', sans = '-apple-system,"Segoe UI",Roboto,sans-serif';
-    Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
-      // papel
-      g.fillStyle = '#f7f3ec'; g.fillRect(0, 0, Wd, Ht);
-      g.strokeStyle = '#e2782f'; g.lineWidth = 10; g.strokeRect(22, 22, Wd - 44, Ht - 44);
-      // fotos, como cromos pegados
-      var slots = imgs.length <= 3 ? [[70, 260], [390, 250], [710, 270]] : [[70, 80], [390, 70], [710, 90], [80, 430], [400, 420], [720, 440]];
-      imgs.forEach(function (im, n) {
-        var s = slots[n], w = 290, h = 300, rot = [-.05, .03, -.02, .04, -.035, .02][n];
-        g.save(); g.translate(s[0] + w / 2, s[1] + h / 2); g.rotate(rot);
-        g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 18; g.shadowOffsetY = 8;
-        g.fillStyle = '#fff'; g.fillRect(-w / 2 - 12, -h / 2 - 12, w + 24, h + 60); g.shadowColor = 'transparent';
-        if (im) { var r = Math.max(w / im.width, h / im.height), iw = im.width * r, ih = im.height * r; g.save(); g.beginPath(); g.rect(-w / 2, -h / 2, w, h); g.clip(); g.drawImage(im, -iw / 2, -ih / 2, iw, ih); g.restore(); }
-        else { g.fillStyle = '#e8e1d4'; g.fillRect(-w / 2, -h / 2, w, h); }
-        g.fillStyle = '#3b3e46'; g.font = '600 20px ' + sans; g.textAlign = 'center';
-        g.fillText(fit(g, pick[n].ti, w), 0, h / 2 + 34); g.restore();
-      });
-      // línea central de postal
-      g.strokeStyle = '#cfc6b6'; g.lineWidth = 2; g.beginPath(); g.moveTo(1060, 90); g.lineTo(1060, Ht - 90); g.stroke();
-      // texto
-      var title = tripTitle(t), dest = (t.b.meta.dest || {})[lg()] || (t.b.meta.dest || {}).es || '';
-      g.textAlign = 'left'; g.fillStyle = '#e2782f'; g.font = 'italic 34px ' + serif; g.fillText(tr('Recuerdos de'), 1095, 330);
-      g.fillStyle = '#1c1d21'; g.font = '700 52px ' + serif; wrap(g, title, 1095, 392, 360, 58);
-      g.fillStyle = '#5a5d66'; g.font = '500 24px ' + sans;
-      var lines = got.slice(0, 7).map(function (c) { return '✓ ' + c.ti; });
-      lines.forEach(function (l, n) { g.fillText(fit(g, l, 360), 1095, 540 + n * 40); });
-      g.strokeStyle = '#d9d1c2'; g.lineWidth = 1.5; for (var y = 552; y < 840; y += 40) { g.beginPath(); g.moveTo(1095, y); g.lineTo(1450, y); g.stroke(); }
-      g.fillStyle = '#8b9099'; g.font = '600 20px ' + sans; g.fillText(lg() === 'en' ? got.length + ' of ' + cs.length + ' cards · Travel guide' : got.length + ' de ' + cs.length + ' cromos · Guía de viaje', 1095, 900);
-      // sello
-      g.save(); g.translate(1300, 80); g.fillStyle = '#fff'; g.fillRect(0, 0, 140, 170);
-      g.strokeStyle = '#e2782f'; g.setLineDash([6, 6]); g.lineWidth = 4; g.strokeRect(8, 8, 124, 154); g.setLineDash([]);
-      g.fillStyle = '#e2782f'; g.font = '900 54px ' + sans; g.textAlign = 'center'; g.fillText(String(got.length), 70, 92);
-      g.font = '800 15px ' + sans; g.fillText(fit(g, dest.toUpperCase(), 116), 70, 128); g.fillText(lg() === 'en' ? 'CARDS' : 'CROMOS', 70, 150); g.restore();
-      // matasellos
-      g.save(); g.translate(1200, 175); g.rotate(-.2); g.strokeStyle = 'rgba(59,62,70,.55)'; g.lineWidth = 3;
-      g.beginPath(); g.arc(0, 0, 62, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(0, 0, 48, 0, Math.PI * 2); g.stroke();
-      g.fillStyle = 'rgba(59,62,70,.6)'; g.font = '800 15px ' + sans; g.textAlign = 'center'; g.fillText(shortDate(today()).toUpperCase(), 0, 6);
-      for (var w2 = 0; w2 < 4; w2++) { g.beginPath(); g.moveTo(70, -24 + w2 * 16); g.bezierCurveTo(110, -36 + w2 * 16, 140, -12 + w2 * 16, 190, -24 + w2 * 16); g.stroke(); }
-      g.restore();
-      cv.toBlob(function (bl) {
-        postBlob = bl; postName = 'postal-' + id + '.jpg';
-        var box = $('#postBox'); if (!box) return;
-        var v0 = $('#postVid'); if (v0) v0.hidden = true; $('#postImg').hidden = false;
-        $('#postImg').src = URL.createObjectURL(bl); box.hidden = false; box.scrollIntoView({ behavior: 'smooth' });
-      }, 'image/jpeg', 0.9);
-    });
-  }
-  /* ---------- Vídeo del viaje: en vertical, con tus sitios uno a uno; sin grabador, la postal de siempre ---------- */
-  function reelMime() {
-    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return '';
-    return ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].filter(function (m) { return MediaRecorder.isTypeSupported(m); })[0] || '';
-  }
-  // vídeo del viaje (720×1280): portada con la ruta dibujándose, cada cromo canjeado entra girando con su borde
-  // de rareza mientras la ruta avanza hasta ese sitio, y al final las cifras. Sin MediaRecorder: la postal de siempre
-  var REEL_M = { base: ['#c9c3b6', '#f5f2eb', '#dcd7cb', '#ffffff'], copper: ['#6e3a18', '#e9a877', '#a65f30', '#ffd7b0'], silver: ['#7f8893', '#f7f9fb', '#aeb6c0', '#ffffff'], gold: ['#8a620c', '#ffe896', '#c9972a', '#fff6c8'], emerald: ['#0a553a', '#6ff0bb', '#129a69', '#d2ffe9'], ruby: ['#6e0a20', '#ff7a92', '#c5163c', '#ffd3dc'] };
-  function makeReel(id, btn) {
-    var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t) return;
-    var mime = reelMime(); if (!mime) { makePostcard(id); return; }
-    var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; });
-    // hasta 8, por orden del viaje; si hay más, los imprescindibles y los de más rareza
-    var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return (b.must ? 1 : 0) - (a.must ? 1 : 0) || ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0); }).slice(0, 8).sort(function (a, b) { return a.n - b.n; });
-    if (btn) { btn.disabled = true; btn.textContent = 'Creando vídeo…'; }
-    function restore() { if (btn) { btn.disabled = false; btn.textContent = 'Crear vídeo'; } }
-    // la ruta: todas las paradas del viaje, en orden
-    var route = [];
-    t.b.trip.days.forEach(function (d) { d.items.forEach(function (it) { if (it.lat != null && (!window.Mapa || Mapa.isSight(it))) route.push({ id: it.id, lat: it.lat, lon: it.lon }); }); });
-    // km: los de los trayectos en coche si el viaje los tiene; si no, en línea recta entre paradas
-    var km = 0, dkm = 0; t.b.trip.days.forEach(function (d) { d.items.forEach(function (it) { if (it.t === 'drive' && it.km) dkm += it.km; }); });
-    route.forEach(function (p, i) { if (!i) return; var q = route[i - 1], R = 6371, dl = (p.lat - q.lat) * Math.PI / 180, dn = (p.lon - q.lon) * Math.PI / 180, a = Math.sin(dl / 2) * Math.sin(dl / 2) + Math.cos(q.lat * Math.PI / 180) * Math.cos(p.lat * Math.PI / 180) * Math.sin(dn / 2) * Math.sin(dn / 2); km += 2 * R * Math.asin(Math.sqrt(a)); });
-    if (dkm) km = dkm;
-    Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
-      var W0 = 720, H0 = 1280, cv = document.createElement('canvas'), g = cv.getContext('2d'), serif = '"New York","Iowan Old Style",Georgia,serif', sans = '-apple-system,"Segoe UI",Roboto,sans-serif';
-      cv.width = W0; cv.height = H0; cv.style.cssText = 'position:fixed;left:-9999px;top:0;width:10px;height:18px'; document.body.appendChild(cv);
-      var shots = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
-      // fondo desenfocado de cada foto: se reduce y se vuelve a ampliar (Safari no tiene filtros en canvas)
-      shots.forEach(function (x) { var b = document.createElement('canvas'), r = 28 / Math.max(x.im.width, x.im.height); b.width = Math.max(4, Math.round(x.im.width * r)); b.height = Math.max(4, Math.round(x.im.height * r)); b.getContext('2d').drawImage(x.im, 0, 0, b.width, b.height); x.blur = b; });
-      // posición de cada cromo en la ruta
-      shots.forEach(function (x) { var k = -1; route.some(function (p, i) { if (p.id === x.c.id) { k = i; return true; } return false; }); x.at = k; });
-      var bx = [60, 150, 600, 330], b0 = { s: 90, n: -90, w: 180, e: -180 };
-      route.forEach(function (p) { b0.s = Math.min(b0.s, p.lat); b0.n = Math.max(b0.n, p.lat); b0.w = Math.min(b0.w, p.lon); b0.e = Math.max(b0.e, p.lon); });
-      var kx = Math.cos((b0.s + b0.n) / 2 * Math.PI / 180), sw = (b0.e - b0.w) * kx || 1e-6, shh = (b0.n - b0.s) || 1e-6, sc0 = Math.min(bx[2] / sw, bx[3] / shh);
-      var pts = route.map(function (p) { return { x: bx[0] + bx[2] / 2 + ((p.lon - b0.w) * kx - sw / 2) * sc0, y: bx[1] + bx[3] / 2 - ((p.lat - b0.s) - shh / 2) * sc0 }; });
-      var INTRO = 3.2, SHOT = 2.7, OUTRO = 4.6, total = INTRO + shots.length * SHOT + OUTRO, title = tripTitle(t), en = lg() === 'en';
-      var st = t.b.trip.defaultStart, nd = t.b.trip.days.length, dates = '';
-      if (st) { var d1 = new Date(st + 'T12:00:00Z'), d2 = new Date(d1.getTime() + (nd - 1) * 864e5), fo = { day: 'numeric', month: 'short', timeZone: 'UTC' }; dates = d1.toLocaleDateString(lg(), fo) + ' – ' + d2.toLocaleDateString(lg(), fo) + ' ' + d2.getUTCFullYear(); }
-      function cl(x) { return Math.max(0, Math.min(1, x)); }
-      function ease(x) { x = cl(x); return x * x * (3 - 2 * x); }
-      function back(x) { x = cl(x); var c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); }   // se pasa un poco y vuelve
-      function cover(im, z, dx, dy) { var r = Math.max(W0 / im.width, H0 / im.height) * z, w = im.width * r, h = im.height * r; g.drawImage(im, (W0 - w) / 2 + (dx || 0), (H0 - h) / 2 + (dy || 0), w, h); }
-      function shade(a) { var s = g.createLinearGradient(0, 0, 0, H0); s.addColorStop(0, 'rgba(10,10,14,' + (0.55 * a) + ')'); s.addColorStop(0.45, 'rgba(10,10,14,' + (0.25 * a) + ')'); s.addColorStop(1, 'rgba(10,10,14,' + (0.85 * a) + ')'); g.fillStyle = s; g.fillRect(0, 0, W0, H0); }
-      function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
-      // la ruta hasta la posición p (índice con decimales): gris lo que falta, blanco lo hecho, bolita donde vas
-      function drawRoute(p, alpha) {
-        if (pts.length < 2) return;
-        g.save(); g.globalAlpha = alpha; g.lineCap = g.lineJoin = 'round';
-        g.beginPath(); pts.forEach(function (q, i) { if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 3; g.setLineDash([2, 8]); g.stroke(); g.setLineDash([]);
-        var n = Math.floor(p), f = p - n, end = pts[Math.min(n, pts.length - 1)];
-        g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
-        for (var i = 1; i <= Math.min(n, pts.length - 1); i++) g.lineTo(pts[i].x, pts[i].y);
-        if (n + 1 < pts.length && f > 0) { end = { x: pts[n].x + (pts[n + 1].x - pts[n].x) * f, y: pts[n].y + (pts[n + 1].y - pts[n].y) * f }; g.lineTo(end.x, end.y); }
-        g.strokeStyle = '#fff'; g.lineWidth = 4; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 8; g.stroke(); g.shadowBlur = 0;
-        shots.forEach(function (x) { if (x.at < 0 || x.at > p + 0.01) return; var q = pts[x.at]; g.beginPath(); g.arc(q.x, q.y, 6.5, 0, 7); g.fillStyle = REEL_M[(x.c.rate || {}).tier || 'base'][2]; g.fill(); g.lineWidth = 2.5; g.strokeStyle = '#fff'; g.stroke(); });
-        g.beginPath(); g.arc(end.x, end.y, 11, 0, 7); g.fillStyle = '#14161b'; g.fill(); g.lineWidth = 3.5; g.strokeStyle = '#fff'; g.stroke();
-        g.restore();
-      }
-      // un cromo: borde de metal según su rareza, foto, nombre y clase; e = 0..1 entrada, gl = brillo que lo cruza
-      function drawCard(x, cx, cy, sc, rot, flip, gl) {
-        var w = 440, h = 600, tier = (x.c.rate || {}).tier || 'base', M = REEL_M[tier];
-        g.save(); g.translate(cx, cy); g.rotate(rot); g.scale(sc * flip, sc);
-        g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 50; g.shadowOffsetY = 26;
-        var mg = g.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); M.concat(M[0]).forEach(function (c, i, a) { mg.addColorStop(i / (a.length - 1), c); });
-        rr(-w / 2, -h / 2, w, h, 30); g.fillStyle = mg; g.fill(); g.shadowColor = 'transparent';
-        rr(-w / 2 + 14, -h / 2 + 14, w - 28, h - 28, 20); g.save(); g.clip();
-        var im = x.im, r = Math.max((w - 28) / im.width, (h - 28) / im.height), iw = im.width * r, ih = im.height * r; g.drawImage(im, -iw / 2, -ih / 2, iw, ih);
-        var sh = g.createLinearGradient(0, 40, 0, h / 2); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.82)'); g.fillStyle = sh; g.fillRect(-w / 2, 0, w, h / 2);
-        if (gl > 0 && gl < 1 && tier !== 'base') { var gx = -w + gl * w * 2, gg = g.createLinearGradient(gx - 90, 0, gx + 90, 0); gg.addColorStop(0, 'rgba(255,255,255,0)'); gg.addColorStop(0.5, 'rgba(255,255,255,.42)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.fillRect(-w / 2, -h / 2, w, h); }
-        g.restore();
-        g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 38px ' + serif;
-        var words = String(x.c.ti).split(' '), lines = [''], k;
-        words.forEach(function (wd) { k = lines.length - 1; var test = lines[k] ? lines[k] + ' ' + wd : wd; if (g.measureText(test).width > w - 70 && lines[k]) lines.push(wd); else lines[k] = test; });
-        lines = lines.slice(-2); lines.forEach(function (ln, i) { g.fillText(fit(g, ln, w - 60), 0, h / 2 - 78 - (lines.length - 1 - i) * 42); });
-        g.font = '800 17px ' + sans; g.fillStyle = M[3] === '#ffffff' && tier === 'base' ? 'rgba(255,255,255,.8)' : M[3];
-        g.fillText(((x.c.rate || {}).type ? tr(x.c.rate.type) + ' · ' : '') + (window.Juego ? tr(Juego.TIER[tier]) : ''), 0, h / 2 - 40);
-        g.restore();
-      }
-      function frame(sec) {
-        g.globalAlpha = 1; g.textAlign = 'center'; g.fillStyle = '#121318'; g.fillRect(0, 0, W0, H0);
-        if (sec < INTRO) {
-          var f = sec / INTRO;
-          if (shots[0]) { g.globalAlpha = ease(sec / 0.8); cover(shots[0].im, 1.18 - f * 0.1, 0, 0); g.globalAlpha = 1; }
-          shade(1);
-          drawRoute(ease((sec - 0.7) / 2.2) * (pts.length - 1), ease((sec - 0.5) / 0.5));
-          var a = ease((sec - 0.2) / 0.7); g.globalAlpha = a; g.fillStyle = '#fff'; g.font = 'italic 700 70px ' + serif; wrap(g, title, W0 / 2, 860 + (1 - a) * 30, 620, 78);
-          g.globalAlpha = ease((sec - 0.6) / 0.7); g.font = '750 26px ' + sans; g.fillStyle = 'rgba(255,255,255,.82)'; g.fillText(dates.toUpperCase(), W0 / 2, 1040);
-          g.globalAlpha = 1 - ease((sec - INTRO + 0.35) / 0.35); if (g.globalAlpha < 1) { g.globalAlpha = 1 - g.globalAlpha; g.fillStyle = '#121318'; g.fillRect(0, 0, W0, H0); }
-          return;
-        }
-        var s0 = sec - INTRO, i = Math.floor(s0 / SHOT);
-        if (i < shots.length) {
-          var x = shots[i], u = (s0 - i * SHOT) / SHOT, ts = s0 - i * SHOT;
-          g.imageSmoothingQuality = 'high'; cover(x.blur, 1.1 + u * 0.06, 0, 0); shade(0.9);
-          // la ruta avanza desde el cromo anterior hasta este
-          var from = i ? Math.max(0, shots[i - 1].at) : 0, to = Math.max(0, x.at);
-          drawRoute(from + (to - from) * ease(ts / 0.9), 1);
-          g.fillStyle = '#ffc48f'; g.font = '800 24px ' + sans; g.globalAlpha = ease(ts / 0.4);
-          g.fillText((tr('Día') + ' ' + x.c.day + ' · ' + (i + 1) + '/' + shots.length).toUpperCase(), W0 / 2, 400);
-          g.globalAlpha = 1;
-          // entra girando sobre sí mismo y se asienta con un pequeño rebote; al final sale hacia arriba
-          var e = back(ts / 0.75), out = ease((ts - SHOT + 0.35) / 0.35), flip = Math.cos((1 - cl(ts / 0.55)) * Math.PI / 2);
-          drawCard(x, W0 / 2, 790 - out * 140 + (1 - e) * 220, (0.6 + 0.4 * e) * (1 - out * 0.15), (1 - e) * -0.22 + (i % 2 ? 0.035 : -0.035) * e, Math.max(0.04, flip), (ts - 0.7) / 0.8);
-          if (out > 0) { g.globalAlpha = out; g.fillStyle = '#121318'; g.fillRect(0, 0, W0, H0); g.globalAlpha = 1; }
-          return;
-        }
-        // final: las cifras suben y los cromos en abanico
-        var o = sec - INTRO - shots.length * SHOT, e2 = ease(o / 0.6);
-        if (shots[0]) { g.globalAlpha = 0.5 * e2; cover(shots[shots.length - 1].blur, 1.15, 0, 0); g.globalAlpha = 1; shade(1); }
-        drawRoute(pts.length - 1, e2 * 0.75);
-        var gold = got.filter(function (c) { return c.rate && c.rate.r >= 80; }).length;
-        var nums = [[nd, en ? (nd === 1 ? 'day' : 'days') : (nd === 1 ? 'día' : 'días')], [Math.round(km), 'km'], [got.length, en ? 'cards' : 'cromos'], [gold, en ? 'gold or better' : 'oro o más']];
-        nums.forEach(function (nm, k) {
-          var a = ease((o - 0.3 - k * 0.18) / 0.5), X = 210 + (k % 2) * 300, Y = 590 + Math.floor(k / 2) * 140;
-          g.globalAlpha = a; g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 74px ' + serif; g.fillText(String(Math.round(nm[0] * ease((o - 0.3 - k * 0.18) / 1.1))), X, Y + (1 - a) * 20);
-          g.font = '750 22px ' + sans; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(nm[1].toUpperCase(), X, Y + 38);
-        });
-        var fan = shots.slice(-5), fa = ease((o - 1.2) / 0.7);
-        fan.forEach(function (x, k) { var m = k - (fan.length - 1) / 2; drawCard(x, W0 / 2 + m * 92 * fa, 1000 + Math.abs(m) * 12 * fa + (1 - fa) * 300, 0.33, m * 0.12 * fa, 1, 0); });
-        g.globalAlpha = ease((o - 1.8) / 0.6); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = 'italic 700 46px ' + serif; g.fillText(fit(g, title, 640), W0 / 2, 1205);
-        g.font = '650 20px ' + sans; g.fillStyle = 'rgba(255,255,255,.55)'; g.fillText(tr('Guía de viaje'), W0 / 2, 1245);
-        g.globalAlpha = 1;
-      }
-      try { frame(0); var stream = cv.captureStream(30); } catch (e) { cv.remove(); restore(); makePostcard(id); return; }
-      var parts = [], rc = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 });
-      rc.ondataavailable = function (e) { if (e.data && e.data.size) parts.push(e.data); };
-      rc.onstop = function () {
-        cv.remove(); restore();
-        postBlob = new Blob(parts, { type: mime.split(';')[0] }); postName = 'viaje-' + id + (/mp4/.test(mime) ? '.mp4' : '.webm');
-        var box = $('#postBox'); if (!box) return;
-        var img = $('#postImg'), vid = $('#postVid'); if (img) img.hidden = true;
-        if (!vid) { vid = document.createElement('video'); vid.id = 'postVid'; vid.controls = true; vid.loop = true; vid.muted = true; vid.setAttribute('playsinline', ''); img.parentNode.insertBefore(vid, img); }
-        vid.hidden = false; vid.src = URL.createObjectURL(postBlob); box.hidden = false; box.scrollIntoView({ behavior: 'smooth' }); vid.play().catch(function () {});
-      };
-      rc.start(500);
-      var t0 = performance.now(), tick = setInterval(function () {
-        var sec = (performance.now() - t0) / 1000; frame(Math.min(sec, total));
-        if (sec >= total) { clearInterval(tick); rc.stop(); }
-      }, 33);
-    });
-  }
-  function fit(g, txt, max) { txt = String(txt); while (txt.length > 3 && g.measureText(txt).width > max) txt = txt.slice(0, -2) + '…'; return txt.replace(/……$/, '…'); }
-  function wrap(g, txt, x, y, max, lh) {
-    var words = String(txt).split(' '), line = '', n = 0;
-    words.forEach(function (w) { var test = line ? line + ' ' + w : w; if (g.measureText(test).width > max && line) { g.fillText(line, x, y + n * lh); n++; line = w; } else line = test; });
-    if (line) g.fillText(line, x, y + n * lh);
-  }
-  function postSave() {
-    if (!postBlob) return; var f = null; try { f = new File([postBlob], postName, { type: postBlob.type || 'image/jpeg' }); } catch (e) {}
-    if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: postName }).catch(function () {}); return; }
-    var a = document.createElement('a'); a.href = URL.createObjectURL(postBlob); a.download = postName; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 2000);
+  // compartir la postal en PNG (Full HD) o guardarla en SVG, vectorial
+  function postSave(vec) {
+    var bl = vec ? postSvg : postBlob, nm = vec ? postName.replace(/\.\w+$/, '') + '.svg' : postName;
+    if (!bl) return; var f = null; try { f = new File([bl], nm, { type: bl.type || 'image/png' }); } catch (e) {}
+    if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: nm }).catch(function () {}); return; }
+    var a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = nm; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 2000);
   }
 
   /* ---------- Insignias: 12 categorías con 5 niveles, con los materiales de los cromos ---------- */
@@ -636,10 +543,10 @@ window.Album = (function () {
       if (t.closest('[data-setback]')) { openS = null; renderAlbum(); return; }
       var po = t.closest('[data-pkopen]');
       if (po) { allCards().then(function (cards) { Juego.openPack(po.getAttribute('data-pkopen'), po.getAttribute('data-pktrip') || '', cards, function () { renderAlbum(); }); }); return; }
-      if (t.closest('[data-pkex]')) { Juego.exchange(); renderAlbum(); return; }
       if (c) openCromo(c.getAttribute('data-cr'));
-      else if (pb) makeReel(pb.getAttribute('data-post'), pb);
+      else if (pb) makePostcard(pb.getAttribute('data-post'), pb);
       else if (t.closest('#postSave')) postSave();
+      else if (t.closest('#postSvg')) postSave(true);
       else if (t.closest('#postClose')) $('#postBox').hidden = true;
       else if (t.closest('#albExp')) (cfg.backupTrips ? cfg.backupTrips() : Promise.resolve([])).then(function (tr0) {
         var g0 = window.Juego ? Juego.get() : null; if (g0) { g0.backup = Date.now(); Juego.save(g0); }

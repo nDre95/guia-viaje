@@ -190,14 +190,22 @@ window.Juego = (function () {
     Object.keys(t).some(function (k) { x -= t[k]; if (x <= 0) { out = k; return true; } out = k; return false; });
     return out;
   }
+  // sin repetidos: cada cromo sale como mucho una vez por sobre y siempre sube de rareza. Si la rareza que toca
+  // no mejora ninguno, el de menos rareza sube un escalón; los que ya son rubí no salen
+  var ORDER = ['base', 'copper', 'silver', 'gold', 'emerald', 'ruby'];
   function draw(kind, pool) {
     var g = get(), left = pool.slice(), picks = [];
-    for (var i = 0; i < 3 && left.length; i++) {
-      // mejor uno que aún no tenga rareza
-      var plain = left.filter(function (c) { return !g.own[c.key]; }), from = plain.length && Math.random() < 0.7 ? plain : left, c = from[Math.floor(Math.random() * from.length)];
+    function was(c) { var o = g.own[c.key]; return o && o.tier ? o.tier : 'base'; }
+    for (var i = 0; i < 3; i++) {
+      var tier = drawTier(kind), up = left.filter(function (c) { return RANK[tier] > RANK[was(c)]; }), c;
+      if (up.length) c = up[Math.floor(Math.random() * up.length)];
+      else {
+        var low = left.filter(function (x) { return was(x) !== 'ruby'; }).sort(function (a, b) { return RANK[was(a)] - RANK[was(b)]; });
+        if (!low.length) break;
+        c = low[0]; tier = ORDER[ORDER.indexOf(was(c)) + 1];
+      }
       left.splice(left.indexOf(c), 1);
-      var tier = drawTier(kind), o = g.own[c.key], was = o && o.tier ? o.tier : 'base', better = RANK[tier] > RANK[was];
-      picks.push({ c: Object.assign({}, c, { rate: Object.assign({}, c.rate, { tier: tier, r: RANK[tier] }) }), tier: tier, better: better, was: was, key: c.key });
+      picks.push({ c: Object.assign({}, c, { rate: Object.assign({}, c.rate, { tier: tier, r: RANK[tier] }) }), tier: tier, better: true, was: was(c), key: c.key });
     }
     return picks.sort(function (a, b) { return RANK[a.tier] - RANK[b.tier]; });
   }
@@ -237,8 +245,9 @@ window.Juego = (function () {
     if (!pool.length) { toast('Canjea un cromo de este viaje para abrir este sobre'); return; }
     var old = document.getElementById('pkBox'); if (old) old.remove();
     var cards = draw(kind, pool), box = watch(document.createElement('div')), i = -1;
+    if (!cards.length) { toast('Todos los cromos canjeados de este viaje ya son rubí'); return; }
     g.bag.splice(at, 1);
-    cards.forEach(function (x) { var o = g.own[x.key] || { tier: 'base', n: 0 }; o.n = (o.n || 0) + 1; if (x.better) o.tier = x.tier; o.at = today(); g.own[x.key] = o; });
+    cards.forEach(function (x) { var o = g.own[x.key] || { tier: 'base' }; delete o.n; o.tier = x.tier; o.at = today(); g.own[x.key] = o; });
     save(g);
     box.id = 'pkBox'; box.className = 'pk k-' + kind;
     function close() { box.remove(); document.dispatchEvent(new Event('juego:change')); if (done) done(); }
@@ -248,8 +257,8 @@ window.Juego = (function () {
     function card() {
       var x = cards[i];
       box.className = 'pk k-' + kind + ' r-' + x.tier;
-      box.innerHTML = '<div class="pk-in"><div class="pk-flip">' + cardHTML(x.c, x.better ? '<em class="pk-new">Mejorado</em>' : '<em class="pk-new dup">Repetido</em>') + '</div>' +
-        '<p class="pk-lead">' + esc(x.better ? 'De ' + TIER[x.was] + ' a ' + TIER[x.tier] : 'Ya lo tenías en ' + TIER[x.was]) + '</p>' +
+      box.innerHTML = '<div class="pk-in"><div class="pk-flip">' + cardHTML(x.c, '<em class="pk-new">Mejorado</em>') + '</div>' +
+        '<p class="pk-lead">' + esc('De ' + TIER[x.was] + ' a ' + TIER[x.tier]) + '</p>' +
         '<button type="button" class="btn navy sq" data-pk="next">' + (i + 1 < cards.length ? 'Siguiente cromo' : 'Ver todos') + '</button></div>';
     }
     function all() {
@@ -265,15 +274,6 @@ window.Juego = (function () {
     });
     pack();
     document.body.appendChild(box);
-  }
-  // cambiar repetidos: 5 de más, un sobre de cobre
-  function dups(g) { g = g || get(); return Object.keys(g.own).reduce(function (a, k) { return a + Math.max(0, (g.own[k].n || 1) - 1); }, 0); }
-  function exchange() {
-    var g = get(), left = 5, from = ''; if (dups(g) < 5) return false;
-    // el sobre es del viaje del que salen los repetidos
-    Object.keys(g.own).forEach(function (k) { var o = g.own[k]; while (left > 0 && (o.n || 1) > 1) { o.n--; left--; from = from || k.slice(0, k.indexOf('|')); } });
-    g.bag.push({ k: 'c', t: from }); save(g); toast('5 repetidos: sobre de cobre +1'); document.dispatchEvent(new Event('juego:change'));
-    return true;
   }
   // ¿ya pasó el viaje? Entonces no se puede pedir estar allí: basta la foto
   function isPast(start, days) { if (!start) return false; var e = new Date(start + 'T12:00:00Z'); e.setUTCDate(e.getUTCDate() + Math.max(0, days - 1)); return e.toISOString().slice(0, 10) < today(); }
@@ -340,5 +340,5 @@ window.Juego = (function () {
     }).catch(function () { return ''; });
   }
 
-  return { presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, dups: dups, exchange: exchange, ideas: ideas, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
+  return { presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
 })();
