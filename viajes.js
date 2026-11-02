@@ -421,8 +421,8 @@
   /* 1 · Cuenta atrás: la portada, cuatro recuadros, lo imprescindible y la lista de antes de salir */
   function homeCuenta(D) {
     var h = heroHTML(D);
-    if (!D.next) return h + '<div class="hm-four rv-h" style="--d:60ms">' + tileProfile(D) + tileAlbum(D) + '</div>' + ideasRow(D) + newCard(D) + extrasHTML(D);
-    h += '<div class="hm-four rv-h" style="--d:60ms">' + tileProfile(D) + tileAlbum(D) + tileReady(D) + tileWeather(D) + '</div>';
+    if (!D.next) return h + ideasRow(D) + newCard(D) + extrasHTML(D);
+    h += '<div class="hm-four rv-h" style="--d:60ms">' + tileReady(D) + tileWeather(D) + '</div>';
     if (D.must.length) h += '<div class="hm-sec rv-h" style="--d:120ms"><div class="hm-h"><b>' + tx('Imprescindibles', 'Must-sees') + '</b><button type="button" class="hx-lnk" data-mustall>' + tx('Ver todos', 'See all') + ' · ' + D.mustGot + '/' + D.must.length + '</button></div><div class="hm-scroll">' + D.must.map(function (c) {
       return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(D.next.ref.id + '|' + c.id) + '"' + bg(c.img) + '><span>' + esc(c.ti) + '</span></button>';
     }).join('') + '</div></div>';
