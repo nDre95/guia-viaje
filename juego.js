@@ -332,28 +332,49 @@ window.Juego = (function () {
     ['Sicilia y Taormina', 'Sicily and Taormina', 'El Etna, templos griegos y cannoli', 'Etna, Greek temples and cannoli', [4, 5, 6, 9, 10], 'Taormina', 'IT', 'Italia', 'Italy', 'Q38', 'isla comida'],
     ['Creta', 'Crete', 'Playas rosas, gargantas y palacios minoicos', 'Pink beaches, gorges and Minoan palaces', [5, 6, 9, 10], 'Elafonisi', 'GR', 'Grecia', 'Greece', 'Q41', 'isla playa'],
     ['Bali', 'Bali', 'Arrozales en terrazas y templos junto al mar', 'Rice terraces and temples by the sea', [5, 6, 7, 8, 9], 'Bali', 'ID', 'Indonesia', 'Indonesia', 'Q252', 'isla playa'],
-    ['Zanzíbar', 'Zanzibar', 'Stone Town, especias y playas blancas', 'Stone Town, spices and white beaches', [6, 7, 8, 9, 1, 2], 'Stone_Town', 'TZ', 'Tanzania', 'Tanzania', 'Q924', 'isla playa comida'],
+    ['Zanzíbar', 'Zanzibar', 'Stone Town, especias y playas blancas', 'Stone Town, spices and white beaches', [6, 7, 8, 9, 1, 2], 'Stone_Town', 'TZ', 'Tanzania', 'Tanzania', 'Q924', 'isla playa comida africa'],
     ['Seychelles', 'The Seychelles', 'Rocas de granito y playas de postal', 'Granite boulders and postcard beaches', [4, 5, 10, 11], 'La_Digue', 'SC', 'Seychelles', 'Seychelles', 'Q1042', 'isla playa'],
     // viajes de comida
     ['San Sebastián de pintxos', 'San Sebastián for pintxos', 'Barras de la Parte Vieja y La Concha', 'Old Town bars and La Concha bay', [4, 5, 6, 9, 10], 'Bahía_de_La_Concha', 'ES', 'España', 'Spain', 'Q29', 'comida ciudad'],
-    ['Bolonia y Emilia-Romaña', 'Bologna and Emilia-Romagna', 'Tortellini, parmesano y vinagre de Módena', 'Tortellini, Parmesan and Modena balsamic', [4, 5, 9, 10, 11], 'Tortellini', 'IT', 'Italia', 'Italy', 'Q38', 'comida ciudad'],
-    ['Nápoles y la pizza', 'Naples and its pizza', 'Pizzerías históricas y la costa de Amalfi', 'Historic pizzerias and the Amalfi Coast', [4, 5, 6, 9, 10], 'Pizza_napolitana', 'IT', 'Italia', 'Italy', 'Q38', 'comida ciudad'],
+    ['Bolonia y Emilia-Romaña', 'Bologna and Emilia-Romagna', 'Tortellini, parmesano y vinagre de Módena', 'Tortellini, Parmesan and Modena balsamic', [4, 5, 9, 10, 11], 'Tortellini', 'IT', 'Italia', 'Italy', 'Q38', 'comida ciudad escapada'],
+    ['Nápoles y la pizza', 'Naples and its pizza', 'Pizzerías históricas y la costa de Amalfi', 'Historic pizzerias and the Amalfi Coast', [4, 5, 6, 9, 10], 'Pizza_napolitana', 'IT', 'Italia', 'Italy', 'Q38', 'comida ciudad escapada'],
     ['Lyon, capital del buen comer', 'Lyon, capital of good food', 'Bouchons, mercados y vino del Ródano', 'Bouchons, markets and Rhône wines', [4, 5, 6, 9, 10], 'Lyon', 'FR', 'Francia', 'France', 'Q142', 'comida ciudad'],
     ['Tokio de mercado en mercado', 'Tokyo, market by market', 'Sushi, ramen e izakayas', 'Sushi, ramen and izakayas', [3, 4, 5, 10, 11], 'Sushi', 'JP', 'Japón', 'Japan', 'Q17', 'comida ciudad'],
     ['Bangkok a pie de calle', 'Bangkok street food', 'Puestos nocturnos y mercados flotantes', 'Night stalls and floating markets', [11, 12, 1, 2], 'Pad_thai', 'TH', 'Tailandia', 'Thailand', 'Q869', 'comida ciudad'],
     ['Oaxaca y el mole', 'Oaxaca and its mole', 'Mercados, cacao y mezcal', 'Markets, cacao and mezcal', [10, 11, 12, 1, 2, 3], 'Oaxaca_de_Juárez', 'MX', 'México', 'Mexico', 'Q96', 'comida ciudad'],
     ['Lima y el ceviche', 'Lima and ceviche', 'La cocina peruana frente al Pacífico', 'Peruvian cooking by the Pacific', [12, 1, 2, 3, 4], 'Ceviche', 'PE', 'Perú', 'Peru', 'Q419', 'comida ciudad'],
+    // escapadas low cost: ciudades con vuelos baratos, para un fin de semana
+    ['Budapest en un fin de semana', 'A weekend in Budapest', 'Baños termales, el Parlamento y ruin bars', 'Thermal baths, Parliament and ruin bars', [3, 4, 5, 9, 10, 11, 12], 'Parlamento_de_Hungría', 'HU', 'Hungría', 'Hungary', 'Q28', 'escapada ciudad'],
+    ['Cracovia', 'Kraków', 'Plaza del Mercado, Wawel y Kazimierz', 'Market Square, Wawel and Kazimierz', [4, 5, 6, 9, 10, 12], 'Plaza_del_Mercado_de_Cracovia', 'PL', 'Polonia', 'Poland', 'Q36', 'escapada ciudad'],
+    ['Riga y su Art Nouveau', 'Riga and its Art Nouveau', 'Casco antiguo y mercado central', 'Old town and central market', [5, 6, 7, 8, 9, 12], 'Riga', 'LV', 'Letonia', 'Latvia', 'Q211', 'escapada ciudad'],
+    ['Tallin medieval', 'Medieval Tallinn', 'Murallas, torres y mercado navideño', 'Walls, towers and a Christmas market', [5, 6, 7, 8, 12], 'Tallin', 'EE', 'Estonia', 'Estonia', 'Q191', 'escapada ciudad'],
+    ['Sofía', 'Sofia', 'La catedral de Alejandro Nevski y el monte Vitosha', 'Alexander Nevsky Cathedral and Mount Vitosha', [4, 5, 6, 9, 10], 'Catedral_de_Alejandro_Nevski', 'BG', 'Bulgaria', 'Bulgaria', 'Q219', 'escapada ciudad'],
+    ['Malta y La Valeta', 'Malta and Valletta', 'Murallas, calas y sol casi todo el año', 'Bastions, coves and sun most of the year', [3, 4, 5, 10, 11], 'La_Valeta', 'MT', 'Malta', 'Malta', 'Q233', 'escapada isla playa'],
+    ['Gdansk junto al Báltico', 'Gdańsk by the Baltic', 'Fachadas de colores y ámbar', 'Colourful facades and amber', [5, 6, 7, 8, 9], 'Gdansk', 'PL', 'Polonia', 'Poland', 'Q36', 'escapada ciudad'],
+    ['Bruselas y Brujas', 'Brussels and Bruges', 'Grand-Place, chocolate y canales', 'Grand-Place, chocolate and canals', [4, 5, 6, 9, 12], 'Grand-Place', 'BE', 'Bélgica', 'Belgium', 'Q31', 'escapada ciudad comida'],
+    ['Milán y el lago de Como', 'Milan and Lake Como', 'El Duomo, la Última Cena y un tren al lago', 'The Duomo, the Last Supper and a train to the lake', [3, 4, 5, 9, 10, 11], 'Catedral_de_Milán', 'IT', 'Italia', 'Italy', 'Q38', 'escapada ciudad'],
+    ['Valencia', 'Valencia', 'Paella, la Ciudad de las Artes y la playa', 'Paella, the City of Arts and the beach', [3, 4, 5, 6, 9, 10], 'Museo_de_las_Ciencias_Príncipe_Felipe', 'ES', 'España', 'Spain', 'Q29', 'escapada ciudad playa comida'],
+    ['Bucarest', 'Bucharest', 'El Palacio del Parlamento y el casco viejo', 'The Palace of Parliament and the old town', [4, 5, 6, 9, 10], 'Bucarest', 'RO', 'Rumanía', 'Romania', 'Q218', 'escapada ciudad'],
+    // África
+    ['Safari en Masái Mara', 'Safari in the Maasai Mara', 'La gran migración de ñus y los leones', 'The great wildebeest migration and lions', [7, 8, 9, 10], 'Masái_Mara', 'KE', 'Kenia', 'Kenya', 'Q114', 'africa naturaleza safari'],
+    ['Serengeti y Ngorongoro', 'Serengeti and Ngorongoro', 'Sabana sin fin y el cráter de los animales', 'Endless savannah and the crater of wildlife', [1, 2, 6, 7, 8, 9, 10], 'Serengeti', 'TZ', 'Tanzania', 'Tanzania', 'Q924', 'africa naturaleza safari'],
+    ['Kruger, en Sudáfrica', 'Kruger, South Africa', 'Los Cinco Grandes en temporada seca', 'The Big Five in the dry season', [5, 6, 7, 8, 9], 'Parque_nacional_Kruger', 'ZA', 'Sudáfrica', 'South Africa', 'Q258', 'africa naturaleza safari'],
+    ['Ciudad del Cabo', 'Cape Town', 'Table Mountain, pingüinos y viñedos', 'Table Mountain, penguins and vineyards', [11, 12, 1, 2, 3], 'Montaña_de_la_Mesa', 'ZA', 'Sudáfrica', 'South Africa', 'Q258', 'africa ciudad playa'],
+    ['Las dunas de Namibia', 'The dunes of Namibia', 'Sossusvlei y el desierto más antiguo', 'Sossusvlei and the oldest desert', [4, 5, 6, 7, 8, 9, 10], 'Deadvlei', 'NA', 'Namibia', 'Namibia', 'Q1030', 'africa naturaleza'],
+    ['Delta del Okavango', 'The Okavango Delta', 'Elefantes y canoas entre juncos', 'Elephants and dugout canoes among the reeds', [6, 7, 8, 9, 10], 'Delta_del_Okavango', 'BW', 'Botsuana', 'Botswana', 'Q963', 'africa naturaleza safari'],
+    ['Egipto: Luxor y el Nilo', 'Egypt: Luxor and the Nile', 'Templos, el Valle de los Reyes y un crucero', 'Temples, the Valley of the Kings and a cruise', [10, 11, 12, 1, 2, 3], 'Templo_de_Karnak', 'EG', 'Egipto', 'Egypt', 'Q79', 'africa ciudad'],
+    ['Cataratas Victoria', 'Victoria Falls', 'La cortina de agua entre Zambia y Zimbabue', 'The curtain of water between Zambia and Zimbabwe', [2, 3, 4, 5, 6, 7], 'Cataratas_Victoria', 'ZW', 'Zimbabue', 'Zimbabwe', 'Q954', 'africa naturaleza'],
     ['El desierto de Merzouga', 'The Merzouga desert', 'Dunas de Erg Chebbi en camello', 'The Erg Chebbi dunes by camel', [10, 11, 3, 4], 'Erg_Chebbi', 'MA', 'Marruecos', 'Morocco', 'Q1028']
   ];
   // categorías de las ideas (las nuevas la llevan en x[10])
-  var TAGS = { Laponia_finlandesa: 'nieve', Praga: 'ciudad', Viena: 'ciudad', 'Jökulsárlón': 'nieve naturaleza', 'Tromsø': 'nieve', Zermatt: 'nieve naturaleza', Marrakech: 'ciudad comida',
-    Teide: 'isla playa naturaleza', Glaciar_Perito_Moreno: 'naturaleza', Chiang_Mai: 'playa comida', Rockefeller_Center: 'ciudad nieve', Edimburgo: 'ciudad', Kioto: 'ciudad', Keukenhof: 'naturaleza',
-    'Plaza_de_España_(Sevilla)': 'ciudad comida', 'Val_d%27Orcia': 'naturaleza comida', Cinque_Terre: 'playa naturaleza', Lisboa: 'ciudad comida', Petra: 'naturaleza', 'Acrópolis_de_Atenas': 'ciudad',
+  var TAGS = { Laponia_finlandesa: 'nieve', Praga: 'ciudad escapada', Viena: 'ciudad', 'Jökulsárlón': 'nieve naturaleza', 'Tromsø': 'nieve', Zermatt: 'nieve naturaleza', Marrakech: 'ciudad comida escapada africa',
+    Teide: 'isla playa naturaleza', Glaciar_Perito_Moreno: 'naturaleza', Chiang_Mai: 'playa comida', Rockefeller_Center: 'ciudad nieve', Edimburgo: 'ciudad escapada', Kioto: 'ciudad', Keukenhof: 'naturaleza',
+    'Plaza_de_España_(Sevilla)': 'ciudad comida escapada', 'Val_d%27Orcia': 'naturaleza comida', Cinque_Terre: 'playa naturaleza', Lisboa: 'ciudad comida escapada', Petra: 'naturaleza', 'Acrópolis_de_Atenas': 'ciudad',
     Geirangerfjord: 'naturaleza', Eilean_Donan: 'naturaleza', Santorini: 'isla playa', Tre_Cime_di_Lavaredo: 'naturaleza', Dubrovnik: 'playa ciudad', Seljalandsfoss: 'naturaleza',
-    Catedral_de_Santiago_de_Compostela: 'naturaleza comida', Gordes: 'naturaleza', Lago_Moraine: 'naturaleza', Nueva_Inglaterra: 'naturaleza', 'Kiyomizu-dera': 'ciudad', Oporto: 'ciudad comida',
-    Oktoberfest: 'comida ciudad', Coliseo: 'ciudad comida', 'Santa_Sofía': 'ciudad comida', Machu_Picchu: 'naturaleza', 'Día_de_Muertos': 'ciudad comida', Erg_Chebbi: 'naturaleza' };
+    Catedral_de_Santiago_de_Compostela: 'naturaleza comida', Gordes: 'naturaleza', Lago_Moraine: 'naturaleza', Nueva_Inglaterra: 'naturaleza', 'Kiyomizu-dera': 'ciudad', Oporto: 'ciudad comida escapada',
+    Oktoberfest: 'comida ciudad', Coliseo: 'ciudad comida', 'Santa_Sofía': 'ciudad comida', Machu_Picchu: 'naturaleza', 'Día_de_Muertos': 'ciudad comida', Erg_Chebbi: 'naturaleza africa' };
   function tagsOf(x) { return (x[10] || TAGS[x[5]] || '').split(' '); }
-  var CATS = [['isla', 'Islas', 'Islands', 'La_Digue'], ['comida', 'Viaje culinario', 'Food trip', 'Pizza_napolitana'], ['playa', 'Playa', 'Beach', 'Santorini'], ['nieve', 'Nieve', 'Snow', 'Laponia_finlandesa'], ['ciudad', 'Ciudades', 'Cities', 'Praga'], ['naturaleza', 'Naturaleza', 'Nature', 'Geirangerfjord']];
+  var CATS = [['escapada', 'Escapadas low cost', 'Budget city breaks', 'Parlamento_de_Hungría'], ['africa', 'África', 'Africa', 'Masái_Mara'], ['isla', 'Islas', 'Islands', 'La_Digue'], ['comida', 'Viaje culinario', 'Food trip', 'Pizza_napolitana'], ['playa', 'Playa', 'Beach', 'Santorini'], ['nieve', 'Nieve', 'Snow', 'Laponia_finlandesa'], ['ciudad', 'Ciudades', 'Cities', 'Praga'], ['naturaleza', 'Naturaleza', 'Nature', 'Geirangerfjord']];
   // el mes bueno más cercano desde ahora (0 = este mes)
   function nearest(x, m) { var dist = 99, best = m; x[4].forEach(function (mm) { var d = (mm - m + 12) % 12; if (d < dist) { dist = d; best = mm; } }); return { d: dist, m: best }; }
   // las de este mes y el siguiente; primero las de países que aún no tienes. Cambian cada semana
@@ -389,10 +410,10 @@ window.Juego = (function () {
   // foto de la idea: la miniatura del artículo de Wikipedia, guardada para la próxima vez
   function ideaImg(wiki) {
     var C = {}; try { C = JSON.parse(localStorage.getItem('guia-ideas') || '{}') || {}; } catch (e) {}
-    if (C[wiki]) return Promise.resolve(C[wiki]);
+    if (C[wiki]) return Promise.resolve(C[wiki].replace('/500px-', '/960px-'));
     return fetch('https://es.wikipedia.org/api/rest_v1/page/summary/' + wiki).then(function (r) { return r.json(); }).then(function (j) {
       var u = (j.thumbnail || j.originalimage || {}).source || ''; if (!u) return '';
-      u = u.replace(/\/\d+px-/, '/500px-'); C[wiki] = u;
+      u = u.replace(/\/\d+px-/, '/960px-'); C[wiki] = u;
       try { localStorage.setItem('guia-ideas', JSON.stringify(C)); } catch (e) {}
       return u;
     }).catch(function () { return ''; });

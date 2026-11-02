@@ -857,3 +857,14 @@ html[data-theme="dark"] .mw-stamp .pm{color:#cfd6e6}
 .pj-avion .pj-shadow{width:90px;margin-left:-45px;bottom:-16px;opacity:.5}
 .pj-trail{animation:pjTrail .5s linear infinite}
 @keyframes pjTrail{from{transform:translateX(6px);opacity:.2}to{transform:translateX(-4px);opacity:.7}}
+/* el safari */
+.pj-safari .pj-shadow{display:none}
+.pj.pj-safari.drive .pj-fig{animation:pjBump .22s ease-in-out infinite alternate}
+.pj-neck{transform-origin:142px 88px;animation:pjNeck 2.6s ease-in-out infinite}
+@keyframes pjNeck{0%,100%{transform:none}50%{transform:rotate(9deg)}}
+.pj-tail{transform-origin:53px 113px;animation:pjTail 1.1s ease-in-out infinite alternate}
+@keyframes pjTail{to{transform:rotate(-24deg)}}
+.pj.act-safari .pj-bino{animation:pjBino .9s ease-in-out infinite alternate}
+@keyframes pjBino{to{transform:translateX(3px)}}
+.pj.act-safari .pj-lion{transform-origin:16px 118px;animation:pjRoar .6s ease-in-out 3 alternate}
+@keyframes pjRoar{to{transform:scale(1.08) translateY(-2px)}}

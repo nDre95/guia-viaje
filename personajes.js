@@ -31,6 +31,7 @@ window.Pj = (function () {
     globo:   { top: '#2f8f5b', bot: '#f2c14e', shoe: '#e8574a', hat: 'cap', hatC: '#2b8fc9', balloon: '#e8574a', kid: 1, idle: 'hop', gear: '', fx: '', say: ['¡Bieeen!', 'Yay!'] },
     maleta:  { top: '#6b7fb3', bot: '#3b3e46', shoe: '#5a3b2a', hat: '', case: '#e2782f', idle: 'wave', gear: '', fx: '', say: ['¡Nos vamos!', 'Off we go!'] },
     fiesta:  { top: '#e2782f', bot: '#3b4a6b', shoe: '#f7f3ec', hat: 'party', hatC: '#6b7fb3', idle: 'jump', gear: '', fx: 'confetti', say: ['¡Viaje listo!', 'Trip ready!'] },
+    safari:  { vehicle: 'savanna', idle: 'safari', fx: 'sun', say: ['¡Mira, una jirafa!', 'Look, a giraffe!'] },
     isla:    { vehicle: 'isle', idle: 'lounge', fx: 'sun', say: ['¡Esto es vida!', 'This is the life!'] },
     avion:   { vehicle: 'plane', body: '#f7f3ec', say: ['¡Despegamos!', 'Take off!'] },
     coche:   { vehicle: 'car', body: '#e2782f', say: ['¡Pi, pi!', 'Beep beep!'] },
@@ -129,6 +130,28 @@ window.Pj = (function () {
       '<g class="pj-sipA"><path d="M80 99 L86 84" stroke="' + sk + '" stroke-width="5.5" stroke-linecap="round"/><path d="M81 72 L92 72 L86.5 80 Z" fill="#f29a52" stroke="#fff" stroke-width="1"/><line x1="86.5" y1="80" x2="86.5" y2="86" stroke="#fff" stroke-width="1.5"/><circle cx="91" cy="71.5" r="2.2" fill="#e8574a"/><line x1="84" y1="72" x2="80" y2="64" stroke="#2f8f5b" stroke-width="1.4"/></g>' +
       '</g></svg>';
   }
+  // la sabana: acacia, jirafa comiendo, león tumbado y el jeep con el explorador y sus prismáticos
+  function savanna() {
+    var sk = pick(SKIN), sp = '';
+    [[124, 84], [133, 90], [140, 82], [128, 92], [146, 70], [149, 58]].forEach(function (q) { sp += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
+    return '<svg class="pj-fig" viewBox="0 0 220 140" width="186" height="118" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M0 120 Q110 110 220 120 L220 140 L0 140 Z" fill="#d9b65e"/><path d="M20 121 l3 -6 l2 6 M60 117 l3 -7 l2 7 M190 118 l3 -6 l2 6 M205 121 l2 -5 l2 5" stroke="#9c8a3a" stroke-width="1.5" fill="none"/>' +
+      '<path d="M190 120 Q188 92 180 76" stroke="#6e4524" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M186 92 Q196 84 204 78" stroke="#6e4524" stroke-width="3" fill="none"/>' +
+      '<ellipse cx="180" cy="70" rx="34" ry="8" fill="#5f8a3a"/><ellipse cx="196" cy="64" rx="20" ry="6" fill="#6f9a45"/>' +
+      // jirafa: el cuello sube y baja hacia la acacia
+      '<g class="pj-gir"><path d="M120 118 L121 96 M127 118 L127 97 M139 118 L138 96 M145 118 L144 95" stroke="#e8b04a" stroke-width="4" stroke-linecap="round"/>' +
+      '<ellipse cx="132" cy="90" rx="17" ry="9" fill="#e8b04a"/><g class="pj-neck"><path d="M142 88 L156 54" stroke="#e8b04a" stroke-width="8" stroke-linecap="round"/>' +
+      '<ellipse cx="160" cy="51" rx="8" ry="4.6" fill="#e8b04a" transform="rotate(-12 160 51)"/><path d="M155 47 l-1 -6 M159 46 l0 -6" stroke="#b06a24" stroke-width="2" stroke-linecap="round"/><circle cx="160" cy="49" r="1.2" fill="#222"/></g>' + sp +
+      '<path d="M116 88 Q110 92 112 100" stroke="#e8b04a" stroke-width="2" fill="none"/></g>' +
+      // león tumbado con su melena
+      '<g class="pj-lion"><ellipse cx="34" cy="114" rx="20" ry="8" fill="#d9a441"/><path class="pj-tail" d="M53 113 Q66 108 64 100" stroke="#d9a441" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="64" cy="99" r="3" fill="#8a4a1a"/>' +
+      '<circle cx="16" cy="106" r="12" fill="#a8642a"/><circle cx="15" cy="107" r="7" fill="#e2b25a"/><circle cx="12.5" cy="105.5" r="1.1" fill="#222"/><circle cx="17.5" cy="105.5" r="1.1" fill="#222"/><path d="M13.5 109.5 Q15 111 16.5 109.5" stroke="#222" stroke-width="1" fill="none"/></g>' +
+      // jeep con el explorador
+      '<g class="pj-jeep"><rect x="66" y="98" width="46" height="16" rx="4" fill="#6b7d3a"/><path d="M72 98 L76 86 L100 86 L104 98 Z" fill="#7f9147"/><rect x="79" y="88" width="18" height="9" rx="2" fill="#bfe0f2"/>' +
+      '<circle cx="88" cy="80" r="6" fill="' + sk + '"/><ellipse cx="88" cy="75" rx="9" ry="2.5" fill="#c9b37a"/><path d="M82 75 Q88 67 94 75 Z" fill="#c9b37a"/><rect x="83" y="78" width="10" height="4" rx="1.5" fill="#2a2a2e" class="pj-bino"/>' +
+      '<circle cx="76" cy="115" r="5.5" fill="#2a2a2e"/><circle cx="102" cy="115" r="5.5" fill="#2a2a2e"/><circle cx="76" cy="115" r="2" fill="#aaa"/><circle cx="102" cy="115" r="2" fill="#aaa"/><rect x="108" y="100" width="6" height="10" rx="2" fill="#555"/></g>' +
+      '</g></svg>';
+  }
   // avioneta con pasajeros en las ventanillas
   function plane() {
     var h = ''; [62, 82, 102].forEach(function (x) { h += '<circle cx="' + x + '" cy="40" r="6.5" fill="#bfe0f2"/><circle cx="' + x + '" cy="41" r="4.6" fill="' + pick(SKIN) + '"/><path d="M' + (x - 4.6) + ' 40 Q' + x + ' 33 ' + (x + 4.6) + ' 40" fill="' + pick(HAIR) + '"/>'; });
@@ -145,6 +168,7 @@ window.Pj = (function () {
   }
   function vehicle(K) {
     if (K.vehicle === 'isle') return isle();
+    if (K.vehicle === 'savanna') return savanna();
     if (K.vehicle === 'plane') return plane();
     var c = K.body, heads = function (xs, y) { return xs.map(function (x) { return '<circle cx="' + x + '" cy="' + y + '" r="8" fill="' + pick(SKIN) + '"/><path d="M' + (x - 8) + ' ' + (y - 1) + ' Q' + x + ' ' + (y - 12) + ' ' + (x + 8) + ' ' + (y - 1) + '" fill="' + pick(HAIR) + '"/><circle cx="' + (x + 3) + '" cy="' + (y + 1) + '" r="1.3" fill="#222"/>'; }).join(''); };
     if (K.vehicle === 'car') return '<svg class="pj-fig pj-car" viewBox="0 0 150 90" width="150" height="90" aria-hidden="true"><g class="pj-all">' +
@@ -224,7 +248,7 @@ window.Pj = (function () {
     var wrap = document.createElement('div'); wrap.className = 'pj pj-' + kind + (veh ? ' pj-veh' : '');
     wrap.innerHTML = (veh ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
     L.appendChild(wrap); run.els.push(wrap);
-    var SZ = { car: [150, 90], tram: [180, 95], isle: [177, 118], plane: [170, 80] }, w = veh ? SZ[K.vehicle][0] : 96, hgt = veh ? SZ[K.vehicle][1] : 163;
+    var SZ = { car: [150, 90], tram: [180, 95], isle: [177, 118], savanna: [186, 118], plane: [170, 80] }, w = veh ? SZ[K.vehicle][0] : 96, hgt = veh ? SZ[K.vehicle][1] : 163;
     var x0 = o.x != null ? o.x : Math.round(rnd(.18, .62) * (W - w)), pos = { x: x0, y: gy - hgt };
     function at(x, y, extra) { return 'translate(' + x + 'px,' + y + 'px)' + (extra || ''); }
     var F = K.fx ? fx(K.fx, L) : null; if (F) run.els.push(F);
@@ -247,7 +271,7 @@ window.Pj = (function () {
       // 2 · su gesto (frío, calor, foto…) con un bocadillo
       if (K.idle) wrap.classList.add('act-' + K.idle);
       if (K.say) bubble(run, wrap, en() ? K.say[1] : K.say[0]);
-      return wait(K.vehicle === 'isle' ? 2400 : veh ? 900 : 1700, run);
+      return wait(K.vehicle === 'isle' || K.vehicle === 'savanna' ? 2400 : veh ? 900 : 1700, run);
     }).then(function () {
       if (run.dead) return;
       if (K.idle) wrap.classList.remove('act-' + K.idle);
@@ -312,6 +336,9 @@ window.Pj = (function () {
     if (kind === 'nieve') return '<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMax slice"><path d="M0 120 L0 70 L60 22 L110 64 L170 12 L240 70 L300 30 L360 66 L360 120Z" fill="#8fa3bf"/>' +
       '<path d="M60 22 L74 34 L66 36 L56 30 L46 34Z M170 12 L188 30 L176 30 L168 24 L156 32Z M300 30 L314 42 L304 42 L294 38Z" fill="#fff"/><path d="M0 120 L0 92 Q180 78 360 94 L360 120Z" fill="#f4f7fb"/>' +
       [40, 70, 290, 320].map(function (x) { return '<path d="M' + x + ' 100 l10 -26 l10 26Z" fill="#2f6b4f"/><rect x="' + (x + 8) + '" y="100" width="4" height="6" fill="#6e4524"/>'; }).join('') + '</svg>';
+    if (kind === 'safari') return '<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMax slice"><path d="M0 120 L0 88 Q180 70 360 90 L360 120Z" fill="#d9b65e"/>' +
+      '<path d="M290 92 Q288 66 280 52" stroke="#6e4524" stroke-width="5" fill="none"/><ellipse cx="280" cy="48" rx="36" ry="8" fill="#5f8a3a"/><path d="M60 92 Q58 74 52 64" stroke="#6e4524" stroke-width="4" fill="none"/><ellipse cx="52" cy="60" rx="26" ry="6" fill="#6f9a45"/>' +
+      '<path d="M210 92 L211 76 M216 92 L216 77 M226 92 L225 76 M231 92 L230 75" stroke="#e8b04a" stroke-width="3"/><ellipse cx="220" cy="72" rx="13" ry="7" fill="#e8b04a"/><path d="M228 70 L240 44" stroke="#e8b04a" stroke-width="6" stroke-linecap="round"/><ellipse cx="243" cy="42" rx="6" ry="3.5" fill="#e8b04a"/></svg>';
     if (kind === 'monte') return '<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMax slice"><path d="M0 120 L0 72 L70 26 L130 70 L200 20 L270 74 L330 40 L360 60 L360 120Z" fill="#6f9a7a"/><path d="M0 120 L0 96 Q180 80 360 98 L360 120Z" fill="#4f8a5f"/>' +
       [30, 60, 300, 330].map(function (x) { return '<path d="M' + x + ' 104 l10 -28 l10 28Z" fill="#2a6a45"/>'; }).join('') + '</svg>';
     // ciudad: siluetas de edificios con ventanas encendidas
@@ -356,7 +383,7 @@ window.Pj = (function () {
       go(pl, [{ transform: 'translate(' + Math.round(W * .3) + 'px,46px) scale(.7)' }, { transform: 'translate(' + Math.round(W * .62) + 'px,70px) scale(.4) rotate(8deg)', opacity: 1, offset: .8 }, { transform: 'translate(' + Math.round(W * .7) + 'px,92px) scale(.3)', opacity: 0 }], 1700).then(function () {
         if (J.dead) return;
         cl.classList.remove('on');
-        var f = figure(kind === 'isla' ? 'playa' : kind), end = R.querySelector('.jr-end'); if (kind === 'isla' || kind === 'playa') end.classList.add('on-isle'); end.appendChild(f);
+        var f = figure(kind === 'isla' ? 'playa' : kind === 'safari' ? 'monte' : kind), end = R.querySelector('.jr-end'); if (kind === 'isla' || kind === 'playa') end.classList.add('on-isle'); end.appendChild(f);
         var b = document.createElement('span'); b.className = 'pj-say'; b.textContent = en() ? 'We’re here!' : '¡Hemos llegado!'; f.appendChild(b);
         return w(2600);
       }).then(function () { collapse(); });
@@ -372,7 +399,7 @@ window.Pj = (function () {
      Es siempre la misma persona, vestida según el viaje (base); cambia a coche, autobús o avión en los trayectos
      y hace gestos en cada parada. show(tipo, estado): estado = 'walk', 'drive', 'idle' o 'act-…' */
   function cast(box, base) {
-    var A = { el: null, cur: '', look: { skin: pick(SKIN), hair: pick(HAIR) }, base: KINDS[base] && !KINDS[base].vehicle ? base : base === 'isla' ? 'playa' : 'pie' };
+    var A = { el: null, cur: '', look: { skin: pick(SKIN), hair: pick(HAIR) }, base: KINDS[base] && !KINDS[base].vehicle ? base : base === 'isla' ? 'playa' : base === 'safari' ? 'monte' : 'pie' };
     function build(kind) {
       var K = KINDS[kind], P = {}; for (var k in K) P[k] = K[k];
       if (!K.vehicle && kind === A.base) P.cam = 1;
@@ -404,13 +431,14 @@ window.Pj = (function () {
   // el clima de cada país en cada época: así un viaje a Marruecos en invierno no sale con abrigo y bufanda
   function L(x) { return x.split(' '); }
   var ISLE = L('MV SC MU FJ PF BS BB'), TROPIC = L('TH MX ID DO CU BR PH VN MY SG CR CO KE TZ IN LK JM PR PA KH LA CV SN GH NG');
-  var SOUTH = L('AR CL AU NZ ZA UY NA BW'), HOT = L('EG AE QA OM SA JO BH KW');
+  var SOUTH = L('AR CL AU NZ ZA UY NA BW'), HOT = L('EG AE QA OM SA JO BH KW'), SAFARI = L('KE TZ BW NA ZW ZM UG RW');
   var MILD = L('ES PT IT GR MT CY TR MA TN IL LB HR ME AL');
   var COLD = L('FI NO SE IS CH AT CA EE LV LT DK PL CZ SK RU GL DE NL BE GB IE FR LU HU RO BG SI RS BA MK UA BY US JP KR CN MN NP');
   var RAINY = L('GB IE NL BE'), HIKE = L('NP CH AT NZ PE SI CA NO');
   function theme(ccs, iso) {
     var m = iso ? +iso.slice(5, 7) : new Date().getMonth() + 1, cc = (ccs || [])[0] || '', has = function (l) { return l.indexOf(cc) >= 0; };
     if (has(ISLE)) return 'isla';
+    if (has(SAFARI)) return 'safari';
     if (has(TROPIC)) return 'playa';
     if (has(SOUTH)) m = (m + 5) % 12 + 1;
     var winter = m === 12 || m <= 2, shoulder = m === 11 || m === 3, summer = m >= 6 && m <= 9;

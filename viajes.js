@@ -65,7 +65,7 @@
     else if (!prev && t.start && !now) h += '<div class="tl-gap first">' + (t.past ? (en ? gapTxt(t.start, today) + ' ago' : 'Hace ' + gapTxt(t.start, today)) : (en ? 'In ' + gapTxt(today, t.start) : 'Dentro de ' + gapTxt(today, t.start))) + '</div>';
     var st = now ? (en ? 'Now' : 'En curso') : t.past ? (en ? 'Done' : 'Hecho') : t.start ? (en ? 'in ' : 'en ') + Math.max(0, Math.round((new Date(t.start + 'T12:00:00Z') - new Date(today + 'T12:00:00Z')) / 864e5)) + ' d' : '–';
     return h + '<div class="tl-n' + (t.past ? ' past' : '') + (now ? ' now' : '') + '"><span class="tl-dot"></span><small class="tl-m">' + esc(mon) + '</small>' +
-      '<div class="hp-pass tp-bp"><button type="button" class="hp-top" data-open="' + esc(t.id) + '"' + (t.cover ? ' style="background-image:url(&quot;' + esc(t.cover) + '&quot;)"' : '') + '><span class="hm-shade"></span>' +
+      '<div class="hp-pass tp-bp"><button type="button" class="hp-top" data-open="' + esc(t.id) + '"' + bg(t.cover) + '><span class="hm-shade"></span>' +
       '<small>' + (en ? 'Boarding pass' : 'Tarjeta de embarque') + (user ? ' · ' + (t.gen ? (en ? 'Created with the assistant' : 'Creado con el asistente') : (en ? 'Imported' : 'Importado')) : '') + '</small><b>' + esc(title) + '</b><span class="tp-code">' + (cc[0] && Mundo.flag(cc[0]) ? Mundo.flag(cc[0]) + ' ' : '') + esc(code) + '</span></button>' +
       '<div class="hp-grid"><span><small>' + (en ? 'Departs' : 'Salida') + '</small><b>' + esc(t.start ? sdate(t.start) : '–') + '</b></span><span><small>' + (en ? 'Returns' : 'Regreso') + '</small><b>' + esc(end ? sdate(end) : '–') + '</b></span><span><small>' + (en ? 'Days' : 'Días') + '</small><b>' + days + '</b></span><span><small>' + (en ? 'Status' : 'Estado') + '</small><b>' + esc(st) + '</b></span></div>' +
       '<div class="hp-cut"></div><div class="tp-stub"><div class="btn-row"><button type="button" class="btn navy sq" data-open="' + esc(t.id) + '">' + (en ? 'Open' : 'Abrir') + '</button>' +
@@ -225,8 +225,18 @@
   var IDEAS_NOW = [];
   function newTrip(idea) {
     var pre = null;
-    if (idea) { var d = new Date(), y = d.getFullYear() + (idea.month < d.getMonth() + 1 ? 1 : 0), dd = idea.month === d.getMonth() + 1 ? Math.min(28, d.getDate() + 14) : 10, st = y + '-' + (idea.month < 10 ? '0' : '') + idea.month + '-' + (dd < 10 ? '0' : '') + dd; pre = { country: idea.country, start: st, pj: ideaPj(idea) }; }
-    Asistente.open({ preset: pre, onSave: function (b) { return DB.put({ id: b.meta.id, at: Date.now(), bundle: b }).then(function () { Album.reset(); refreshAll(); }); }, onOpen: openTrip, aiBox: aiBoxHTML });
+    if (idea) { var d = new Date(), y = d.getFullYear() + (idea.month < d.getMonth() + 1 ? 1 : 0), dd = idea.month === d.getMonth() + 1 ? Math.min(28, d.getDate() + 14) : 10, st = y + '-' + (idea.month < 10 ? '0' : '') + idea.month + '-' + (dd < 10 ? '0' : '') + dd; pre = { country: idea.country, start: idea.start || st, days: idea.days || 0, pj: ideaPj(idea) }; }
+    Asistente.open({ preset: pre, onSave: function (b) { return DB.put({ id: b.meta.id, at: Date.now(), bundle: b }).then(function () { Album.reset(); refreshAll(); cachePhotos(b); }); }, onOpen: openTrip, aiBox: aiBoxHTML });
+  }
+  function cachePhotos(b) {
+    if (!window.caches || !/^https?:$/.test(location.protocol)) return;
+    var ph = b.photos || {}, cover = ph[(b.trip || {}).cover];
+    caches.open('guia-img').then(function (c) {
+      Object.keys(ph).map(function (k) { return ph[k]; }).concat(cover ? [hdUrl(cover)] : []).forEach(function (u) {
+        if (!u || !/^https?:/.test(u)) return;
+        c.match(u).then(function (hit) { if (!hit) fetch(u, { mode: 'no-cors' }).then(function (r) { if (r.ok || r.type === 'opaque') return c.put(u, r); }).catch(function () {}); });
+      });
+    }).catch(function () {});
   }
   function refreshAll() { renderList(); var t = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (t && t.getAttribute('data-vt') === 'home') renderHome(); }
 
@@ -272,7 +282,8 @@
   function tx(es, en) { return isEn() ? en : es; }
   function sd(iso) { var d = new Date(iso + 'T12:00:00Z'); return d.getUTCDate() + ' ' + d.toLocaleDateString(isEn() ? 'en-GB' : 'es', { month: 'short', timeZone: 'UTC' }).replace('.', ''); }
   function monName(m) { return new Date(Date.UTC(2026, m - 1, 15)).toLocaleDateString(isEn() ? 'en-GB' : 'es', { month: 'long', timeZone: 'UTC' }); }
-  function bg(u) { return u ? ' style="background-image:url(&quot;' + esc(u) + '&quot;)"' : ''; }
+  function hdUrl(u) { return /wikimedia\.org\/.+\/(250|330|500|960)px-/.test(u || '') ? u.replace(/\/(250|330|500|960)px-/, '/1280px-') : u; }
+  function bg(u) { if (!u) return ''; var h = hdUrl(u); return ' style="background-image:url(&quot;' + esc(h) + '&quot;)' + (h !== u ? ',url(&quot;' + esc(u) + '&quot;)' : '') + '"'; }
   function daysTo(iso) { var n = new Date(), t = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()), d = new Date(iso + 'T00:00:00Z').getTime(); return Math.round((d - t) / 864e5); }
   // lo que hay que hacer antes de salir (la maleta de ida); lo importante primero
   function chkInfo(T) {
@@ -593,9 +604,22 @@
       .then(function (r) { return r.json(); }).then(function (j) { put(Math.round(j.daily.temperature_2m_max[0]), w.n + ' · ' + tx('mín. ', 'min ') + Math.round(j.daily.temperature_2m_min[0]) + '°', j.daily.weather_code[0]); }).catch(typical);
   }
 
+  // el personaje de cada idea según su categoría
+  var CAT_PJ = { escapada: 'maleta', africa: 'safari', isla: 'isla', comida: 'chef', nieve: 'nieve', playa: 'playa', naturaleza: 'monte', ciudad: 'ciudad' };
+  function ideaPj(x) { var t = (x && x.tags) || []; return ['safari', 'isla', 'comida', 'nieve', 'playa', 'naturaleza', 'escapada', 'ciudad'].map(function (k) { return t.indexOf(k) >= 0 ? CAT_PJ[k] : ''; }).filter(Boolean)[0] || ''; }
   /* ---------- Recomiéndame un viaje: «¿Sin ideas?» con categorías en fotos y después una propuesta ---------- */
-  var CAT_SUB = { isla: ['Arena, palmeras y mar', 'Sand, palms and sea'], comida: ['Viajar para comer bien', 'Travel to eat well'], playa: ['Sol y agua templada', 'Sun and warm water'],
+  var CAT_SUB = { escapada: ['Fines de semana con vuelos baratos', 'Weekends with cheap flights'], africa: ['Safaris, desiertos y el Nilo', 'Safaris, deserts and the Nile'], isla: ['Arena, palmeras y mar', 'Sand, palms and sea'], comida: ['Viajar para comer bien', 'Travel to eat well'], playa: ['Sol y agua templada', 'Sun and warm water'],
     nieve: ['Auroras, montañas y Navidad', 'Auroras, mountains and Christmas'], ciudad: ['Museos, plazas y barrios', 'Museums, squares and neighbourhoods'], naturaleza: ['Fiordos, lagos y senderos', 'Fjords, lakes and trails'] };
+  // el próximo fin de semana (viernes a domingo) en un mes bueno para ir, y la opción entre semana de esa misma semana
+  function weekendIn(months) {
+    var d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + 10);
+    for (var k = 0; k < 400; k++) { if (d.getDay() === 5 && months.indexOf(d.getMonth() + 1) >= 0) break; d.setDate(d.getDate() + 1); }
+    var fri = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+    return { wk: [fri, addDays(fri, 2)], mid: [addDays(fri, -3), addDays(fri, -1)] };
+  }
+  var WIKI_CITY = { Oporto: 'Oporto', Praga: 'Praga', Lisboa: 'Lisboa', Edimburgo: 'Edimburgo', Marrakech: 'Marrakech', 'Plaza_de_España_(Sevilla)': 'Sevilla', Tortellini: 'Bolonia', Pizza_napolitana: 'Nápoles', La_Valeta: 'Malta', Riga: 'Riga', Tallin: 'Tallin', Bucarest: 'Bucarest' };
+  function cityOf(x) { return WIKI_CITY[x.wiki] || String(x.t).split(/ en | y | al | junto| low|:|,/)[0]; }
+  function flightsUrl(x, a, b) { var en = isEn(); return 'https://www.google.com/travel/flights?hl=' + (en ? 'en' : 'es') + '&q=' + encodeURIComponent((en ? 'flights to ' : 'vuelos a ') + cityOf(x) + ' ' + a + (en ? ' return ' : ' vuelta ') + b); }
   function openRec() {
     if (!window.Juego || $('#recBox')) return;
     var known = HOME ? HOME.known : {}, seen = {}, cur = null, cat = null;
@@ -626,11 +650,22 @@
       var why = [tx('Buen momento: ', 'Good time: ') + monName(cur.month)];
       if (!known[cur.cc]) why.push(tx('Un país nuevo para ti', 'A new country for you'));
       var c = document.createElement('div'); c.className = 'rec-card in';
+      var esc0 = (cur.tags || []).indexOf('escapada') >= 0, W = esc0 ? weekendIn(cur.months) : null;
+      if (W) { cur.start = W.wk[0]; cur.days = 3; }
       c.innerHTML = '<span class="rec-ph" data-wiki="' + esc(cur.wiki) + '"></span><span class="hm-shade"></span><div class="rec-t"><span class="rec-fl">' + (Mundo.flag(cur.cc) || '') + ' ' + esc(cur.country.name) + '</span><b>' + esc(cur.t) + '</b><p>' + esc(cur.sub) + '</p>' +
-        '<span class="rec-why">' + why.map(function (w) { return '<i>' + esc(w) + '</i>'; }).join('') + '</span><span class="rec-ms">' + tx('Mejor época', 'Best time') + ': ' + cur.months.map(function (m) { return monName(m).slice(0, 3); }).join(' · ') + '</span></div>';
+        (W ? '<div class="rec-esc"><button type="button" class="rec-dt on" data-dt="wk"><small>' + tx('Fin de semana', 'Weekend') + '</small><b>' + esc(sd(W.wk[0]) + ' – ' + sd(W.wk[1])) + '</b></button><button type="button" class="rec-dt" data-dt="mid"><small>' + tx('Suele ser más barato', 'Usually cheaper') + '</small><b>' + esc(sd(W.mid[0]) + ' – ' + sd(W.mid[1])) + '</b></button></div>' +
+          '<a class="rec-fly" href="' + esc(flightsUrl(cur, W.wk[0], W.wk[1])) + '" target="_blank" rel="noopener">✈ ' + tx('Buscar vuelos para esas fechas', 'Search flights for these dates') + '</a>'
+          : '<span class="rec-why">' + why.map(function (w) { return '<i>' + esc(w) + '</i>'; }).join('') + '</span>') +
+        '<span class="rec-ms">' + tx('Mejor época', 'Best time') + ': ' + cur.months.map(function (m) { return monName(m).slice(0, 3); }).join(' · ') + '</span></div>';
+      if (W) c.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-dt]'); if (!b) return;
+        var r = W[b.getAttribute('data-dt')]; cur.start = r[0]; cur.days = b.getAttribute('data-dt') === 'wk' ? 3 : 3;
+        $$('[data-dt]', c).forEach(function (x) { x.classList.toggle('on', x === b); });
+        $('.rec-fly', c).href = flightsUrl(cur, r[0], r[1]);
+      });
       stg.appendChild(c);
       photo($('.rec-ph', c), cur.wiki, true);
-      var k = (cat && CAT_PJ[cat]) || ideaPj(cur), act = $('.rec-act', box);
+      var k = ideaPj(cur) || (cat && CAT_PJ[cat]), act = $('.rec-act', box);
       if (window.Pj && k) setTimeout(function () { if (box.isConnected) Pj.play(k, { ground: act.getBoundingClientRect().top - 10 }); }, 450);
     }
     function close() { if (window.Pj) Pj.stop(); box.classList.add('out'); setTimeout(function () { box.remove(); }, 280); }

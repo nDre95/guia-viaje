@@ -45,6 +45,7 @@ window.Asistente = (function () {
       Motor.placeInfo(k.name).then(function (i) { if (i) { k.text = i.text; redraw(); } }).catch(function () {});
       Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; redraw(); });
       if (pre.start) A.start = pre.start;
+      if (pre.days) A.presetDays = pre.days;
       // desde una idea: su personaje (islas, comida…) entra en la tarjeta del país
       if (pre.pj) setTimeout(function () { pj(pre.pj, function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; }); }, 500);
     }
@@ -217,7 +218,7 @@ window.Asistente = (function () {
     }
     function add(x) {
       if (isOn(x.name)) return;
-      x.days = 2; A.cities.push(x);
+      x.days = A.presetDays || 2; if (A.presetDays) x.touched = true; A.cities.push(x);
       if (!x.img) Motor.placeInfo(x.name).then(function (i) { if (i && i.img) { x.img = i.img; if (PAGES[page].id === 'ciudades') chosen(); } });
       Motor.discover(x).then(function (l) {
         x.top = l;

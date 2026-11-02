@@ -476,6 +476,13 @@
   .jr-end:empty{display:none}
   .jr-end.on-isle{left:50%;bottom:30px}
   .jr-end .pj-say{font-size:24px;padding:9px 15px;border-radius:20px}
+  /* escapadas: fechas y vuelos */
+  .rec-esc{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .rec-dt{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:8px 10px;border:1.5px solid rgba(255,255,255,.35);border-radius:14px;background:rgba(255,255,255,.12);color:#fff;font:inherit;text-align:left;cursor:pointer;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .rec-dt small{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+  .rec-dt b{font-size:14px}
+  .rec-dt.on{border-color:#fff;background:rgba(255,255,255,.28)}
+  .rec-fly{align-self:flex-start;margin-top:6px;padding:8px 13px;border-radius:999px;font-size:13.5px;font-weight:750;color:#1c1d21;background:#fff;text-decoration:none}
   /* bienvenida */
   .wel{position:fixed;inset:0;z-index:95;display:flex;align-items:stretch;justify-content:center;background:var(--bone);animation:welIn .4s ease both;touch-action:pan-y}
   .wel.out{animation:welIn .3s ease reverse both}
@@ -674,7 +681,7 @@
   </div>
 </section>
 
-  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.20 · 2 nov 2026</p>
+  <p class="src">Datos: © colaboradores de OpenStreetMap (ODbL) · Wikipedia y Wikidata (CC BY-SA) · rutas OSRM · tiempo y clima Open-Meteo. Horarios y precios: compruébalos siempre en la web oficial.<br>Guía 3.21 · 2 nov 2026</p>
 </main>
 <div id="crView" role="dialog" aria-modal="true" aria-label="Cromo"></div>
 <nav class="vnav" role="tablist" aria-label="Secciones">
