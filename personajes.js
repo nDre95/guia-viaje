@@ -31,7 +31,28 @@ window.Pj = (function () {
     globo:   { top: '#2f8f5b', bot: '#f2c14e', shoe: '#e8574a', hat: 'cap', hatC: '#2b8fc9', balloon: '#e8574a', kid: 1, idle: 'hop', gear: '', fx: '', say: ['¡Bieeen!', 'Yay!'] },
     maleta:  { top: '#6b7fb3', bot: '#3b3e46', shoe: '#5a3b2a', hat: '', case: '#e2782f', idle: 'wave', gear: '', fx: '', say: ['¡Nos vamos!', 'Off we go!'] },
     fiesta:  { top: '#e2782f', bot: '#3b4a6b', shoe: '#f7f3ec', hat: 'party', hatC: '#6b7fb3', idle: 'jump', gear: '', fx: 'confetti', say: ['¡Viaje listo!', 'Trip ready!'] },
-    safari:  { vehicle: 'savanna', idle: 'safari', fx: 'sun', say: ['¡Mira, una jirafa!', 'Look, a giraffe!'] },
+    safari:  { group: ['leon', 'jirafa', 'jeep'], fx: 'sun', still: 'monte' },
+    sabana:  { vehicle: 'savanna', idle: 'safari', fx: 'sun', long: 1, say: ['¡Mira, una jirafa!', 'Look, a giraffe!'] },
+    leon:    { vehicle: 'lion', animal: 1, from: 'left', idle: 'roar', say: ['¡Grrr!', 'Grrr!'] },
+    jirafa:  { vehicle: 'giraffe', animal: 1, from: 'right', idle: 'munch' },
+    jeep:    { vehicle: 'jeep', idle: 'safari', say: ['¡Mira, una jirafa!', 'Look, a giraffe!'] },
+    gondola: { vehicle: 'gondola', idle: 'row', fx: 'notes', long: 1, say: ['¡O sole mio!', 'O sole mio!'] },
+    pizza:   { top: '#f7f3ec', bot: '#3b3e46', shoe: '#1f2126', hat: 'chef', hatC: '#ffffff', pan: 1, idle: 'flip', fx: 'food', food: '🍕🍝🧀', say: ['¡Mamma mia!', 'Mamma mia!'] },
+    paris:   { top: '#f7f3ec', stripes: '#2b3f73', bot: '#2b3f73', shoe: '#1f2126', hat: 'beret', hatC: '#1f2126', bread: 1, idle: 'wave', fx: 'food', food: '🥐🥖🧀', say: ['¡Bonjour!', 'Bonjour!'] },
+    japon:   { top: '#3b4a8b', bot: '#3b4a8b', shoe: '#6e4524', obi: '#c8323c', fanP: 1, idle: 'fan', fx: 'petals', say: ['¡Konnichiwa!', 'Konnichiwa!'] },
+    mexico:  { top: '#f7f3ec', bot: '#2b2b2e', shoe: '#3b2a1c', hat: 'charro', hatC: '#3b2a1c', guitar: 1, idle: 'strum', fx: 'notes', say: ['¡Viva México!', '¡Viva México!'] },
+    flamenco:{ top: '#c8323c', dots: 1, dress: '#c8323c', bot: '#c8323c', shoe: '#1f2126', flower: '#e8574a', idle: 'twirl', fx: 'notes', say: ['¡Olé!', 'Olé!'] },
+    esqui:   { top: '#2b8fc9', bot: '#3b3e46', shoe: '#1f2126', hat: 'beanie', hatC: '#e8574a', coat: 1, mitt: '#e8574a', skis: 1, idle: 'ski', fx: 'snow', say: ['¡A esquiar!', 'Let’s ski!'] },
+    aurora:  { top: '#2f8f5b', bot: '#3b4a6b', shoe: '#5a3b2a', hat: 'beanie', hatC: '#8f7fc4', coat: 1, mitt: '#8f7fc4', gear: 'scarf', gearC: '#f2c14e', idle: 'look', fx: 'aurora', say: ['¡Auroras boreales!', 'Northern lights!'] },
+    andes:   { vehicle: 'llama', idle: 'llama', say: ['¡Hola, llama!', 'Hello, llama!'] },
+    camello: { vehicle: 'camel', idle: 'camel', fx: 'sun', long: 1, say: ['¡Al desierto!', 'Into the desert!'] },
+    tuktuk:  { vehicle: 'tuktuk', say: ['¡Tuk, tuk!', 'Tuk tuk!'] },
+    taxi:    { vehicle: 'car', body: '#f2c14e', taxi: 1, say: ['¡Taxi!', 'Taxi!'] },
+    bici:    { vehicle: 'bike', say: ['¡Ring, ring!', 'Ring ring!'] },
+    londres: { vehicle: 'tram', body: '#c8323c', deck2: 1, say: ['Mind the gap!', 'Mind the gap!'] },
+    tranvia: { vehicle: 'tram', body: '#f2c14e', say: ['¡El 28!', 'Tram 28!'] },
+    globos:  { vehicle: 'hotair', enter: 'rise', idle: 'float', long: 1, say: ['¡Qué vistas!', 'What a view!'] },
+    canguro: { vehicle: 'roo', animal: 1, idle: 'boing', say: ['¡Boing!', 'Boing!'] },
     isla:    { vehicle: 'isle', idle: 'lounge', fx: 'sun', say: ['¡Esto es vida!', 'This is the life!'] },
     avion:   { vehicle: 'plane', body: '#f7f3ec', say: ['¡Despegamos!', 'Take off!'] },
     coche:   { vehicle: 'car', body: '#e2782f', say: ['¡Pi, pi!', 'Beep beep!'] },
@@ -48,6 +69,7 @@ window.Pj = (function () {
     if (k === 'beret') return '<ellipse cx="46" cy="25" rx="20" ry="8" fill="' + c + '" transform="rotate(-12 46 25)"/><rect x="45" y="15" width="3" height="5" rx="1.5" fill="' + c + '"/>';
     if (k === 'chef') return '<rect x="36" y="18" width="28" height="12" fill="' + c + '" stroke="#ddd" stroke-width=".8"/><circle cx="40" cy="15" r="8" fill="' + c + '"/><circle cx="50" cy="11" r="9" fill="' + c + '"/><circle cx="60" cy="15" r="8" fill="' + c + '"/>';
     if (k === 'night') return '<path d="M32 34 Q34 14 54 16 Q70 20 82 40 L76 44 Q68 28 66 34 Z" fill="' + c + '"/><circle cx="80" cy="44" r="4.5" fill="#f7f3ec"/>';
+    if (k === 'charro') return '<ellipse cx="50" cy="31" rx="36" ry="7" fill="' + c + '"/><path d="M36 31 Q38 9 50 9 Q62 9 64 31Z" fill="' + c + '"/><path d="M15 31 Q50 41 85 31" stroke="#e0a92c" stroke-width="2" fill="none"/><rect x="37" y="24" width="26" height="3" fill="#e0a92c"/>';
     if (k === 'party') return '<path d="M38 26 L50 0 L62 26 Z" fill="' + c + '"/><path d="M41 19 L59 19 M44 12 L56 12" stroke="#f2c14e" stroke-width="2.5"/><circle cx="50" cy="0" r="3.5" fill="#f2c14e"/>';
     return '';
   }
@@ -70,6 +92,7 @@ window.Pj = (function () {
     var shoe = function (cx) { return K.shoe === 'flip' ? '<rect x="' + (cx - 7) + '" y="155" width="14" height="4" rx="2" fill="#2b8fc9"/>' : '<ellipse cx="' + cx + '" cy="155" rx="8" ry="5" fill="' + K.shoe + '"/>'; };
     s += '<g class="pj-legL"><rect x="38" y="108" width="11" height="46" rx="5" fill="' + legC + '"/><rect x="38" y="108" width="11" height="46" rx="5" fill="' + g + '"/>' + shoe(43) + '</g>';
     s += '<g class="pj-legR"><rect x="51" y="108" width="11" height="46" rx="5" fill="' + legC + '"/><rect x="51" y="108" width="11" height="46" rx="5" fill="' + g + '"/>' + shoe(57) + '</g>';
+    if (K.skis) s += '<path d="M14 160 L86 154 M16 165 L90 159" stroke="' + (K.hatC || '#2b8fc9') + '" stroke-width="4" stroke-linecap="round"/><path d="M29 107 L16 160 M71 107 L86 158" stroke="#555" stroke-width="2"/>';
     // cuerpo
     var torso = 'M31 74 Q31 64 40 63 L60 63 Q69 64 69 74 L71 116 Q50 122 29 116 Z';
     s += '<g class="pj-body"><path d="' + torso + '" fill="' + top + '"/>';
@@ -77,6 +100,11 @@ window.Pj = (function () {
     else s += '<path d="M29 112 Q50 118 71 112 L71 116 Q50 122 29 116 Z" fill="' + shade(top, -15) + '"/>';
     if (K.coat) s += '<path d="M31 80 Q50 84 69 80 M30 92 Q50 96 70 92 M30 104 Q50 108 70 104" stroke="' + shade(top, -16) + '" stroke-width="1.6" fill="none"/><line x1="50" y1="64" x2="50" y2="118" stroke="' + shade(top, -22) + '" stroke-width="1.4"/>';
     else if (!swim) s += '<path d="M42 63 Q50 72 58 63" fill="' + shade(top, -14) + '"/>';
+    if (K.stripes) s += '<path d="M31 72 H69 M30 80 H70 M30 88 H70 M29 96 H71 M29 104 H71" stroke="' + K.stripes + '" stroke-width="3"/>';
+    if (K.dots) s += '<g fill="#fff" opacity=".9"><circle cx="38" cy="74" r="2"/><circle cx="52" cy="70" r="2"/><circle cx="62" cy="80" r="2"/><circle cx="44" cy="86" r="2"/><circle cx="58" cy="94" r="2"/><circle cx="36" cy="98" r="2"/></g>';
+    if (K.obi) s += '<path d="M42 63 L56 98" stroke="#f7f3ec" stroke-width="3"/><rect x="29" y="92" width="42" height="10" fill="' + K.obi + '"/><rect x="46" y="91" width="9" height="12" rx="2" fill="' + shade(K.obi, -18) + '"/><path d="M33 104 L38 150 M67 104 L62 150" stroke="' + shade(top, -12) + '" stroke-width="2"/>';
+    if (K.dress) s += '<g class="pj-skirt"><path d="M29 104 Q50 110 71 104 L86 150 Q70 158 50 154 Q30 158 14 150 Z" fill="' + K.dress + '"/><path d="M14 150 Q22 140 31 151 Q40 142 50 153 Q60 142 69 151 Q78 140 86 150" stroke="#fff" stroke-width="2.4" fill="none"/></g>';
+    if (K.guitar) s += '<g class="pj-gtr"><path d="M36 92 L12 70" stroke="#6e4524" stroke-width="4" stroke-linecap="round"/><path d="M12 70 l-4 -4" stroke="#3b2a1c" stroke-width="5" stroke-linecap="round"/><ellipse cx="46" cy="100" rx="14" ry="10" fill="#c8853f" transform="rotate(-30 46 100)"/><ellipse cx="57" cy="94" rx="9" ry="7" fill="#c8853f" transform="rotate(-30 57 94)"/><circle cx="48" cy="99" r="3.2" fill="#3b2a1c"/></g>';
     if (K.hat === 'chef') s += '<circle cx="50" cy="80" r="1.6" fill="#999"/><circle cx="50" cy="90" r="1.6" fill="#999"/><circle cx="50" cy="100" r="1.6" fill="#999"/>';
     s += '<path d="' + torso + '" fill="' + g + '"/>';
     if (K.ring) s += '<g class="pj-ring"><ellipse cx="50" cy="110" rx="29" ry="9" fill="none" stroke="' + K.ring + '" stroke-width="8"/><ellipse cx="50" cy="110" rx="29" ry="9" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="10 12"/></g>';
@@ -86,10 +114,12 @@ window.Pj = (function () {
     var hand = K.mitt || skin, slv = swim ? skin : top;
     s += '<g class="pj-armL"><rect x="24" y="67" width="10" height="38" rx="5" fill="' + slv + '"/><rect x="24" y="67" width="10" height="38" rx="5" fill="' + g + '"/><circle cx="29" cy="107" r="5.5" fill="' + hand + '"/>' +
       (K.palette ? '<g class="pj-pal"><ellipse cx="24" cy="110" rx="12" ry="8" fill="#e9d3a7"/><circle cx="18" cy="108" r="2.2" fill="#e8574a"/><circle cx="23" cy="105" r="2.2" fill="#2b8fc9"/><circle cx="29" cy="107" r="2.2" fill="#f2c14e"/><circle cx="24" cy="113" r="2.2" fill="#2f8f5b"/></g>' : '') +
+      (K.bread ? '<g transform="rotate(-38 30 92)"><rect x="6" y="87" width="50" height="10" rx="5" fill="#d9a441"/><path d="M16 88 l4 8 M26 88 l4 8 M36 88 l4 8 M46 88 l4 8" stroke="#b07a2a" stroke-width="1.6"/></g>' : '') +
       (K.pillow ? '<rect x="10" y="96" width="26" height="17" rx="7" fill="#f7f3ec" stroke="#ddd"/>' : '') +
       (K.bags ? '<g class="pj-bagL"><path d="M25 106 Q29 98 33 106" stroke="#333" stroke-width="1.5" fill="none"/><rect x="20" y="106" width="18" height="20" rx="2" fill="#f2c14e"/></g>' : '') +
       (K.gear === 'map' ? '<g class="pj-map"><rect x="17" y="100" width="24" height="17" rx="1" fill="' + (K.gearC || '#fff') + '" stroke="#bbb"/><path d="M23 100 L23 117 M29 100 L29 117 M35 100 L35 117" stroke="#ccc"/><path d="M19 112 Q26 104 38 106" stroke="#e2782f" stroke-width="1.4" fill="none" stroke-dasharray="2 2"/></g>' : '') + '</g>';
     s += '<g class="pj-armR"><rect x="66" y="67" width="10" height="38" rx="5" fill="' + slv + '"/><rect x="66" y="67" width="10" height="38" rx="5" fill="' + g + '"/><circle cx="71" cy="107" r="5.5" fill="' + hand + '"/>' +
+      (K.fanP ? '<g class="pj-fanp"><path d="M71 107 L57 92 Q71 82 85 92 Z" fill="#f29ab8" stroke="#c8323c" stroke-width="1"/><path d="M71 107 L63 89 M71 107 L71 86 M71 107 L79 89" stroke="#c8323c" stroke-width=".8"/></g>' : '') +
       (K.drink ? '<g><path d="M66 94 L76 94 L74 104 L68 104 Z" fill="#f2c14e" opacity=".85" stroke="#fff"/><line x1="71" y1="104" x2="71" y2="112" stroke="#fff" stroke-width="1.5"/></g>' : '') +
       (K.pan ? '<g class="pj-pan"><rect x="72" y="104" width="16" height="4" rx="2" fill="#333"/><ellipse cx="96" cy="106" rx="11" ry="4" fill="#333"/><ellipse class="pj-cake" cx="96" cy="103" rx="8" ry="3" fill="#e0a92c"/></g>' : '') +
       (K.palette ? '<g class="pj-brush"><line x1="71" y1="108" x2="80" y2="92" stroke="#7a5a3a" stroke-width="2.5"/><circle cx="80.5" cy="91" r="2.5" fill="#e8574a"/></g>' : '') +
@@ -103,6 +133,7 @@ window.Pj = (function () {
       '<circle cx="38" cy="48" r="3.2" fill="#e8574a" opacity=".25"/><circle cx="62" cy="48" r="3.2" fill="#e8574a" opacity=".25"/>' +
       '<path class="pj-mouth" d="M45 50 Q50 54 55 50" stroke="#2a2a2e" stroke-width="1.8" fill="none" stroke-linecap="round"/><ellipse class="pj-yawn" cx="50" cy="51" rx="3.5" ry="4.5" fill="#6b2a2a" opacity="0"/>';
     s += hat(K.hat, K.hatC || '#333');
+    if (K.flower) s += '<circle cx="50" cy="19" r="7" fill="' + hair + '"/><circle cx="33" cy="29" r="5.5" fill="' + K.flower + '"/><circle cx="33" cy="29" r="2" fill="#f2c14e"/>';
     if (K.gear === 'shades') s += '<g class="pj-shades"><rect x="36" y="37" width="12" height="8" rx="3" fill="#1f2126"/><rect x="52" y="37" width="12" height="8" rx="3" fill="#1f2126"/><line x1="48" y1="40" x2="52" y2="40" stroke="#1f2126" stroke-width="1.6"/><rect x="38" y="38.5" width="4" height="2" rx="1" fill="#fff" opacity=".4"/></g>';
     s += '</g>';
     if (K.gear === 'scarf') s += '<g class="pj-scarf"><path d="M38 61 Q50 70 62 61" stroke="' + K.gearC + '" stroke-width="8" fill="none" stroke-linecap="round"/><rect x="53" y="63" width="8" height="22" rx="3" fill="' + K.gearC + '" transform="rotate(-8 57 63)"/><path d="M54 80 L61 79" stroke="#fff" stroke-width="1.6" opacity=".6"/></g>';
@@ -152,6 +183,117 @@ window.Pj = (function () {
       '<circle cx="76" cy="115" r="5.5" fill="#2a2a2e"/><circle cx="102" cy="115" r="5.5" fill="#2a2a2e"/><circle cx="76" cy="115" r="2" fill="#aaa"/><circle cx="102" cy="115" r="2" fill="#aaa"/><rect x="108" y="100" width="6" height="10" rx="2" fill="#555"/></g>' +
       '</g></svg>';
   }
+  /* ---------- Vehículos y escenas de cada sitio ---------- */
+  function sk0() { return pick(SKIN); }
+  // Venecia: góndola negra y el gondolero con su camiseta de rayas y canotier, remando
+  function gondola() {
+    var s = sk0();
+    return '<svg class="pj-fig" viewBox="0 0 220 130" width="190" height="112" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M0 108 Q55 102 110 108 T220 108 L220 130 L0 130Z" fill="#4f8fc4"/><g class="pj-waves"><path d="M10 117 q8 -4 16 0 t16 0 t16 0 M120 121 q8 -4 16 0 t16 0 t16 0" stroke="#fff" stroke-opacity=".6" stroke-width="2" fill="none"/></g>' +
+      '<rect x="44" y="70" width="6" height="24" fill="#1f2126"/><rect x="53" y="70" width="6" height="24" fill="#1f2126"/>' +
+      '<rect x="40" y="44" width="23" height="29" rx="6" fill="#f7f3ec"/><path d="M40 50 H63 M40 57 H63 M40 64 H63" stroke="#2b3f73" stroke-width="3"/>' +
+      '<circle cx="51" cy="34" r="9" fill="' + s + '"/><circle cx="48" cy="34" r="1.2" fill="#222"/><circle cx="54" cy="34" r="1.2" fill="#222"/><path d="M48 38 q3 2 6 0" stroke="#222" stroke-width="1" fill="none"/>' +
+      '<ellipse cx="51" cy="27" rx="13" ry="3" fill="#e8cf8a"/><rect x="44" y="19" width="14" height="8" rx="1.5" fill="#e8cf8a"/><rect x="44" y="23.5" width="14" height="2.5" fill="#c8323c"/>' +
+      '<g class="pj-oar"><path d="M60 54 L76 64" stroke="' + s + '" stroke-width="5" stroke-linecap="round"/><path d="M82 40 L36 124" stroke="#8a5a32" stroke-width="3" stroke-linecap="round"/><ellipse cx="38" cy="120" rx="3" ry="8" fill="#8a5a32" transform="rotate(28 38 120)"/></g>' +
+      '<path d="M14 92 Q24 108 100 108 Q178 108 200 88 Q207 78 204 64 Q198 84 182 92 Z" fill="#1f2126"/><path d="M200 66 l9 -3 l-3 5 l5 0 l-3 5 l5 1 l-8 4 Z" fill="#d9d2c0"/><path d="M14 92 Q9 86 12 76" stroke="#1f2126" stroke-width="4" fill="none" stroke-linecap="round"/>' +
+      '<path d="M100 92 q17 -12 34 0 Z" fill="#c8323c"/><rect x="98" y="90" width="38" height="6" rx="3" fill="#a8282f"/>' +
+      '</g></svg>';
+  }
+  // desierto: camello con su jinete, dunas y pirámides al fondo
+  function camel() {
+    var s = sk0(), cm = '#c8955a';
+    return '<svg class="pj-fig" viewBox="0 0 200 150" width="160" height="120" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M120 132 L137 104 L154 132Z" fill="#e1b468"/><path d="M142 132 L166 92 L190 132Z" fill="#d9a95a"/><path d="M0 132 Q100 120 200 132 L200 150 L0 150Z" fill="#e8c27a"/>' +
+      '<g class="pj-cla"><path d="M62 104 L58 136 M106 104 L110 136" stroke="' + cm + '" stroke-width="6" stroke-linecap="round"/></g><g class="pj-clb"><path d="M72 104 L74 136 M116 104 L114 136" stroke="#b5834c" stroke-width="6" stroke-linecap="round"/></g>' +
+      '<path d="M50 92 q-9 6 -6 18" stroke="' + cm + '" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M50 106 Q44 78 68 76 Q78 54 90 76 Q100 56 110 76 Q128 78 124 106 Z" fill="' + cm + '"/>' +
+      '<path d="M118 98 Q138 88 136 62 Q136 50 148 50 Q158 52 157 59 L144 62 Q146 82 128 102Z" fill="' + cm + '"/><circle cx="148" cy="55" r="1.6" fill="#222"/><path d="M142 50 l-2 -5" stroke="' + cm + '" stroke-width="3" stroke-linecap="round"/>' +
+      '<rect x="76" y="62" width="26" height="10" rx="3" fill="#c8323c"/><path d="M78 72 v4 M84 72 v4 M90 72 v4 M96 72 v4" stroke="#f2c14e" stroke-width="2"/>' +
+      '<path d="M80 64 Q80 42 89 40 Q98 42 98 64 Z" fill="#2b5fa6"/><circle cx="89" cy="33" r="7.5" fill="' + s + '"/><path d="M81 33 Q81 22 89 22 Q97 22 97 33 Q95 27 89 27 Q83 27 81 33Z M82 34 Q89 44 96 34 L97 38 Q89 46 81 38Z" fill="#2b5fa6"/><circle cx="91" cy="32" r="1.1" fill="#222"/>' +
+      '<path d="M96 50 L140 58" stroke="#6e4524" stroke-width="1.5"/></g></svg>';
+  }
+  // tuk-tuk de colores
+  function tuktuk() {
+    var s = sk0(), c = pick(['#2f8f5b', '#2b8fc9', '#c8323c']);
+    return '<svg class="pj-fig" viewBox="0 0 160 110" width="140" height="96" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M34 34 Q34 22 46 22 L118 22 Q130 22 130 34 Z" fill="' + c + '"/><rect x="34" y="31" width="96" height="5" fill="#f2c14e"/>' +
+      '<rect x="36" y="36" width="6" height="48" fill="' + c + '"/><path d="M42 60 L96 60 L96 84 L36 84 L36 60Z" fill="' + c + '"/><rect x="48" y="44" width="34" height="16" rx="5" fill="#e8574a"/>' +
+      '<path d="M96 40 L120 40 Q140 44 150 60 L152 84 L96 84 Z" fill="#f2c14e"/><path d="M122 44 Q138 48 144 60 L122 60Z" fill="#bfe0f2"/>' +
+      '<circle cx="110" cy="46" r="7" fill="' + s + '"/><path d="M103 45 Q110 36 117 45" fill="' + pick(HAIR) + '"/><circle cx="113" cy="46" r="1.1" fill="#222"/><circle cx="150" cy="68" r="3" fill="#fff6c8"/>' +
+      '<g class="pj-wheel" style="transform-origin:58px 88px"><circle cx="58" cy="88" r="11" fill="#2a2a2e"/><circle cx="58" cy="88" r="4" fill="#bbb"/><rect x="56.5" y="78" width="3" height="20" fill="#555"/></g>' +
+      '<g class="pj-wheel" style="transform-origin:136px 88px"><circle cx="136" cy="88" r="10" fill="#2a2a2e"/><circle cx="136" cy="88" r="4" fill="#bbb"/><rect x="134.5" y="79" width="3" height="18" fill="#555"/></g></g></svg>';
+  }
+  // bici con una cesta de tulipanes
+  function bike() {
+    var s = sk0(), wh = function (x) { return '<g class="pj-wheel" style="transform-origin:' + x + 'px 104px"><circle cx="' + x + '" cy="104" r="20" fill="none" stroke="#333" stroke-width="4"/><path d="M' + (x - 19) + ' 104 H' + (x + 19) + ' M' + x + ' 85 V123 M' + (x - 13) + ' 91 L' + (x + 13) + ' 117 M' + (x - 13) + ' 117 L' + (x + 13) + ' 91" stroke="#999" stroke-width="1.2"/></g>'; };
+    return '<svg class="pj-fig" viewBox="0 0 150 130" width="130" height="113" aria-hidden="true"><g class="pj-all">' + wh(34) + wh(116) +
+      '<path d="M34 104 L62 72 L104 72 L116 104 M62 72 L78 104 L104 72 M78 104 L34 104" stroke="#c8323c" stroke-width="4" fill="none" stroke-linejoin="round"/><rect x="54" y="63" width="18" height="5" rx="2" fill="#333"/><path d="M100 72 L106 56 L116 56" stroke="#333" stroke-width="3" fill="none"/>' +
+      '<rect x="104" y="56" width="24" height="14" rx="2" fill="#c9a46a"/><path d="M108 56 v14 M114 56 v14 M120 56 v14" stroke="#a8844a" stroke-width="1"/>' +
+      '<path d="M109 56 V47 M116 56 V45 M123 56 V48" stroke="#2f8f5b" stroke-width="1.6"/><circle cx="109" cy="45" r="4.5" fill="#e8574a"/><circle cx="116" cy="43" r="4.5" fill="#f2c14e"/><circle cx="123" cy="46" r="4.5" fill="#d0558a"/>' +
+      '<g class="pj-ped"><path d="M64 66 L80 86 L76 104" stroke="#3b4a6b" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>' +
+      '<path d="M57 68 L72 30 L86 35 L72 70Z" fill="#2b8fc9"/><path d="M80 38 L106 56" stroke="' + s + '" stroke-width="5" stroke-linecap="round"/>' +
+      '<circle cx="82" cy="23" r="9" fill="' + s + '"/><path d="M73 22 Q74 12 83 12 Q91 13 91 21 Q86 16 79 18Z" fill="' + pick(HAIR) + '"/><circle cx="85" cy="23" r="1.2" fill="#222"/></g></svg>';
+  }
+  // globo aerostático (Capadocia)
+  function hotair() {
+    return '<svg class="pj-fig" viewBox="0 0 120 170" width="100" height="142" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M60 6 C18 6 8 52 26 82 Q40 104 46 112 L74 112 Q80 104 94 82 C112 52 102 6 60 6Z" fill="#e8574a"/>' +
+      '<path d="M60 6 C44 6 38 52 47 82 Q53 104 55 112 L65 112 Q67 104 73 82 C82 52 76 6 60 6Z" fill="#f2c14e"/><path d="M60 6 C30 6 22 52 34 82" stroke="#fff" stroke-opacity=".35" stroke-width="3" fill="none"/>' +
+      '<path d="M48 112 L50 130 M72 112 L70 130 M58 112 V130" stroke="#6e4524" stroke-width="1.2"/>' +
+      '<circle cx="53" cy="127" r="6" fill="' + sk0() + '"/><circle cx="67" cy="126" r="6" fill="' + sk0() + '"/>' +
+      '<rect x="44" y="129" width="32" height="20" rx="3" fill="#a87444"/><path d="M44 135 H76 M44 141 H76 M52 129 V149 M60 129 V149 M68 129 V149" stroke="#8a5a32" stroke-width="1"/></g></svg>';
+  }
+  // canguro con su cría en la bolsa
+  function roo() {
+    var c = '#c8853f';
+    return '<svg class="pj-fig" viewBox="0 0 120 130" width="100" height="108" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M32 108 Q6 114 2 96 Q16 106 36 100Z" fill="' + c + '"/><ellipse cx="48" cy="86" rx="21" ry="27" fill="' + c + '" transform="rotate(-18 48 86)"/><ellipse cx="54" cy="92" rx="10" ry="15" fill="#e3b27a" transform="rotate(-18 54 92)"/>' +
+      '<circle cx="56" cy="84" r="5" fill="' + c + '"/><circle cx="57" cy="83" r="1" fill="#222"/>' +
+      '<path d="M38 108 L66 116 L70 122 L34 122 Z" fill="#a8642a"/><path d="M62 74 L72 84 M64 80 L74 90" stroke="' + c + '" stroke-width="3.5" stroke-linecap="round"/>' +
+      '<path d="M56 62 Q60 50 66 46" stroke="' + c + '" stroke-width="10" stroke-linecap="round"/><ellipse cx="70" cy="46" rx="12" ry="8.5" fill="' + c + '"/><ellipse cx="80" cy="49" rx="4" ry="3" fill="#7a4a24"/>' +
+      '<ellipse cx="62" cy="32" rx="3" ry="10" fill="' + c + '" transform="rotate(-12 62 32)"/><ellipse cx="70" cy="32" rx="3" ry="10" fill="' + c + '" transform="rotate(8 70 32)"/><circle cx="72" cy="44" r="1.5" fill="#222"/></g></svg>';
+  }
+  // los Andes: alguien con chullo y poncho y su llama
+  function llama() {
+    var s = sk0(), lc = '#f1e6cf';
+    return '<svg class="pj-fig" viewBox="0 0 170 160" width="150" height="141" aria-hidden="true"><g class="pj-all">' +
+      '<path d="M0 150 Q85 142 170 150 L170 160 L0 160Z" fill="#9db06a"/>' +
+      '<path d="M88 110 L86 148 M98 112 L100 148 M122 112 L120 148 M132 110 L134 148" stroke="#e3d3b0" stroke-width="6" stroke-linecap="round"/>' +
+      '<ellipse cx="110" cy="102" rx="30" ry="15" fill="' + lc + '"/><path d="M86 100 q-8 -2 -8 6" stroke="' + lc + '" stroke-width="6" fill="none" stroke-linecap="round"/>' +
+      '<rect x="96" y="88" width="30" height="11" rx="3" fill="#e8574a"/><path d="M96 92 H126 M96 96 H126" stroke="#f2c14e" stroke-width="1.6"/>' +
+      '<g class="pj-lh"><path d="M130 100 L136 54" stroke="' + lc + '" stroke-width="13" stroke-linecap="round"/><ellipse cx="141" cy="50" rx="12" ry="8" fill="' + lc + '"/><ellipse cx="135" cy="38" rx="3" ry="7" fill="' + lc + '"/><ellipse cx="143" cy="37" rx="3" ry="7" fill="' + lc + '"/><circle cx="144" cy="48" r="1.6" fill="#222"/></g>' +
+      '<rect x="32" y="110" width="7" height="38" rx="3" fill="#3b3e46"/><rect x="44" y="110" width="7" height="38" rx="3" fill="#3b3e46"/>' +
+      '<path d="M24 74 L58 74 L66 116 L16 116Z" fill="#e2782f"/><path d="M20 98 L62 98 M18 106 L64 106" stroke="#2b8fc9" stroke-width="3"/><path d="M40 74 L41 116" stroke="#f2c14e" stroke-width="3"/>' +
+      '<circle cx="41" cy="60" r="11" fill="' + s + '"/><circle cx="38" cy="61" r="1.3" fill="#222"/><circle cx="45" cy="61" r="1.3" fill="#222"/><path d="M38 66 q3 2 6 0" stroke="#222" stroke-width="1.1" fill="none"/>' +
+      '<path d="M29 58 Q30 44 41 43 Q52 44 53 58Z" fill="#c8323c"/><path d="M30 56 L27 72 L34 68Z M52 56 L55 72 L48 68Z" fill="#c8323c"/><path d="M31 51 H51" stroke="#f2c14e" stroke-width="2.5" stroke-dasharray="3 2"/><circle cx="41" cy="41" r="3.5" fill="#2b8fc9"/>' +
+      '<path d="M58 88 Q96 70 132 54" stroke="#6e4524" stroke-width="1.4" fill="none"/></g></svg>';
+  }
+  // safari: cada uno por su cuenta (jirafa, león y jeep), mirando a la derecha
+  function giraffe() {
+    var c = '#e8b04a', sp = '';
+    [[34, 78], [44, 84], [52, 76], [40, 90], [58, 64], [61, 50], [64, 38]].forEach(function (q) { sp += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
+    return '<svg class="pj-fig" viewBox="0 0 90 150" width="81" height="135" aria-hidden="true"><g class="pj-all">' +
+      '<g class="pj-lga"><path d="M30 92 L28 142 M54 92 L56 142" stroke="' + c + '" stroke-width="5" stroke-linecap="round"/></g><g class="pj-lgb"><path d="M38 92 L40 142 M48 92 L46 142" stroke="#d29a3a" stroke-width="5" stroke-linecap="round"/></g>' +
+      '<path d="M24 82 Q16 88 18 100" stroke="' + c + '" stroke-width="2" fill="none"/><ellipse cx="42" cy="84" rx="20" ry="11" fill="' + c + '"/>' +
+      '<g class="pj-neck2"><path d="M55 80 L66 28" stroke="' + c + '" stroke-width="9" stroke-linecap="round"/><ellipse cx="72" cy="24" rx="10" ry="5.5" fill="' + c + '" transform="rotate(-14 72 24)"/>' +
+      '<path d="M66 19 l-1 -7 M71 18 l0 -7" stroke="#b06a24" stroke-width="2.4" stroke-linecap="round"/><circle cx="73" cy="22" r="1.4" fill="#222"/></g>' + sp + '</g></svg>';
+  }
+  function lion() {
+    var c = '#d9a441';
+    return '<svg class="pj-fig" viewBox="0 0 120 80" width="108" height="72" aria-hidden="true"><g class="pj-all">' +
+      '<path class="pj-tail" d="M18 40 Q4 34 6 22" stroke="' + c + '" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="6" cy="21" r="3.5" fill="#8a4a1a"/>' +
+      '<g class="pj-lga"><path d="M26 50 L24 74 M78 50 L80 74" stroke="#c8913a" stroke-width="7" stroke-linecap="round"/></g><g class="pj-lgb"><path d="M36 52 L38 74 M70 52 L68 74" stroke="' + c + '" stroke-width="7" stroke-linecap="round"/></g>' +
+      '<ellipse cx="52" cy="46" rx="34" ry="14" fill="' + c + '"/>' +
+      '<g class="pj-lhd"><circle cx="90" cy="32" r="17" fill="#a8642a"/><circle cx="93" cy="34" r="10.5" fill="#e2b25a"/><circle cx="90" cy="31" r="1.5" fill="#222"/><circle cx="98" cy="31" r="1.5" fill="#222"/>' +
+      '<ellipse cx="96" cy="37" rx="2.5" ry="1.8" fill="#6b3a1a"/><path class="pj-roar" d="M92 41 Q96 47 100 41 Z" fill="#7a2a2a" opacity="0"/><path d="M92 40.5 Q96 43 100 40.5" stroke="#6b3a1a" stroke-width="1.2" fill="none"/></g></g></svg>';
+  }
+  function jeep() {
+    var s = pick(SKIN), wh = function (x) { return '<g class="pj-wheel" style="transform-origin:' + x + 'px 74px"><circle cx="' + x + '" cy="74" r="11" fill="#2a2a2e"/><circle cx="' + x + '" cy="74" r="4" fill="#aaa"/><rect x="' + (x - 1.5) + '" y="64" width="3" height="20" fill="#555"/></g>'; };
+    return '<svg class="pj-fig" viewBox="0 0 140 90" width="126" height="81" aria-hidden="true"><g class="pj-all">' +
+      '<rect x="6" y="46" width="10" height="20" rx="3" fill="#555"/><rect x="12" y="44" width="116" height="26" rx="7" fill="#6b7d3a"/><path d="M30 44 L40 22 L92 22 L104 44 Z" fill="#7f9147"/><rect x="48" y="26" width="38" height="16" rx="3" fill="#bfe0f2"/>' +
+      '<circle cx="66" cy="16" r="9" fill="' + s + '"/><ellipse cx="66" cy="9" rx="13" ry="3.5" fill="#c9b37a"/><path d="M58 9 Q66 -3 74 9Z" fill="#c9b37a"/><rect class="pj-bino" x="61" y="13" width="13" height="5" rx="2" fill="#2a2a2e"/>' +
+      '<rect x="12" y="56" width="116" height="4" fill="#5a6a2f"/><circle cx="124" cy="52" r="3" fill="#fff6c8"/>' + wh(36) + wh(106) + '</g></svg>';
+  }
   // avioneta con pasajeros en las ventanillas
   function plane() {
     var h = ''; [62, 82, 102].forEach(function (x) { h += '<circle cx="' + x + '" cy="40" r="6.5" fill="#bfe0f2"/><circle cx="' + x + '" cy="41" r="4.6" fill="' + pick(SKIN) + '"/><path d="M' + (x - 4.6) + ' 40 Q' + x + ' 33 ' + (x + 4.6) + ' 40" fill="' + pick(HAIR) + '"/>'; });
@@ -169,9 +311,12 @@ window.Pj = (function () {
   function vehicle(K) {
     if (K.vehicle === 'isle') return isle();
     if (K.vehicle === 'savanna') return savanna();
+    var F = { gondola: gondola, camel: camel, tuktuk: tuktuk, bike: bike, hotair: hotair, roo: roo, llama: llama, giraffe: giraffe, lion: lion, jeep: jeep }[K.vehicle];
+    if (F) return F();
     if (K.vehicle === 'plane') return plane();
     var c = K.body, heads = function (xs, y) { return xs.map(function (x) { return '<circle cx="' + x + '" cy="' + y + '" r="8" fill="' + pick(SKIN) + '"/><path d="M' + (x - 8) + ' ' + (y - 1) + ' Q' + x + ' ' + (y - 12) + ' ' + (x + 8) + ' ' + (y - 1) + '" fill="' + pick(HAIR) + '"/><circle cx="' + (x + 3) + '" cy="' + (y + 1) + '" r="1.3" fill="#222"/>'; }).join(''); };
     if (K.vehicle === 'car') return '<svg class="pj-fig pj-car" viewBox="0 0 150 90" width="150" height="90" aria-hidden="true"><g class="pj-all">' +
+      (K.taxi ? '<rect x="58" y="2" width="30" height="10" rx="2" fill="#f7f3ec"/><text x="73" y="10" font-size="7.5" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-weight="800" fill="#1f2126">TAXI</text><path d="M12 47 H138" stroke="#1f2126" stroke-width="4" stroke-dasharray="5 5"/>' : '') +
       (K.lug ? '<g class="pj-lug"><path d="M38 13 L104 13" stroke="#333" stroke-width="2.5"/><rect x="42" y="-1" width="28" height="14" rx="3" fill="#e8574a"/><rect x="72" y="1" width="24" height="12" rx="3" fill="#2f8f5b"/><rect x="54" y="-12" width="22" height="12" rx="3" fill="#f2c14e"/><path d="M56 -1 L56 13 M88 1 L88 13" stroke="#000" stroke-opacity=".2" stroke-width="2"/></g>' : '') +
       '<path d="M30 32 Q38 12 70 12 Q98 12 108 32 Z" fill="' + shade(c, 10) + '"/><path d="M40 31 Q46 18 66 18 L66 31 Z M72 18 Q94 18 100 31 L72 31 Z" fill="#bfe0f2"/>' + heads([56, 86], 27) +
       '<rect x="10" y="30" width="130" height="34" rx="14" fill="' + c + '"/><rect x="10" y="30" width="130" height="34" rx="14" fill="url(#pjCarSh)"/><circle cx="133" cy="42" r="4" fill="#fff6c8"/><rect x="12" y="42" width="6" height="6" rx="2" fill="#e8574a"/>' +
@@ -179,7 +324,7 @@ window.Pj = (function () {
       '<g class="pj-wheel" style="transform-origin:42px 66px"><circle cx="42" cy="66" r="13" fill="#2a2a2e"/><circle cx="42" cy="66" r="5" fill="#bbb"/><rect x="40.5" y="55" width="3" height="22" fill="#555"/></g>' +
       '<g class="pj-wheel" style="transform-origin:110px 66px"><circle cx="110" cy="66" r="13" fill="#2a2a2e"/><circle cx="110" cy="66" r="5" fill="#bbb"/><rect x="108.5" y="55" width="3" height="22" fill="#555"/></g></g></svg>';
     return '<svg class="pj-fig pj-car" viewBox="0 0 190 100" width="180" height="95" aria-hidden="true"><g class="pj-all">' +
-      '<line x1="95" y1="2" x2="80" y2="16" stroke="#333" stroke-width="2"/><rect x="8" y="16" width="174" height="62" rx="12" fill="' + c + '"/><rect x="8" y="58" width="174" height="8" fill="#f7f3ec" opacity=".85"/>' +
+      (K.deck2 ? '<rect x="8" y="-34" width="174" height="58" rx="12" fill="' + c + '"/>' + [20, 62, 104, 146].map(function (x) { return '<rect x="' + x + '" y="-26" width="' + (x === 146 ? 28 : 34) + '" height="20" rx="4" fill="#bfe0f2"/>'; }).join('') + heads([37, 121], -14) : '<line x1="95" y1="2" x2="80" y2="16" stroke="#333" stroke-width="2"/>') + '<rect x="8" y="16" width="174" height="62" rx="12" fill="' + c + '"/><rect x="8" y="58" width="174" height="8" fill="#f7f3ec" opacity=".85"/>' +
       '<rect x="20" y="24" width="34" height="26" rx="5" fill="#bfe0f2"/><rect x="62" y="24" width="34" height="26" rx="5" fill="#bfe0f2"/><rect x="104" y="24" width="34" height="26" rx="5" fill="#bfe0f2"/><rect x="146" y="24" width="28" height="40" rx="5" fill="#8fc4df"/>' +
       heads([37, 79, 121], 42) + '<circle cx="176" cy="70" r="3.5" fill="#fff6c8"/>' +
       '<g class="pj-wheel" style="transform-origin:42px 82px"><circle cx="42" cy="82" r="11" fill="#2a2a2e"/><circle cx="42" cy="82" r="4" fill="#bbb"/><rect x="40.5" y="72" width="3" height="20" fill="#555"/></g>' +
@@ -187,22 +332,25 @@ window.Pj = (function () {
   }
 
   /* ---------- Efectos alrededor (nieve, sol, lluvia…) ---------- */
-  function fx(kind, L) {
-    var n = { snow: 26, rain: 34, confetti: 40 }[kind] || 0, h = '';
+  function fx(kind, L, K) {
+    var n = { snow: 26, rain: 34, confetti: 40, food: 12, notes: 9, petals: 24 }[kind] || 0, h = '', foods = K && K.food ? Array.from(K.food) : [];
     for (var i = 0; i < n; i++) {
       var st = 'left:' + rnd(0, 100).toFixed(1) + '%;--t:' + rnd(kind === 'rain' ? .5 : 2.2, kind === 'rain' ? .9 : 4).toFixed(2) + 's;--dl:' + rnd(0, 1.5).toFixed(2) + 's;--s:' + rnd(.6, 1.3).toFixed(2) + ';--x:' + rnd(-40, 40).toFixed(0) + 'px';
       if (kind === 'confetti') st += ';background:' + pick(['#e2782f', '#2f8f5b', '#2b8fc9', '#f2c14e', '#e8574a', '#8f7fc4']);
-      h += '<i class="pj-p ' + kind + '" style="' + st + '"></i>';
+      h += '<i class="pj-p ' + kind + '" style="' + st + '">' + (kind === 'food' ? pick(foods) : kind === 'notes' ? pick(['♪', '♫', '♬']) : '') + '</i>';
     }
     if (kind === 'sun') h = '<i class="pj-sun"></i>';
     if (kind === 'sunrise') h = '<i class="pj-sun rise"></i>';
+    if (kind === 'aurora') h = '<i class="pj-aur"></i><i class="pj-aur b"></i>';
     if (kind === 'birds') h = '<i class="pj-bird" style="top:16%;--dl:0s">︶︶</i><i class="pj-bird" style="top:22%;--dl:.5s">︶︶</i>';
     if (!h) return null;
     var e = document.createElement('div'); e.className = 'pj-fx'; e.innerHTML = h; L.appendChild(e);
     return e;
   }
 
-  /* ---------- La escena ---------- */
+  /* ---------- La escena ----------
+     Entradas: cae, baja en paracaídas, entra andando o asoma desde abajo (los vehículos llegan rodando).
+     Salidas: por una trampilla en el suelo, encima de la palabra elegida; si no hay, se va andando o colgado de globos. */
   function lay() {
     if (!layer || !layer.isConnected) { layer = document.createElement('div'); layer.className = 'pj-layer'; layer.setAttribute('aria-hidden', 'true'); document.body.appendChild(layer); }
     return layer;
@@ -214,111 +362,165 @@ window.Pj = (function () {
     var r = cur; cur = null; r.dead = true; r.t.forEach(clearTimeout);
     r.els.forEach(function (e) { if (e && e.parentNode) { e.style.transition = 'opacity .25s'; e.style.opacity = '0'; setTimeout(function () { e.remove(); }, 260); } });
   }
-  function bubble(run, wrap, txt) {
+  function bubble(run, wrap, txt, ms) {
+    if (!txt) return Promise.resolve();
     var b = document.createElement('span'); b.className = 'pj-say'; b.textContent = txt; wrap.appendChild(b);
-    return wait(1500, run).then(function () { b.classList.add('out'); });
-  }
-  // una compuerta sobre la opción elegida: se levanta, deja un hueco y se cierra
-  function hatch(r, color) {
-    var h = document.createElement('div'); h.className = 'pj-hatch';
-    h.style.cssText = 'left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
-    h.innerHTML = '<i class="pj-hole"></i><i class="pj-flap" style="--c:' + color + '"></i>';
-    lay().insertBefore(h, lay().firstChild);
-    return h;
-  }
-  function targetRect(t) {
-    var el = typeof t === 'function' ? t() : t; if (!el || !el.getBoundingClientRect) return null;
-    var r = el.getBoundingClientRect(), vh = window.innerHeight;
-    if (r.width < 40 || r.bottom < 60 || r.top > vh - 120) return null;
-    // solo la parte visible
-    var top = Math.max(r.top, 50), bot = Math.min(r.bottom, vh - 100);
-    return { left: r.left, top: top, width: r.width, height: Math.max(60, Math.min(bot - top, 220)), radius: getComputedStyle(el).borderRadius };
+    return wait(ms || 1500, run).then(function () { b.classList.add('out'); });
   }
   function ground() {
     var f = document.querySelector('#wz:not([hidden]) .wz-foot'), y = f ? f.getBoundingClientRect().top - 6 : window.innerHeight - 110;
     return Math.min(y, window.innerHeight - 30);
   }
-
+  // la palabra sobre la que se abre la trampilla: el título de la opción elegida (o el propio elemento)
+  function wordAt(t) {
+    var el = typeof t === 'function' ? t() : t; if (!el || !el.getBoundingClientRect) return null;
+    var wd = (el.querySelector && el.querySelector('.wz-cb b, .wz-cm b, .wz-gh b, b, span')) || el, r = null;
+    try { var rg = document.createRange(); rg.selectNodeContents(wd); var rs = rg.getClientRects(); r = rs.length ? rs[0] : null; } catch (e) {}
+    if (!r || !r.width) r = wd.getBoundingClientRect();
+    var vh = window.innerHeight; if (!r.width || r.bottom < 90 || r.top > vh - 130) return null;
+    var w = Math.min(r.width, 200);
+    return { cx: Math.max(50, Math.min(window.innerWidth - 50, r.left + w / 2)), y: Math.round(r.bottom + 1) };
+  }
+  // trampilla de madera tumbada en el suelo: se levanta, deja el hueco, y se vuelve a cerrar
+  function trap(at, width) {
+    var h = document.createElement('div'); h.className = 'pj-trap';
+    h.style.cssText = 'left:' + Math.round(at.cx - width / 2) + 'px;top:' + (at.y - 7) + 'px;width:' + Math.round(width) + 'px';
+    h.innerHTML = '<i class="pj-th"></i><i class="pj-tl"></i><i class="pj-dust"></i>';
+    lay().insertBefore(h, lay().firstChild);
+    return h;
+  }
+  var SZ = { car: [150, 90], tram: [180, 95], isle: [177, 118], savanna: [186, 118], plane: [170, 80], gondola: [190, 112], camel: [160, 120], tuktuk: [140, 96], bike: [130, 113], hotair: [100, 142], roo: [100, 108], llama: [150, 141], giraffe: [81, 135], lion: [108, 72], jeep: [126, 81] };
+  function sizeOf(K) { return K.vehicle ? SZ[K.vehicle] || [150, 90] : [96, 163]; }
+  function at(x, y, extra) { return 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)' + (extra || ''); }
+  // ir hasta la palabra, abrir la trampilla, hundirse y cerrarla
+  function intoTrap(run, wrap, w, hgt, pos, o, veh) {
+    var A = wordAt(o.target); if (!A) return null;
+    var tx = A.cx - w / 2, ty = A.y - hgt, d = Math.hypot(tx - pos.x, ty - pos.y), H = trap(A, veh ? w * .8 : 86);
+    run.els.push(H);
+    wrap.classList.add(veh ? 'drive' : 'walk'); if (tx < pos.x) wrap.classList.add('left'); else wrap.classList.remove('left');
+    return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(tx, ty) }], { duration: Math.max(700, Math.min(1700, d * 4.5)), easing: 'ease-in-out', fill: 'forwards' }).then(function () {
+      if (run.dead) return;
+      wrap.classList.remove('walk', 'drive'); H.classList.add('open'); wrap.classList.add('peek');
+      return wait(450, run);
+    }).then(function () {
+      if (run.dead) return;
+      // un saltito y abajo: lo que pasa del suelo no se ve
+      wrap.classList.remove('peek'); wrap.classList.add('dive');
+      return anim(wrap, [{ transform: at(tx, ty) }, { transform: at(tx, ty - 22), offset: .35 }, { transform: at(tx, ty) }], { duration: 380, easing: 'ease-out', fill: 'forwards' });
+    }).then(function () {
+      if (run.dead) return;
+      return anim(wrap, [{ transform: at(tx, ty), clipPath: 'inset(-80px -80px 0px -80px)' }, { transform: at(tx, ty + hgt), clipPath: 'inset(-80px -80px ' + hgt + 'px -80px)' }], { duration: 520, easing: 'cubic-bezier(.5,0,.8,.6)', fill: 'forwards' });
+    }).then(function () {
+      if (run.dead) return;
+      wrap.style.opacity = 0; H.classList.remove('open'); H.classList.add('shut');
+      try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
+      return wait(900, run);
+    });
+  }
+  function enterAs(run, wrap, kind, K, pos, w, hgt, o) {
+    var W = window.innerWidth, how = o.enter || K.enter || (K.vehicle ? 'drive' : pick(['fall', 'fall', 'chute', 'walk', 'pop'])), side = null;
+    if (/^walk-/.test(how)) { side = how.slice(5); how = 'walk'; }
+    if (how === 'drive' || how === 'walk') {
+      var fromR = side ? side === 'right' : K.from === 'right' || (how === 'walk' && Math.random() < .5), x0 = fromR ? W + 20 : -w - 20;
+      wrap.classList.add(how === 'walk' ? 'walk' : 'drive'); if (fromR) wrap.classList.add('left');
+      return anim(wrap, [{ transform: at(x0, pos.y) }, { transform: at(pos.x, pos.y) }], { duration: how === 'walk' ? 1600 : 1300, easing: how === 'walk' ? 'linear' : 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' })
+        .then(function () { wrap.classList.remove('walk', 'drive'); if (!K.animal) wrap.classList.remove('left'); });
+    }
+    if (how === 'rise') return anim(wrap, [{ transform: at(pos.x, window.innerHeight + 20) }, { transform: at(pos.x, pos.y) }], { duration: 2000, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+    if (how === 'pop') {
+      wrap.classList.add('fall');
+      return anim(wrap, [{ transform: at(pos.x, window.innerHeight + 10) }, { transform: at(pos.x, pos.y - 70), offset: .55 }, { transform: at(pos.x, pos.y) }], { duration: 900, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'forwards' })
+        .then(function () { wrap.classList.remove('fall'); wrap.classList.add('land'); return wait(260, run); }).then(function () { wrap.classList.remove('land'); });
+    }
+    if (how === 'chute') {
+      var ch = document.createElement('span'); ch.className = 'pj-chute';
+      ch.innerHTML = '<svg viewBox="0 0 130 90"><path d="M8 44 Q65 -18 122 44 Q108 36 94 44 Q80 36 65 44 Q50 36 36 44 Q22 36 8 44Z" fill="' + pick(['#e8574a', '#2b8fc9', '#f2c14e', '#2f8f5b']) + '"/><path d="M36 44 Q50 4 65 2 M94 44 Q80 4 65 2" stroke="#fff" stroke-opacity=".6" stroke-width="2" fill="none"/><path d="M8 44 L52 90 M36 44 L56 90 M94 44 L74 90 M122 44 L78 90" stroke="#555" stroke-width="1"/></svg>';
+      wrap.appendChild(ch); wrap.classList.add('fall');
+      return anim(wrap, [{ transform: at(pos.x - 40, -hgt - 140, ' rotate(10deg)') }, { transform: at(pos.x + 20, pos.y * .45, ' rotate(-8deg)'), offset: .45 }, { transform: at(pos.x - 8, pos.y * .8, ' rotate(5deg)'), offset: .8 }, { transform: at(pos.x, pos.y, ' rotate(0deg)') }], { duration: 2800, easing: 'ease-in-out', fill: 'forwards' })
+        .then(function () { wrap.classList.remove('fall'); ch.classList.add('gone'); wrap.classList.add('land'); return wait(260, run); }).then(function () { wrap.classList.remove('land'); setTimeout(function () { ch.remove(); }, 500); });
+    }
+    // caer desde arriba
+    wrap.classList.add('fall');
+    return anim(wrap, [{ transform: at(pos.x, -hgt - 40, ' rotate(-14deg)') }, { transform: at(pos.x, pos.y, ' rotate(0deg)'), offset: .78 }, { transform: at(pos.x, pos.y - 18), offset: .9 }, { transform: at(pos.x, pos.y) }], { duration: 1000, easing: 'cubic-bezier(.45,0,.6,1)', fill: 'forwards' })
+      .then(function () { wrap.classList.remove('fall'); wrap.classList.add('land'); return wait(260, run); }).then(function () { wrap.classList.remove('land'); });
+  }
+  function leave(run, wrap, K, pos, w, hgt, o) {
+    var veh = !!K.vehicle, W = window.innerWidth;
+    var t = o.target ? intoTrap(run, wrap, w, hgt, pos, o, veh) : null; if (t) return t;
+    if (K.vehicle === 'hotair') return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(pos.x + 40, -hgt - 60) }], { duration: 2400, easing: 'ease-in', fill: 'forwards' });
+    if (!veh && Math.random() < .4) {
+      // se va colgado de unos globos
+      var b = document.createElement('span'); b.className = 'pj-lift';
+      b.innerHTML = '<svg viewBox="0 0 70 110"><path d="M35 108 L20 40 M35 108 L36 30 M35 108 L52 44" stroke="#666" stroke-width="1"/><ellipse cx="20" cy="30" rx="13" ry="16" fill="#e8574a"/><ellipse cx="38" cy="20" rx="13" ry="16" fill="#f2c14e"/><ellipse cx="54" cy="34" rx="12" ry="15" fill="#2b8fc9"/></svg>';
+      wrap.appendChild(b); wrap.classList.add('lift');
+      return wait(500, run).then(function () { return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(pos.x + 30, pos.y - 40, ' rotate(-4deg)'), offset: .3 }, { transform: at(pos.x - 20, -hgt - 160, ' rotate(5deg)') }], { duration: 2600, easing: 'ease-in', fill: 'forwards' }); });
+    }
+    var out = pos.x > W / 2 ? W + 20 : -w - 20;
+    wrap.classList.add(veh ? 'drive' : 'walk'); if (out < pos.x) wrap.classList.add('left');
+    return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(out, pos.y) }], { duration: 1500, easing: 'ease-in', fill: 'forwards' });
+  }
+  function build(kind, K) {
+    var wrap = document.createElement('div'); wrap.className = 'pj pj-' + kind + (K.vehicle ? ' pj-veh' : '');
+    wrap.innerHTML = (K.vehicle ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
+    return wrap;
+  }
+  var lastAt = 0;
+  // a veces sí y a veces no, y nunca uno detrás de otro
+  function maybe(kind, o, p) { if (!kind || Math.random() > (p == null ? .6 : p) || Date.now() - lastAt < 6500) return; play(kind, o); }
   function play(kind, o) {
     o = o || {};
     var K = KINDS[kind]; if (!K || off() || reduced()) return;
-    stop();
+    if (K.group) return playGroup(K, o);
+    stop(); lastAt = Date.now();
     var run = { t: [], els: [], dead: false }; cur = run;
-    var L = lay(), W = window.innerWidth, gy = o.ground || ground(), veh = !!K.vehicle;
-    var wrap = document.createElement('div'); wrap.className = 'pj pj-' + kind + (veh ? ' pj-veh' : '');
-    wrap.innerHTML = (veh ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
-    L.appendChild(wrap); run.els.push(wrap);
-    var SZ = { car: [150, 90], tram: [180, 95], isle: [177, 118], savanna: [186, 118], plane: [170, 80] }, w = veh ? SZ[K.vehicle][0] : 96, hgt = veh ? SZ[K.vehicle][1] : 163;
-    var x0 = o.x != null ? o.x : Math.round(rnd(.18, .62) * (W - w)), pos = { x: x0, y: gy - hgt };
-    function at(x, y, extra) { return 'translate(' + x + 'px,' + y + 'px)' + (extra || ''); }
-    var F = K.fx ? fx(K.fx, L) : null; if (F) run.els.push(F);
-    var t0 = Promise.resolve();
-    // 1 · entrada: cae desde arriba (o llega rodando si es un vehículo)
-    if (veh) {
-      wrap.classList.add('drive');
-      pos.x = Math.round(W * .5 - w / 2);
-      t0 = anim(wrap, [{ transform: at(-w - 20, pos.y) }, { transform: at(pos.x, pos.y) }], { duration: 1300, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' }).then(function () { wrap.classList.remove('drive'); });
-    } else {
-      wrap.classList.add('fall');
-      t0 = anim(wrap, [{ transform: at(pos.x, -hgt - 40, ' rotate(-14deg)') }, { transform: at(pos.x, pos.y, ' rotate(0deg)'), offset: .78 }, { transform: at(pos.x, pos.y - 18) , offset: .9 }, { transform: at(pos.x, pos.y) }],
-        { duration: 1000, easing: 'cubic-bezier(.45,0,.6,1)', fill: 'forwards' }).then(function () {
-        wrap.classList.remove('fall'); wrap.classList.add('land');
-        return wait(260, run);
-      }).then(function () { wrap.classList.remove('land'); });
-    }
-    t0.then(function () {
+    var L = lay(), W = window.innerWidth, gy = o.ground || ground(), sz = sizeOf(K), w = sz[0], hgt = sz[1];
+    var wrap = build(kind, K); L.appendChild(wrap); run.els.push(wrap);
+    var pos = { x: o.x != null ? o.x : Math.round(rnd(.16, .6) * (W - w)), y: gy - hgt };
+    var F = K.fx ? fx(K.fx, L, K) : null; if (F) run.els.push(F);
+    enterAs(run, wrap, kind, K, pos, w, hgt, o).then(function () {
       if (run.dead) return;
-      // 2 · su gesto (frío, calor, foto…) con un bocadillo
       if (K.idle) wrap.classList.add('act-' + K.idle);
-      if (K.say) bubble(run, wrap, en() ? K.say[1] : K.say[0]);
-      return wait(K.vehicle === 'isle' || K.vehicle === 'savanna' ? 2400 : veh ? 900 : 1700, run);
+      bubble(run, wrap, K.say ? (en() ? K.say[1] : K.say[0]) : '');
+      return wait(K.vehicle ? (K.long ? 2400 : 1100) : 1700, run);
     }).then(function () {
       if (run.dead) return;
       if (K.idle) wrap.classList.remove('act-' + K.idle);
-      // 3 · se pone su prenda (bufanda, gafas, paraguas…)
       if (K.gear && K.gear !== 'map' && K.gear !== 'pack') { wrap.classList.add('gear'); return wait(900, run); }
-    }).then(function () {
+    }).then(function () { if (!run.dead) return leave(run, wrap, K, pos, w, hgt, o); })
+      .then(function () { return run.dead ? null : wait(300, run); }).then(function () { if (cur === run) stop(); });
+  }
+  // varios a la vez, cada uno por su lado (el safari: león, jirafa y jeep)
+  function playGroup(G, o) {
+    stop(); lastAt = Date.now();
+    var run = { t: [], els: [], dead: false }; cur = run;
+    var L = lay(), W = window.innerWidth, gy = o.ground || ground(), F = G.fx ? fx(G.fx, L, G) : null; if (F) run.els.push(F);
+    var n = G.group.length, ms = G.group.map(function (k, i) {
+      var K = KINDS[k], sz = sizeOf(K), wrap = build(k, K); L.appendChild(wrap); run.els.push(wrap);
+      var x = Math.round(Math.max(4, Math.min(W - sz[0] - 4, (W / n) * i + (W / n - sz[0]) / 2)));
+      return { k: k, K: K, wrap: wrap, w: sz[0], h: sz[1], pos: { x: x, y: gy - sz[1] } };
+    });
+    var all = ms.map(function (m, i) {
+      return wait(i * 650, run).then(function () { if (!run.dead) return enterAs(run, m.wrap, m.k, m.K, m.pos, m.w, m.h, { enter: m.K.vehicle === 'jeep' ? 'drive' : 'walk-' + (m.K.from || 'left') }); })
+        .then(function () {
+          if (run.dead) return;
+          if (m.K.idle) m.wrap.classList.add('act-' + m.K.idle);
+          return bubble(run, m.wrap, m.K.say ? (en() ? m.K.say[1] : m.K.say[0]) : '', 1400);
+        });
+    });
+    Promise.all(all).then(function () { return run.dead ? null : wait(900, run); }).then(function () {
       if (run.dead) return;
-      // 4 · va hasta la opción elegida, se abre la compuerta y se mete
-      var r = o.target ? targetRect(o.target) : null;
-      if (!r) {
-        var out = pos.x > W / 2 ? W + 20 : -w - 20;
-        wrap.classList.add(veh ? 'drive' : 'walk'); if (out < pos.x) wrap.classList.add('left');
-        return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(out, pos.y) }], { duration: 1400, easing: 'ease-in', fill: 'forwards' });
-      }
-      var tx = Math.round(r.left + r.width / 2 - w / 2), ty = Math.round(r.top + r.height * .62 - hgt), d = Math.hypot(tx - pos.x, ty - pos.y);
-      wrap.classList.add(veh ? 'drive' : 'walk'); if (tx < pos.x) wrap.classList.add('left');
-      var H = null;
-      return anim(wrap, [{ transform: at(pos.x, pos.y) }, { transform: at(tx, ty) }], { duration: Math.max(700, Math.min(1600, d * 4.5)), easing: 'ease-in-out', fill: 'forwards' }).then(function () {
-        if (run.dead) return;
-        // al llegar, la opción se levanta como una compuerta
-        wrap.classList.remove('walk', 'drive');
-        H = hatch(targetRect(o.target) || r, o.color || K.gearC || K.hatC || K.body || '#e2782f'); run.els.push(H);
-        return wait(260, run);
-      }).then(function () {
-        if (run.dead) return;
-        H.classList.add('open');
-        return wait(380, run);
-      }).then(function () {
-        if (run.dead) return;
-        // salta dentro del hueco
-        wrap.classList.add('dive');
-        return anim(wrap, [{ transform: at(tx, ty) + ' scale(1)' }, { transform: at(tx, ty - 46) + ' scale(.9)', offset: .4 }, { transform: at(tx, ty + hgt * .35) + ' scale(.25)', opacity: 0 }], { duration: 650, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'forwards' });
-      }).then(function () {
-        if (run.dead) return;
-        H.classList.remove('open'); H.classList.add('shut');
-        try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
-        return wait(520, run);
-      });
-    }).then(function () {
-      if (run.dead) return;
-      return wait(400, run);
-    }).then(function () { if (cur === run) stop(); });
+      // se van por separado; el último (el jeep) por la trampilla, si hay palabra
+      return Promise.all(ms.map(function (m, i) {
+        m.wrap.classList.remove('act-' + m.K.idle);
+        return wait(i * 300, run).then(function () { return run.dead ? null : leave(run, m.wrap, m.K, m.pos, m.w, m.h, i === n - 1 ? o : {}); });
+      }));
+    }).then(function () { return run.dead ? null : wait(300, run); }).then(function () { if (cur === run) stop(); });
   }
 
   // un personaje quieto que repite su gesto (para la bienvenida)
   function figure(kind) {
-    var K = KINDS[kind] || KINDS.maleta, e = document.createElement('div');
+    var K = KINDS[kind] || KINDS.maleta; if (K.group) K = KINDS[K.still || 'monte'];
+    var e = document.createElement('div');
     e.className = 'pj pj-still pj-' + kind + (K.vehicle ? ' pj-veh drive' : '') + (K.idle && !reduced() ? ' act-' + K.idle : '') + (K.gear ? ' gear' : '');
     e.innerHTML = (K.vehicle ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
     return e;
@@ -399,9 +601,10 @@ window.Pj = (function () {
      Es siempre la misma persona, vestida según el viaje (base); cambia a coche, autobús o avión en los trayectos
      y hace gestos en cada parada. show(tipo, estado): estado = 'walk', 'drive', 'idle' o 'act-…' */
   function cast(box, base) {
-    var A = { el: null, cur: '', look: { skin: pick(SKIN), hair: pick(HAIR) }, base: KINDS[base] && !KINDS[base].vehicle ? base : base === 'isla' ? 'playa' : base === 'safari' ? 'monte' : 'pie' };
+    var A = { el: null, cur: '', look: { skin: pick(SKIN), hair: pick(HAIR) }, base: KINDS[base] && !KINDS[base].vehicle && !KINDS[base].group ? base : base === 'isla' ? 'playa' : base === 'safari' ? 'monte' : 'pie' };
     function build(kind) {
-      var K = KINDS[kind], P = {}; for (var k in K) P[k] = K[k];
+      var K = KINDS[kind], P = {}; if (K.group) { kind = K.still; K = KINDS[kind]; }
+      for (var k in K) P[k] = K[k];
       if (!K.vehicle && kind === A.base) P.cam = 1;
       var e = document.createElement('div');
       e.className = 'pj pj-cast pj-in pj-' + kind + (K.vehicle ? ' pj-veh' : '') + (K.gear ? ' gear' : '');
@@ -435,6 +638,16 @@ window.Pj = (function () {
   var MILD = L('ES PT IT GR MT CY TR MA TN IL LB HR ME AL');
   var COLD = L('FI NO SE IS CH AT CA EE LV LT DK PL CZ SK RU GL DE NL BE GB IE FR LU HU RO BG SI RS BA MK UA BY US JP KR CN MN NP');
   var RAINY = L('GB IE NL BE'), HIKE = L('NP CH AT NZ PE SI CA NO');
+  var CULT = { IT: ['gondola', 'pizza'], FR: ['paris'], JP: ['japon'], MX: ['mexico'], ES: ['flamenco'], PT: ['tranvia'], GB: ['londres'], NL: ['bici'], DK: ['bici'],
+    EG: ['camello'], MA: ['camello'], JO: ['camello'], AE: ['camello'], TN: ['camello'], TH: ['tuktuk'], IN: ['tuktuk'], LK: ['tuktuk'], KH: ['tuktuk'], US: ['taxi'], TR: ['globos'],
+    AU: ['canguro'], PE: ['andes'], BO: ['andes'], EC: ['andes'], CH: ['esqui:w'], AT: ['esqui:w'], NO: ['aurora:w'], IS: ['aurora:w'], FI: ['aurora:w'], SE: ['aurora:w'] };
+  // lo típico del país; «:w» solo en invierno (esquí, auroras)
+  function culture(cc, iso) {
+    var m = iso ? +String(iso).slice(5, 7) : new Date().getMonth() + 1, win = m >= 11 || m <= 3;
+    var l = (CULT[cc] || []).filter(function (k) { return !/:w$/.test(k) || win; }).map(function (k) { return k.replace(/:w$/, ''); });
+    return l.length ? pick(l) : '';
+  }
+  function forPlace(ccs, iso) { var c = culture((ccs || [])[0], iso); return c && Math.random() < .65 ? c : theme(ccs, iso); }
   function theme(ccs, iso) {
     var m = iso ? +iso.slice(5, 7) : new Date().getMonth() + 1, cc = (ccs || [])[0] || '', has = function (l) { return l.indexOf(cc) >= 0; };
     if (has(ISLE)) return 'isla';
@@ -454,5 +667,5 @@ window.Pj = (function () {
     return 'ciudad';
   }
 
-  return { play: play, stop: stop, figure: figure, cast: cast, journey: journey, theme: theme, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
+  return { play: play, maybe: maybe, stop: stop, figure: figure, cast: cast, journey: journey, theme: theme, culture: culture, forPlace: forPlace, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
 })();

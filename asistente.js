@@ -14,7 +14,8 @@ window.Asistente = (function () {
 
   var A, page = 0, cfg = {}, debounce = 0, busy = false, done = null, repaintDays = null, lastPj = '', JR = null;
   // personajes animados (personajes.js): aparecen al elegir y se meten en la opción elegida
-  function pj(kind, target) { if (!window.Pj || !kind) return; lastPj = kind; setTimeout(function () { Pj.play(kind, { target: target }); }, 300); }
+  // no siempre: a veces sí y a veces no (Pj.maybe), y nunca dos seguidos
+  function pj(kind, target, p) { if (!window.Pj || !kind) return; lastPj = kind; setTimeout(function () { Pj.maybe(kind, { target: target }, p == null ? .8 : p); }, 300); }
   function ccs() { return A.countries.map(function (k) { return k.cc; }); }
   function fresh() {
     var t = new Date(); t.setDate(t.getDate() + 30);
@@ -47,7 +48,7 @@ window.Asistente = (function () {
       if (pre.start) A.start = pre.start;
       if (pre.days) A.presetDays = pre.days;
       // desde una idea: su personaje (islas, comida…) entra en la tarjeta del país
-      if (pre.pj) setTimeout(function () { pj(pre.pj, function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; }); }, 500);
+      if (pre.pj) setTimeout(function () { pj(pre.pj, function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; }, 1); }, 500);
     }
     var w = $('#wz'); w.hidden = false; document.documentElement.classList.add('wz-open');
     requestAnimationFrame(function () { w.classList.add('on'); });
@@ -78,6 +79,9 @@ window.Asistente = (function () {
     body.appendChild(el); body.scrollTop = 0;
     P.draw($('.wz-c', el));
     foot();
+    // al entrar en algunas páginas, de vez en cuando, alguien pasa por allí
+    var walk = { ciudades: 'pie', aloja: 'siesta', billetes: 'avion', horario: 'madruga', gustos: 'ciudad' }[P.id];
+    if (walk && window.Pj) setTimeout(function () { if (PAGES[page] === P) Pj.maybe(walk, {}, .45); }, 900);
   }
   function foot() {
     var P = PAGES[page], b = $('#wzBack'), n = $('#wzNext');
@@ -150,7 +154,7 @@ window.Asistente = (function () {
         if (!A.countries.some(function (k) { return k.cc === h.cc; })) {
           var k = { name: h.name, cc: h.cc, wd: h.wd, lat: h.lat, lon: h.lon, bb: h.bb };
           A.countries.push(k);
-          pj(window.Pj && Pj.theme(ccs(), A.start), function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; });
+          pj(window.Pj && Pj.forPlace(ccs(), A.start), function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; }, .9);
           Motor.placeInfo(h.name).then(function (i) { if (i) { k.text = i.text; if (PAGES[page].id === 'pais') paint(); } });
           Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; if (PAGES[page].id === 'pais') paint(); });
         }
