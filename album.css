@@ -582,7 +582,7 @@ html[data-theme="dark"] .mw-map .mw-pin path{fill:#f4f4f2}
 .pcv-card.snap{transition:transform .85s cubic-bezier(.2,1.45,.4,1)}
 .pcv-card.in{animation:pcvIn 1s cubic-bezier(.2,1.2,.35,1) both}
 @keyframes pcvIn{from{transform:translateY(60px) rotateY(-200deg) rotateX(18deg) scale(.6)}}
-.pcv-face{position:absolute;inset:0;overflow:hidden;border-radius:10px;-webkit-backface-visibility:hidden;backface-visibility:hidden;background:#f6efe0;box-shadow:0 30px 60px -20px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.08)}
+.pcv-face{position:absolute;inset:0;overflow:hidden;border-radius:1px;-webkit-backface-visibility:hidden;backface-visibility:hidden;background:#f6efe0;box-shadow:0 30px 60px -20px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.08)}
 .pcv-face svg{display:block;width:100%;height:100%}
 .pcv-bk{transform:rotateY(180deg)}
 /* brillo que cruza la postal al girarla; delante, papel fotográfico; detrás, cartulina */

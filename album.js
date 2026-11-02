@@ -316,6 +316,7 @@ window.Album = (function () {
     try { return c.toDataURL('image/jpeg', 0.9); } catch (e) { return ''; }
   }
   // las postales hechas se guardan (IndexedDB guia-postales; el índice, en localStorage guia-postales)
+  var PCV = 2;   // versión del diseño: las postales de un diseño anterior se rehacen solas al abrirlas
   function postIdx(o) { try { if (o) localStorage.setItem('guia-postales', JSON.stringify(o)); return JSON.parse(localStorage.getItem('guia-postales') || '{}') || {}; } catch (e) { return o || {}; } }
   function postDb(mode, fn) {
     return new Promise(function (res, rej) {
@@ -329,14 +330,16 @@ window.Album = (function () {
   function makePostcard(id, btn, redo) {
     var t = (TRIPS || []).filter(function (x) { return x.id === id; })[0]; if (!t || (btn && btn.classList.contains('busy'))) return;
     // ya hecha: se abre la guardada
-    if (!redo && postIdx()[id]) { postDb('readonly', function (s) { return s.get(id); }).then(function (p) { if (p) postcard3d(p.front, p.back, id); else makePostcard(id, btn, true); }, function () { makePostcard(id, btn, true); }); return; }
+    if (!redo && postIdx()[id]) { postDb('readonly', function (s) { return s.get(id); }).then(function (p) { if (p && p.v === PCV) postcard3d(p.front, p.back, id); else makePostcard(id, btn, true); }, function () { makePostcard(id, btn, true); }); return; }
     var cs = cromosOf(t, albumGet()), got = cs.filter(function (c) { return c.got; }), en = lg() === 'en';
-    var pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; }).slice(0, 6);
+    // sin fotos repetidas: dos sitios con la misma foto cuentan como uno
+    var seenU = {}, pick = got.filter(function (c) { return c.img || c.ph; }).sort(function (a, b) { return ((b.rate || {}).r || 0) - ((a.rate || {}).r || 0) || (b.must ? 1 : 0) - (a.must ? 1 : 0) || b.links - a.links; })
+      .filter(function (c) { var u = phUrl(c); if (!u || seenU[u]) return false; seenU[u] = 1; return true; }).slice(0, 6);
     // mientras se hace: la tarjeta cambia solo el texto de su botón
     var go = btn && btn.querySelector('.pc-go');
     function busy(on) { if (!btn) { if (on && window.Juego) Juego.toast('Creando postal…'); return; } btn.classList.toggle('busy', on); if (go) go.textContent = tr(on ? 'Creando…' : 'Crear'); }
     busy(true);
-    Promise.all(pick.map(function (c) { return loadImg(phUrl(c)); })).then(function (imgs) {
+    Promise.all(pick.map(function (c) { return loadBig(phUrl(c)); })).then(function (imgs) {
       var ph = pick.map(function (c, i) { return { c: c, im: imgs[i] }; }).filter(function (x) { return x.im; });
       var m = t.b.meta || {}, bt = t.b.trip, nd = bt.days.length, st = bt.defaultStart;
       var dest = (m.dest || {})[lg()] || (m.dest || {}).es || tripTitle(t), cc = window.Mundo && Mundo.cached ? (Mundo.cached(t) || [])[0] : '', country = cc && Mundo.name ? Mundo.name(cc) : dest;
@@ -347,6 +350,8 @@ window.Album = (function () {
       var best = ph[0] ? (ph[0].c.rate || {}).tier || 'base' : 'base', gold = got.filter(function (c) { return c.rate && c.rate.r >= 80; }).length, M = PC_M[best];
       var W = 1920, H = 1080, ink = '#23324f', hand = "'Bradley Hand','Segoe Script','Snell Roundhand','Noteworthy','Comic Sans MS',cursive", serif = "'New York','Iowan Old Style',Georgia,serif", sans = "-apple-system,'Segoe UI',Roboto,Helvetica,sans-serif";
       var mc = document.createElement('canvas').getContext('2d');
+      // textura de cartulina: puntitos irregulares, como el papel de una postal
+      var DOTS = '<pattern id="pcDots" width="23" height="19" patternUnits="userSpaceOnUse"><circle cx="3" cy="4" r="1.3" fill="#5b4a2e" opacity=".10"/><circle cx="14" cy="9" r="1" fill="#5b4a2e" opacity=".08"/><circle cx="8" cy="15" r="1.5" fill="#fff" opacity=".18"/><circle cx="19" cy="2" r=".8" fill="#5b4a2e" opacity=".12"/><circle cx="20" cy="15" r="1.1" fill="#5b4a2e" opacity=".07"/></pattern>';
       function lines(txt, font, max) { mc.font = font; var out = [''], words = String(txt).split(' '); words.forEach(function (w) { var k = out.length - 1, tt = out[k] ? out[k] + ' ' + w : w; if (mc.measureText(tt).width > max && out[k]) out.push(w); else out[k] = tt; }); return out; }
       function fitTxt(s, font, max) { mc.font = font; s = String(s); if (mc.measureText(s).width <= max) return s; while (s.length > 3 && mc.measureText(s + '…').width > max) s = s.slice(0, -1); return s.trim() + '…'; }
       function svg(defs, body) { return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid slice"><defs>' + defs + '</defs>' + body + '</svg>'; }
@@ -356,16 +361,17 @@ window.Album = (function () {
           (u ? '<image href="' + u + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid slice"/>' : '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#cfc6b4"/>') +
           (cap ? '<text x="' + (x + w / 2) + '" y="' + (y + h + 43) + '" text-anchor="middle" font-family="' + hand + '" font-size="27" fill="' + ink + '">' + xml(fitTxt(cap, '27px ' + hand, w)) + '</text>' : '') + '</g>';
       }
-      // ----- delante: la foto principal entera, con el nombre del sitio -----
-      var tsz = dest.length > 14 ? 120 : 168, front = '';
-      if (ph[0]) front += '<image href="' + jpeg(ph[0].im, W, H) + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="xMidYMid slice"/>';
-      else front += '<rect width="' + W + '" height="' + H + '" fill="#2f3a5c"/>';
-      front += '<rect width="' + W + '" height="' + H + '" fill="url(#pcFade)"/>' +
-        '<text x="96" y="' + (H - 120 - tsz * 0.95) + '" font-family="' + sans + '" font-size="38" font-weight="800" letter-spacing="9" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width="4" paint-order="stroke">' + xml(tr('RECUERDOS DE')) + '</text>' +
-        '<text x="88" y="' + (H - 120) + '" font-family="' + serif + '" font-style="italic" font-weight="700" font-size="' + tsz + '" fill="#fff" stroke="rgba(0,0,0,.22)" stroke-width="6" paint-order="stroke">' + xml(fitTxt(dest, 'italic 700 ' + tsz + 'px ' + serif, 1500)) + '</text>' +
-        '<text x="' + (W - 90) + '" y="' + (H - 66) + '" text-anchor="end" font-family="' + sans + '" font-size="30" font-weight="700" letter-spacing="3" fill="rgba(255,255,255,.88)">' + xml(dd ? dd.toUpperCase() + ' ' + year : '') + '</text>' +
-        (ph[0] ? '<text x="' + (W - 90) + '" y="' + (H - 112) + '" text-anchor="end" font-family="' + hand + '" font-size="34" fill="rgba(255,255,255,.92)">' + xml(fitTxt(ph[0].c.ti, '34px ' + hand, 700)) + '</text>' : '');
-      front = svg('<linearGradient id="pcFade" x1="0" y1="0" x2="0" y2="1"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></linearGradient>', front);
+      // ----- delante: la foto con margen blanco, como una postal impresa, y debajo el destino, el sitio y las fechas -----
+      var front = '<rect width="' + W + '" height="' + H + '" fill="#f7f2e8"/>', px = 56, py = 56, pw = W - 112, phh = 806, tsz = dest.length > 16 ? 70 : 92;
+      if (ph[0]) front += '<image href="' + jpeg(ph[0].im, pw, phh) + '" x="' + px + '" y="' + py + '" width="' + pw + '" height="' + phh + '" preserveAspectRatio="xMidYMid slice"/>';
+      else front += '<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + phh + '" fill="#2f3a5c"/>';
+      front += '<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + phh + '" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"/>' +
+        '<text x="' + px + '" y="' + (py + phh + 62) + '" font-family="' + sans + '" font-size="26" font-weight="800" letter-spacing="8" fill="#c8382e">' + xml(tr('RECUERDOS DE')) + '</text>' +
+        '<text x="' + (px - 4) + '" y="' + (py + phh + 62 + tsz * 0.95) + '" font-family="' + serif + '" font-style="italic" font-weight="700" font-size="' + tsz + '" fill="' + ink + '">' + xml(fitTxt(dest, 'italic 700 ' + tsz + 'px ' + serif, 1000)) + '</text>' +
+        (ph[0] ? '<text x="' + (px + pw) + '" y="' + (py + phh + 74) + '" text-anchor="end" font-family="' + hand + '" font-size="40" fill="' + ink + '">' + xml(fitTxt(ph[0].c.ti, '40px ' + hand, 760)) + '</text>' : '') +
+        '<text x="' + (px + pw) + '" y="' + (py + phh + 132) + '" text-anchor="end" font-family="' + sans + '" font-size="24" font-weight="700" letter-spacing="4" fill="#8a7f6a">' + xml(dd ? dd.toUpperCase() + ' ' + year : '') + '</text>' +
+        '<rect width="' + W + '" height="' + H + '" fill="url(#pcDots)"/>';
+      front = svg(DOTS, front);
       // ----- detrás: papel, borde de correo aéreo, fotos, sello, matasellos, mensaje, datos y ruta -----
       var g = '<rect width="' + W + '" height="' + H + '" fill="url(#pcAir)"/><rect x="26" y="26" width="' + (W - 52) + '" height="' + (H - 52) + '" fill="#f6efe0"/>' +
         '<line x1="1080" y1="110" x2="1080" y2="' + (H - 110) + '" stroke="#b9ac94" stroke-width="2"/>';
@@ -398,14 +404,15 @@ window.Album = (function () {
           '<circle cx="' + P[0][0].toFixed(1) + '" cy="' + P[0][1].toFixed(1) + '" r="8" fill="' + ink + '"/><circle cx="' + P[P.length - 1][0].toFixed(1) + '" cy="' + P[P.length - 1][1].toFixed(1) + '" r="8" fill="none" stroke="' + ink + '" stroke-width="3.5"/>';
       }
       g += '<text x="1130" y="' + (H - 66) + '" font-family="' + sans + '" font-size="18" font-weight="700" letter-spacing="3" fill="#a0937b">' + xml(tr('GUÍA DE VIAJE')) + '</text>';
+      g += '<rect width="' + W + '" height="' + H + '" fill="url(#pcDots)"/>';
       var holes = ''; for (var hx = sx; hx <= sx + sw + 1; hx += 23) holes += '<circle cx="' + hx + '" cy="' + sy + '" r="8"/><circle cx="' + hx + '" cy="' + (sy + sh) + '" r="8"/>';
       for (var hy = sy; hy <= sy + sh + 1; hy += 23.3) holes += '<circle cx="' + sx + '" cy="' + hy + '" r="8"/><circle cx="' + (sx + sw) + '" cy="' + hy + '" r="8"/>';
-      var back = svg('<pattern id="pcAir" width="90" height="90" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="90" height="90" fill="#f6efe0"/><rect width="22" height="90" fill="#c8382e"/><rect x="45" width="22" height="90" fill="#22396b"/></pattern>' +
+      var back = svg(DOTS + '<pattern id="pcAir" width="90" height="90" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="90" height="90" fill="#f6efe0"/><rect width="22" height="90" fill="#c8382e"/><rect x="45" width="22" height="90" fill="#22396b"/></pattern>' +
         '<filter id="pcSh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#3b2f1c" flood-opacity=".28"/></filter>' +
         '<mask id="pcPerf"><rect x="' + (sx - 10) + '" y="' + (sy - 10) + '" width="' + (sw + 20) + '" height="' + (sh + 20) + '" fill="#fff"/><g fill="#000">' + holes + '</g></mask>', g);
       busy(false);
       var ix = postIdx(); ix[id] = Date.now(); postIdx(ix);
-      postDb('readwrite', function (s) { return s.put({ id: id, at: Date.now(), front: front, back: back }); }).catch(function () {});
+      postDb('readwrite', function (s) { return s.put({ id: id, v: PCV, at: Date.now(), front: front, back: back }); }).catch(function () {});
       postcard3d(front, back, id);
       renderAlbum();
     }, function () { busy(false); });
@@ -503,6 +510,12 @@ window.Album = (function () {
     document.body.appendChild(v);
     card.addEventListener('animationend', function () { card.classList.remove('in'); });
     size(); turn(0, 0, true);
+  }
+  // para la postal, la foto lo más grande posible: las miniaturas de Wikimedia se piden a 1280 o 960 (si el original es menor, falla y se usa la que había)
+  function loadBig(src) {
+    var m = /^(.*\/thumb\/.+\/)(\d+)px-(.*)$/.exec(src || '');
+    if (!m || +m[2] >= 1280) return loadImg(src);
+    return loadImg(m[1] + '1280px-' + m[3]).then(function (im) { return im || loadImg(m[1] + '960px-' + m[3]); }).then(function (im) { return im || loadImg(src); });
   }
   function loadImg(src) {
     return new Promise(function (res) {
