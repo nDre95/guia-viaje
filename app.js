@@ -1641,11 +1641,11 @@ var View = (function () {
   function isCromo(it) { return !!it && ['visit', 'walk', 'view', 'tour', 'night'].indexOf(it.t) >= 0 && !it.hidden && !it.hole && !/aeropuerto|airport/i.test(it.ti); }
   function cromoKey(id) { return ((window.TRIP_META || {}).id || 'guia') + '|' + id; }
   function cromoBtn(it) {
-    var got = ALB[cromoKey(it.id)], past = window.Juego && Juego.isPast(T.defaultStart, T.days.length);
+    var got = ALB[cromoKey(it.id)];
     if (!window.Juego) return '<span class="cromo-x" data-cromox="' + it.id + '"></span>';
-    // se canjea allí mismo: la foto y, si el viaje aún no ha pasado, comprobando que estás en el sitio
+    // se canjea allí mismo: primero se comprueba que estás en el sitio y luego la foto (Juego.redeem)
     return '<span class="cromo-x" data-cromox="' + it.id + '">' + (got ? '<span class="btn sq cromo-b got">' + ic('check') + L('cromoGot') + '</span><label class="btn ghost sq cromo-ph">' + ic('camera') + L('cromoMine') + '<input type="file" accept="image/*" data-myph="' + it.id + '" hidden></label>'
-      : '<label class="btn sq cromo-b cromo-ph">' + ic('camera') + L('cromoAdd') + '<input type="file" accept="image/*"' + (past ? '' : ' capture="environment"') + ' data-redeem="' + it.id + '" hidden></label>') + '</span>';
+      : '<button type="button" class="btn sq cromo-b" data-redeem="' + it.id + '">' + ic('camera') + L('cromoAdd') + '</button>') + '</span>';
   }
   var BC = [['ticket', 'ticket', 'bTickets'], ['food', 'food', 'bFood'], ['fuel', 'fuel', 'bFuel'], ['parking', 'car', 'bParking'], ['shop', 'shop', 'bShop'], ['hotel', 'bed', 'bHotel'], ['other', 'card', 'bOther']];
   function setBudget(list, payers) { BUD.list = list || []; if (payers) BUD.payers = payers; }
@@ -3212,6 +3212,15 @@ var View = (function () {
     var abt = t.closest('[data-albtab]');
     if (abt) { albumTab(abt.getAttribute('data-albtab')); haptic(); return; }
     if (t.closest('.cromo-ph')) return;
+    var rdb = t.closest('[data-redeem]');
+    if (rdb) {
+      var rid = rdb.getAttribute('data-redeem'), f0 = cromoItem(rid);
+      if (f0 && window.Juego) Juego.redeem(f0.it, f0.it.ti, Juego.isPast((window.TRIP || T).defaultStart, (window.TRIP || T).days.length), function (file, gps, unv) {
+        function ok() { toggleCromo(rid, true, gps, unv); }
+        Juego.savePhoto(V.cromoKey(rid), file).then(ok, ok);
+      });
+      return;
+    }
     if (t.closest('[data-quiz]')) {
       if (window.Mundo) Mundo.openQuiz([{ id: META.id || 'guia', status: 'now', ref: { id: META.id, b: { meta: META, trip: window.TRIP || T, trip_en: window.TRIP_EN || {}, photos: window.TRIP_PHOTOS || {} } } }]);
       return;
@@ -3677,11 +3686,11 @@ var View = (function () {
   function cromoItem(id) { var f = null; plans.forEach(function (p, di) { p.ev.forEach(function (e) { if (e.it.id === id) f = { it: e.it, di: di }; }); }); return f; }
   // como el álbum: todos los sitios del viaje, también los que hoy no van en el plan
   function cromoCount() { var n = 0, all = 0; (window.TRIP || T).days.forEach(function (d) { d.items.forEach(function (it) { if (V.isCromo(it)) { all++; if (album[V.cromoKey(it.id)]) n++; } }); }); return [n, all]; }
-  function toggleCromo(id, force, gps) {
+  function toggleCromo(id, force, gps, unv) {
     var f = cromoItem(id); if (!f) return;
     album = albumGet(); var k = V.cromoKey(id), had = !!album[k];
     if (had && force) return;
-    if (had) delete album[k]; else { album[k] = { at: phoneISO(), ti: f.it.ti, ph: f.it.ph || '', day: f.di + 1 }; if (gps) album[k].gps = 1; }
+    if (had) delete album[k]; else { album[k] = { at: phoneISO(), ti: f.it.ti, ph: f.it.ph || '', day: f.di + 1 }; if (gps) album[k].gps = 1; if (unv) album[k].unv = 1; }
     try { localStorage.setItem('guia-album', JSON.stringify(album)); } catch (_) {}
     V.setAlbum(album);
     $$('[data-cromox="' + id + '"]').forEach(function (b) { b.outerHTML = V.cromoBtn(f.it); });
@@ -3692,17 +3701,6 @@ var View = (function () {
     if (!had) { var c = cromoCount(); notify({ ico: 'camera', tone: 'o', title: L('cromoDone', f.it.ti), body: L('cromoDoneB', c[0], c[1]), ms: 3200, onTap: openAlbum }); }
     hubRefresh(); haptic();
   }
-  // canjear un cromo: tu foto, estando en el sitio
-  document.addEventListener('change', function (e) {
-    var rid = e.target.getAttribute && e.target.getAttribute('data-redeem'); if (!rid || !e.target.files[0] || !window.Juego) return;
-    var file = e.target.files[0], f0 = cromoItem(rid); e.target.value = ''; if (!f0) return;
-    function done(gps) { Juego.savePhoto(V.cromoKey(rid), file).then(function () { toggleCromo(rid, true, gps); }, function () { toggleCromo(rid, true, gps); }); }
-    if (Juego.isPast((window.TRIP || T).defaultStart, (window.TRIP || T).days.length) || f0.it.lat == null) { done(false); return; }
-    Juego.locate(f0.it.lat, f0.it.lon).then(function (km0) {
-      if (km0 <= 0.5) done(true);
-      else notify({ ico: 'pin', tone: 'o', ms: 5000, title: L('gpsFar', km0 < 10 ? km0.toFixed(1) : Math.round(km0), f0.it.ti), body: L('gpsFarB') });
-    }, function () { notify({ ico: 'pin', tone: 'o', ms: 5000, title: L('gpsNo'), body: L('gpsNoB') }); });
-  });
   // tu foto en el cromo
   document.addEventListener('change', function (e) {
     var id = e.target.getAttribute && e.target.getAttribute('data-myph'); if (!id || !e.target.files[0] || !window.Juego) return;

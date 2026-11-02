@@ -199,7 +199,7 @@ window.Album = (function () {
         '<div class="holo' + cls + '">' +
           '<div class="hf"><div class="hp' + phCls(c) + '"' + phStyle(c) + '></div><div class="foil"></div><div class="glit"></div>' +
             '<span class="fc-frame"></span><span class="fc-glit"></span>' +
-            (c.got ? '<span class="fc-seen">' + (c.got.gps ? '✓ GPS · ' : '✓ ') + esc(shortDate(c.got.at)) + '</span>' : have ? '' : '<span class="lock">Se canjea en el sitio</span>') +
+            (c.got ? '<span class="fc-seen' + (c.got.unv ? ' unv' : '') + '">' + (c.got.gps ? '✓ GPS · ' : c.got.unv ? 'Sin verificar · ' : '✓ ') + esc(shortDate(c.got.at)) + '</span>' : have ? '' : '<span class="lock">Se canjea en el sitio</span>') +
             '<div class="cap"><b>' + esc(c.ti) + '</b></div><div class="fc-kind"><u>' + esc(R.type || '') + '</u> · <u>' + esc(window.Juego ? Juego.TIER[R.tier] : '') + '</u></div><div class="glare"></div></div>' +
           '<div class="hb"><span class="seal">' + (c.got ? 'Visto<br>' + esc(shortDate(c.got.at)) : 'Por<br>pegar') + '</span><b>' + esc(tripTitle(f.t)) + '</b><small>Cromo #' + c.n + ' de ' + f.total + ' · Día ' + c.day + '</small></div>' +
         '</div></div>' +

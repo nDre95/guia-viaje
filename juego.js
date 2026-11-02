@@ -88,11 +88,65 @@ window.Juego = (function () {
     var r = Math.PI / 180, x = (lon - a.longitude) * r * Math.cos((a.latitude + lat) / 2 * r), y = (lat - a.latitude) * r;
     return Math.sqrt(x * x + y * y) * 6371;
   }
+  // da más margen a lo que ocupa mucho: un lago o una ruta no están en un punto
+  function radiusOf(it) {
+    var t = String(it.ti || '');
+    if (it.k === 'nature' || /loch|lago|lake|glen|valle|valley|parque nacional|national park|highland|sierra/i.test(t)) return 5;
+    if (it.t === 'view') return 2;
+    if (it.k === 'garden' || it.k === 'quarter' || it.k === 'family' || it.t === 'walk' || /parque|park|jard[ií]n|garden|barrio|quarter|ruta|paseo|walk/i.test(t)) return 1.5;
+    if (it.k === 'palace' || it.k === 'ruins' || /castillo|castle|palacio|palace|ruinas|ruins/i.test(t)) return 1;
+    return 0.5;
+  }
+  // primero con precisión; si se agota el tiempo, sin ella (bajo techo tarda mucho)
   function locate(lat, lon) {
-    return new Promise(function (res, rej) {
-      if (!navigator.geolocation) return rej(new Error('nogeo'));
-      navigator.geolocation.getCurrentPosition(function (p) { res(kmTo(p.coords, lat, lon)); }, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    function ask(high, ms) {
+      return new Promise(function (res, rej) {
+        navigator.geolocation.getCurrentPosition(function (p) { res({ km: kmTo(p.coords, lat, lon), acc: p.coords.accuracy || 0 }); }, rej, { enableHighAccuracy: high, timeout: ms, maximumAge: 60000 });
+      });
+    }
+    if (!navigator.geolocation) return Promise.reject({ code: 2 });
+    return ask(true, 15000).catch(function (e) { if (e && e.code === 1) throw e; return ask(false, 15000); });
+  }
+  /* ---------- Canjear un cromo: primero se comprueba dónde estás, luego la foto ---------- */
+  var FAR_MAX = 20;   // hasta aquí puede ser un fallo del GPS o del punto guardado; más lejos, no estás allí
+  function redeem(it, title, past, done) {
+    var old = document.getElementById('qzBox'); if (old) old.remove();
+    var box = watch(document.createElement('div')); box.id = 'qzBox'; box.className = 'qz';
+    function page(txt, body) {
+      box.innerHTML = '<div class="qz-in rd"><div class="qz-top"><span>Canjear cromo</span><button type="button" class="qz-x sq" data-rd="close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div><h3>' + esc(title) + '</h3><p class="qz-tx">' + esc(txt) + '</p>' + (body || '') + '</div>';
+    }
+    // estado: gps = comprobado; unv = sin verificar. El botón es un toque nuevo, así Safari deja abrir la cámara
+    var gps = false, unv = false;
+    function photo(txt) {
+      page(txt, '<label class="btn navy sq rd-go">Hacer la foto<input type="file" accept="image/*"' + (past ? '' : ' capture="environment"') + ' data-rdfile hidden></label>');
+    }
+    function check() {
+      page('Buscando tu ubicación…', '<span class="rd-load"></span>');
+      locate(it.lat, it.lon).then(function (r) {
+        // el margen de error del GPS también cuenta, hasta 300 m
+        if (r.km <= radiusOf(it) + Math.min(r.acc, 300) / 1000) { gps = true; photo('Estás aquí. Ahora hazte la foto para canjearlo.'); return; }
+        var d = r.km < 10 ? r.km.toFixed(1).replace('.', window.Lang && Lang.get() === 'en' ? '.' : ',') : String(Math.round(r.km));
+        page('Estás a ' + d + ' km de este sitio.', '<button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button>' + (r.km <= FAR_MAX ? '<button type="button" class="rd-alt sq" data-rd="unv">Estoy aquí: canjear sin verificar</button>' : ''));
+      }, function (e) {
+        if (e && e.code === 1) page('La app no tiene permiso para ver tu ubicación.', '<ol class="rd-steps"><li>Abre <b>Ajustes</b> en el iPhone.</li><li>Entra en <b>Privacidad y seguridad</b> y luego en <b>Localización</b>.</li><li>Activa la localización y busca <b>Safari</b> en la lista: elige «Al usar la app».</li><li>Vuelve aquí y comprueba de nuevo.</li></ol><button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button><button type="button" class="rd-alt sq" data-rd="unv">Canjear sin verificar</button>');
+        else page('El GPS no consigue situarte. Prueba al aire libre.', '<button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button><button type="button" class="rd-alt sq" data-rd="unv">Canjear sin verificar</button>');
+      });
+    }
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-rd]');
+      if (e.target === box || (b && b.getAttribute('data-rd') === 'close')) { box.remove(); return; }
+      if (!b) return;
+      if (b.getAttribute('data-rd') === 'retry') check();
+      else { unv = true; photo('Se marcará como «sin verificar». Hazte la foto para canjearlo.'); }
     });
+    box.addEventListener('change', function (e) {
+      if (!e.target.matches('[data-rdfile]') || !e.target.files[0]) return;
+      var file = e.target.files[0]; box.remove();
+      done(file, gps, unv);
+    });
+    document.body.appendChild(box);
+    if (past || it.lat == null) photo(past ? 'Este viaje ya pasó: basta con una foto tuya del sitio.' : 'Hazte la foto para canjearlo.');
+    else check();
   }
 
   /* ---------- Tus fotos en los cromos ---------- */
@@ -204,5 +258,5 @@ window.Juego = (function () {
     return { name: window.Lang && Lang.get() === 'en' ? pick[1] : pick[0], cc: pick[2] };
   }
 
-  return { get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, dups: dups, exchange: exchange, suggest: suggest, watch: watch, today: today, isPast: isPast };
+  return { get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, dups: dups, exchange: exchange, suggest: suggest, watch: watch, today: today, isPast: isPast };
 })();

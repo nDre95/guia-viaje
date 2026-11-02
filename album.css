@@ -177,6 +177,14 @@ html[data-theme="dark"] .qz-o.no{color:#ff9fae}
 .qz-end h3{margin:6px 0 2px}
 .qz-xp{display:inline-block;margin:0 0 12px;padding:4px 12px;border-radius:999px;font-size:13.5px;font-weight:800;color:var(--orange-t);background:rgba(226,120,47,.14)}
 .qz-end .btn-row{justify-content:center}
+/* Canjear un cromo */
+.rd .btn.rd-go{display:flex;width:100%;justify-content:center;padding:12px;cursor:pointer}
+.rd-alt{display:block;width:100%;margin-top:8px;padding:9px;border:0;background:none;color:var(--txt3);font:700 13px -apple-system,system-ui,sans-serif;text-decoration:underline;cursor:pointer}
+.rd-load{display:block;width:30px;height:30px;margin:6px auto 8px;border-radius:50%;border:3px solid var(--fill2);border-top-color:var(--orange);animation:rdSpin .9s linear infinite}
+@keyframes rdSpin{to{transform:rotate(360deg)}}
+.rd-steps{margin:0 0 12px;padding-left:20px;font-size:14px;line-height:1.4;color:var(--txt2)}
+.rd-steps li{margin-bottom:4px}
+.fc-seen.unv{background:rgba(70,74,84,.92)}
 /* Mi pasaporte: un sello por país */
 .pf-h small{font:700 13px -apple-system,system-ui,sans-serif;color:var(--txt3);margin-left:4px}
 .mw-stamps{display:flex;gap:10px;overflow-x:auto;margin:0 -16px 6px;padding:6px 16px 10px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
