@@ -56,12 +56,17 @@ window.Asistente = (function () {
   }
   function show(dir) {
     repaintDays = null;
-    var P = PAGES[page], body = $('#wzBody'), old = $('.wz-page', body);
+    var P = PAGES[page], body = $('#wzBody');
     $('#wzBar i').style.width = ((page + 1) / PAGES.length * 100) + '%';
     $('#wzStep').textContent = P.eyebrow + ' · ' + (page + 1) + ' de ' + PAGES.length;
     var el = document.createElement('section'); el.className = 'wz-page ' + (dir > 0 ? 'from-r' : 'from-l');
     el.innerHTML = '<h2>' + esc(P.title) + '</h2>' + (P.sub ? '<p class="wz-sub">' + esc(P.sub) + '</p>' : '') + '<div class="wz-c"></div>';
-    if (old) { old.classList.add(dir > 0 ? 'to-l' : 'to-r'); setTimeout(function () { old.remove(); }, 430); }
+    // salen todas las que se ven, no solo la primera: con dos toques seguidos, la que ya se iba no tapa a la actual
+    // y la actual no se queda pegada debajo de la nueva
+    Array.prototype.forEach.call(body.querySelectorAll('.wz-page'), function (old) {
+      if (old.classList.contains('to-l') || old.classList.contains('to-r')) { old.remove(); return; }
+      old.classList.add(dir > 0 ? 'to-l' : 'to-r'); setTimeout(function () { old.remove(); }, 430);
+    });
     body.appendChild(el); body.scrollTop = 0;
     P.draw($('.wz-c', el));
     foot();
