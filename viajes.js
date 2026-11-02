@@ -78,8 +78,9 @@
       Mundo.detect(list).then(function (ch) { if (ch) paint(); }).catch(function () {});
     });
   }
-  function openTrip(id) {
-    try { localStorage.setItem('guia-trip', id); } catch (e) {}
+  // grp: la guía se abre en ese grupo de Preparativos («ida» = la maleta, «wx» = el tiempo)
+  function openTrip(id, grp) {
+    try { localStorage.setItem('guia-trip', id); if (grp) localStorage.setItem('guia-goto', grp); } catch (e) {}
     function go() { location.href = 'guia.html'; }
     if (!enWork[id]) go();
     else Promise.race([enWork[id], new Promise(function (r) { setTimeout(r, 12000); })]).then(go, go);
@@ -129,7 +130,7 @@
   }
   document.addEventListener('click', function (e) {
     var t = e.target, o = t.closest('[data-open]'), x = t.closest('[data-exp]'), d = t.closest('[data-del]');
-    if (o) openTrip(o.getAttribute('data-open'));
+    if (o) openTrip(o.getAttribute('data-open'), o.getAttribute('data-grp'));
     else if (x) exportTrip(x.getAttribute('data-exp'));
     else if (d && confirm('¿Borrar este viaje del móvil? Lo apuntado en él también se pierde.')) DB.del(d.getAttribute('data-del')).then(function () { Album.reset(); refreshAll(); });
   });
@@ -229,6 +230,9 @@
     return Album.renderProfile().then(function () {
       var th = 'auto'; try { th = localStorage.getItem('guia-theme') || 'auto'; } catch (e) {}
       $$('#themeOpts .opt').forEach(function (o) { o.classList.toggle('on', o.getAttribute('data-th') === th); });
+      var ho = $('#homeOpts'); if (ho) ho.innerHTML = styleChips();
+      var bk = $('#bkNote'), at = window.Juego ? Juego.get().backup : 0;
+      if (bk) bk.textContent = at ? tx('Última copia: ', 'Last backup: ') + sd(new Date(at).toISOString().slice(0, 10)) + '. ' + tx('Tus viajes y cromos solo están en este dispositivo.', 'Your trips and cards are only on this device.') : tx('Aún no has guardado ninguna. Tus viajes y cromos solo están en este dispositivo.', 'You haven’t saved one yet. Your trips and cards are only on this device.');
     });
   }
   $('#themeOpts').addEventListener('click', function (e) {
@@ -239,92 +243,321 @@
     $$('#themeOpts .opt').forEach(function (x) { x.classList.toggle('on', x === o); });
   });
 
-  /* ---------- Home: lo más relevante de un vistazo ---------- */
+  /* ---------- Home: seis diseños a elegir (guia-home). «clasico» = el de la 3.15 ----------
+     Todos enseñan lo mismo: el próximo viaje, lo que falta antes de salir, el tiempo, lo imprescindible,
+     ideas para el próximo viaje y una invitación a crear uno; cambia cómo se cuenta. */
+  var HOME_STYLES = [['cuenta', 'Cuenta atrás', 'Countdown'], ['pase', 'Tarjeta de embarque', 'Boarding pass'], ['revista', 'Revista', 'Magazine'],
+    ['ruta', 'Línea del tiempo', 'Timeline'], ['widgets', 'Widgets', 'Widgets'], ['clasico', 'Clásico', 'Classic']];
+  function homeStyle() { var s = ''; try { s = localStorage.getItem('guia-home') || ''; } catch (e) {} return HOME_STYLES.some(function (x) { return x[0] === s; }) ? s : 'cuenta'; }
+  function isEn() { return window.Lang && Lang.get() === 'en'; }
+  function tx(es, en) { return isEn() ? en : es; }
+  function sd(iso) { var d = new Date(iso + 'T12:00:00Z'); return d.getUTCDate() + ' ' + d.toLocaleDateString(isEn() ? 'en-GB' : 'es', { month: 'short', timeZone: 'UTC' }).replace('.', ''); }
+  function monName(m) { return new Date(Date.UTC(2026, m - 1, 15)).toLocaleDateString(isEn() ? 'en-GB' : 'es', { month: 'long', timeZone: 'UTC' }); }
+  function bg(u) { return u ? ' style="background-image:url(&quot;' + esc(u) + '&quot;)"' : ''; }
   function daysTo(iso) { var n = new Date(), t = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()), d = new Date(iso + 'T00:00:00Z').getTime(); return Math.round((d - t) / 864e5); }
-  function checklistStat(t) {
-    var ns = (t.b.meta.storage || t.b.meta.id || t.id) + ':', ck = {}, all = 0, done = 0;
+  // lo que hay que hacer antes de salir (la maleta de ida); lo importante primero
+  function chkInfo(T) {
+    var ns = (T.b.meta.storage || T.b.meta.id || T.id) + ':', ck = {}, E = isEn() ? (T.b.trip_en || {}).checklist || {} : {}, all = 0, done = 0, todo = [];
     try { ck = JSON.parse(localStorage.getItem(ns + 'checked') || '{}') || {}; } catch (e) {}
-    (t.b.trip.checklist || []).forEach(function (c) { (c.items || []).forEach(function (i) { all++; if (ck[i.id]) done++; }); });
-    return { all: all, done: done };
+    (T.b.trip.checklist || []).forEach(function (c) {
+      if ((c.when || 'out') !== 'out') return;
+      (c.items || []).forEach(function (i, k) { all++; if (ck[i.id]) done++; else todo.push({ id: i.id, t: (((E[c.id] || {}).items || {})[i.id] || {}).t || i.t, imp: i.imp ? 1 : 0, k: todo.length }); });
+    });
+    todo.sort(function (a, b) { return b.imp - a.imp || a.k - b.k; });
+    return { ns: ns, all: all, done: done, pc: all ? Math.round(done / all * 100) : 0, todo: todo };
+  }
+  var HOME = null, IDEA_SEEN = {};
+  function ideaAt(x) { IDEAS_NOW.push(x); return IDEAS_NOW.length - 1; }
+  function homeData(O) {
+    var trips = O.trips, D = { O: O, trips: trips, known: {} };
+    D.next = trips.filter(function (t) { return t.status !== 'past'; }).sort(function (a, b) { return String(a.start).localeCompare(String(b.start)); })[0] || null;
+    if (D.next) {
+      var t = D.next, T = t.ref, dd = daysTo(t.start);
+      D.dd = dd; D.live = t.status === 'now'; D.day = 1 - dd;
+      D.when = D.live ? tx('Día ' + D.day + ' de ' + t.days, 'Day ' + D.day + ' of ' + t.days) : dd === 0 ? tx('¡Es hoy!', 'It’s today!') : dd === 1 ? tx('Mañana', 'Tomorrow') : tx('Faltan ' + dd + ' días', dd + ' days to go');
+      D.range = t.start ? sd(t.start) + ' – ' + sd(t.end || addDays(t.start, t.days - 1)) : '';
+      D.must = Album.cromosOf(T, Album.get()).filter(function (c) { return c.must; }).slice(0, 10);
+      D.mustGot = D.must.filter(function (c) { return c.got; }).length;
+      D.chk = chkInfo(T);
+      D.wxn = (T.b.trip.wx[0] || {}).n || '';
+    }
+    if (window.Mundo) trips.forEach(function (t) { (Mundo.cached(t.ref) || []).forEach(function (c) { D.known[c] = 1; }); });
+    D.ideas = window.Juego ? Juego.ideas(D.known, 6) : [];
+    D.mon = monName(new Date().getMonth() + 1);
+    return D;
+  }
+  // sobres, retos del día y recuerdos: solo si hay algo
+  function extrasHTML(D) {
+    if (!window.Juego) return '';
+    var h = '', G = Juego.get(), nP = Juego.total(G), kP = ['r', 'g', 's', 'c'].filter(function (k) { return G.bag.some(function (b) { return b.k === k; }); })[0] || 'c';
+    if (nP) h += '<button type="button" class="card hm-row sq rv-h" data-go="album"><span class="hm-pk k-' + kP + '"><span class="pk-foil"></span></span><span><b>' + (nP === 1 ? tx('Tienes 1 sobre', 'You have 1 pack') : tx('Tienes ' + nP + ' sobres', 'You have ' + nP + ' packs')) + '</b><small>' + tx('Ábrelo en tu álbum', 'Open it in your album') + '</small></span>' + ic('chev') + '</button>';
+    if (D.next && D.live) h += '<div class="card hm-ret rv-h"><b>' + tx('Retos de hoy', 'Today’s challenges') + '</b><ul>' + Juego.challenges().map(function (c) { return '<li class="' + (c.done ? 'ok' : '') + '">' + esc(c.t) + '</li>'; }).join('') + '</ul></div>';
+    var nowD = new Date(), mem = D.trips.filter(function (t) {
+      if (t.status !== 'past' || !t.start) return false;
+      var d0 = new Date(t.start + 'T12:00:00Z'), same = new Date(Date.UTC(nowD.getFullYear(), d0.getUTCMonth(), d0.getUTCDate(), 12));
+      return Math.abs(same - nowD) < 8 * 864e5 && d0.getUTCFullYear() < nowD.getFullYear();
+    })[0];
+    if (mem) { var yrs = nowD.getFullYear() - +mem.start.slice(0, 4); h += '<button type="button" class="card hm-row sq rv-h" data-open="' + esc(mem.id) + '"><span class="hm-ph"' + bg(mem.cover) + '></span><span><b>' + (yrs === 1 ? tx('Hace 1 año', '1 year ago') : tx('Hace ' + yrs + ' años', yrs + ' years ago')) + '</b><small>' + esc(mem.title) + '</small></span>' + ic('chev') + '</button>'; }
+    return h;
+  }
+  // tareas que se pueden marcar desde aquí (se guardan donde las guarda la guía)
+  function tasksHTML(D, n, cls) {
+    var C = D.chk, id = esc(D.next.id);
+    if (!C.all) return '';
+    if (!C.todo.length) return '<p class="hx-done">' + ic('check') + tx('Todo listo para salir', 'All set to go') + '</p>';
+    return '<ul class="hx-tasks ' + (cls || '') + '">' + C.todo.slice(0, n).map(function (i, k) {
+      return '<li><button type="button" class="hx-tk" data-tick="' + esc(i.id) + '" aria-label="' + tx('Hecho', 'Done') + '">' + ic('check') + '</button><span>' + (cls === 'num' ? '<i>' + ('0' + (k + 1)).slice(-2) + '</i>' : '') + esc(i.t) + (i.imp ? '<em>' + tx('Importante', 'Important') + '</em>' : '') + '</span></li>';
+    }).join('') + '</ul><button type="button" class="hx-more" data-open="' + id + '" data-grp="ida">' + tx('Ver la lista entera', 'See the whole list') + ' · ' + C.done + '/' + C.all + ic('chev') + '</button>';
+  }
+  function ring(pc, inner, cls) {
+    var r = 26, c = 2 * Math.PI * r;
+    return '<span class="hx-ring ' + (cls || '') + '"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="' + r + '" class="bgc"/><circle cx="32" cy="32" r="' + r + '" class="fgc" style="stroke-dasharray:' + c.toFixed(1) + ';stroke-dashoffset:' + (c * (1 - pc / 100)).toFixed(1) + '"/></svg><b>' + inner + '</b></span>';
+  }
+  function ideaCard(x, cls) {
+    return '<button type="button" class="idea sq ' + (cls || '') + '" data-idea="' + ideaAt(x) + '"><span class="idea-ph" data-wiki="' + esc(x.wiki) + '"></span><span class="idea-t"><span class="idea-fl">' + (Mundo.flag(x.cc) || '') + '</span><b>' + esc(x.t) + '</b><small>' + esc(x.sub) + '</small></span></button>';
+  }
+  function ideasRow(D, title) {
+    if (!D.ideas.length) return '';
+    return '<div class="rv-h"><div class="hm-h"><b>' + (title || tx('Ideas para ' + D.mon, 'Ideas for ' + D.mon)) + '</b><button type="button" class="hx-lnk" data-rec>' + tx('Sorpréndeme', 'Surprise me') + '</button></div><div class="idea-row">' + D.ideas.map(function (x) { return ideaCard(x); }).join('') + '</div></div>';
+  }
+  // invitación a crear un viaje: tres postales de sitios a los que ir, en abanico
+  function newCard(D, kick) {
+    var ph = (D.ideas.length > 3 ? D.ideas.slice(3) : D.ideas).slice(0, 3);
+    return '<button type="button" class="hx-new sq rv-h" data-new><span class="hx-fan">' + ph.map(function (x, i) { return '<i style="--i:' + i + '"><span data-wiki="' + esc(x.wiki) + '"></span></i>'; }).join('') + '</span>' +
+      '<span class="hx-nt"><small>' + (kick || (D.next ? tx('¿Y después?', 'And next?') : tx('Sin viajes a la vista', 'No trips ahead'))) + '</small><b>' + tx('Crea tu próximo viaje', 'Plan your next trip') + '</b><span>' + tx('Elige destino y fechas: la guía se hace sola, con datos reales.', 'Pick a place and dates: the guide builds itself from real data.') + '</span><em>' + tx('Empezar', 'Start') + ic('chev') + '</em></span></button>';
+  }
+  function mustRow(D) {
+    if (!D.must.length) return '';
+    var T = D.next.ref;
+    return '<div class="hm-sec rv-h"><div class="hm-h"><b>' + tx('Imprescindibles', 'Must-sees') + '</b><small>' + D.mustGot + ' ' + tx('de', 'of') + ' ' + D.must.length + '</small></div><div class="hm-scroll">' + D.must.map(function (c) {
+      return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(T.id + '|' + c.id) + '"' + bg(c.img) + '><span>' + esc(c.ti) + '</span></button>';
+    }).join('') + '</div></div>';
+  }
+
+  /* 1 · Cuenta atrás: la cifra en grande y tres anillos (maleta, tiempo, imprescindibles) */
+  function homeCuenta(D) {
+    var h = '';
+    if (!D.next) return newCard(D) + ideasRow(D) + extrasHTML(D);
+    var t = D.next, id = esc(t.id), big = D.live ? D.day : Math.max(0, D.dd), unit = D.live ? tx('de ' + t.days + ' días', 'of ' + t.days + ' days') : D.dd === 1 ? tx('día', 'day') : tx('días', 'days');
+    h += '<button type="button" class="hc-hero rv-h" data-open="' + id + '"' + bg(t.cover) + '><span class="hm-shade"></span><span class="hm-ey">' + (D.live ? tx('Estás de viaje', 'You’re travelling') : tx('Tu próximo viaje', 'Your next trip')) + '</span>' +
+      (D.dd === 0 && !D.live ? '<span class="hc-num"><b>' + tx('Hoy', 'Today') + '</b></span>' : '<span class="hc-num">' + (D.live ? '<small>' + tx('Día', 'Day') + '</small>' : '') + '<b>' + big + '</b><small>' + unit + '</small></span>') +
+      '<span class="hc-ti">' + esc(t.title) + '</span><small>' + esc(D.range) + '</small></button>';
+    h += '<div class="hc-rings rv-h" style="--d:60ms">' +
+      '<button type="button" class="card sq" data-open="' + id + '" data-grp="ida">' + ring(D.chk.pc, D.chk.pc + '<i>%</i>') + '<span>' + tx('Maleta', 'Packing') + '</span><small>' + D.chk.done + '/' + D.chk.all + '</small></button>' +
+      '<button type="button" class="card sq" data-open="' + id + '" data-grp="wx">' + ring(100, '<span data-wxt>–</span>', 'wx') + '<span>' + tx('Tiempo', 'Weather') + '</span><small>' + esc(D.wxn) + '</small></button>' +
+      '<button type="button" class="card sq" data-open="' + id + '">' + ring(D.must.length ? D.mustGot / D.must.length * 100 : 0, D.must.length, 'mu') + '<span>' + tx('Imprescindibles', 'Must-sees') + '</span><small>' + D.mustGot + ' ' + tx('vistos', 'seen') + '</small></button></div>';
+    if (!D.live && D.chk.all) h += '<div class="card rv-h" style="--d:120ms"><div class="hm-h in"><b>' + tx('Antes de salir', 'Before you go') + '</b><small>' + D.chk.done + ' ' + tx('de', 'of') + ' ' + D.chk.all + '</small></div>' + tasksHTML(D, 3) + '</div>';
+    return h + extrasHTML(D) + ideasRow(D) + newCard(D);
+  }
+
+  /* 2 · Tarjeta de embarque: el viaje como un billete; el check-in es la lista de antes de salir */
+  function homePase(D) {
+    var h = '';
+    if (D.next) {
+      var t = D.next, id = esc(t.id), C = D.chk;
+      h += '<div class="hp-pass rv-h"><button type="button" class="hp-top" data-open="' + id + '"' + bg(t.cover) + '><span class="hm-shade"></span><small>' + tx('Tarjeta de embarque', 'Boarding pass') + '</small><b>' + esc(t.title) + '</b></button>' +
+        '<div class="hp-grid"><span><small>' + tx('Salida', 'Departs') + '</small><b>' + esc(t.start ? sd(t.start) : '–') + '</b></span><span><small>' + tx('Regreso', 'Returns') + '</small><b>' + esc(t.end ? sd(t.end) : '–') + '</b></span>' +
+        '<button type="button" data-open="' + id + '" data-grp="wx"><small>' + tx('Tiempo', 'Weather') + '</small><b data-wxt>–</b></button><span><small>' + (D.live ? tx('En curso', 'Now') : tx('Embarque', 'Boarding')) + '</small><b>' + (D.live ? tx('día ', 'day ') + D.day : D.dd <= 0 ? tx('hoy', 'today') : tx('en ', 'in ') + D.dd + ' d') + '</b></span></div>' +
+        '<div class="hp-cut"></div>' +
+        '<button type="button" class="hp-stub" data-open="' + id + '" data-grp="ida"><span><small>' + tx('Check-in · antes de salir', 'Check-in · before you go') + '</small><b>' + (C.all && !C.todo.length ? tx('Todo listo', 'All set') : C.done + ' ' + tx('de', 'of') + ' ' + C.all + ' ' + tx('listo', 'done')) + '</b><span class="hm-prog"><i style="width:' + C.pc + '%"></i></span></span><span class="hp-code"></span></button></div>';
+      if (!D.live && C.todo.length) h += '<div class="card rv-h" style="--d:60ms"><div class="hm-h in"><b>' + tx('Pendiente para el check-in', 'Left for check-in') + '</b></div>' + tasksHTML(D, 3) + '</div>';
+      if (D.must.length) h += '<div class="hm-sec rv-h" style="--d:100ms"><div class="hm-h"><b>' + tx('Escalas imprescindibles', 'Must-see stops') + '</b><small>' + D.mustGot + '/' + D.must.length + '</small></div><div class="hm-scroll hp-stops">' + D.must.map(function (c, i) {
+        return '<button type="button" class="' + (c.got ? 'got' : '') + '" data-cr="' + esc(t.ref.id + '|' + c.id) + '"><i' + bg(c.img) + '><em>' + (i + 1) + '</em></i><span>' + esc(c.ti) + '</span></button>';
+      }).join('') + '</div></div>';
+    }
+    h += extrasHTML(D);
+    if (D.ideas.length) h += '<div class="rv-h" style="--d:140ms"><div class="hm-h"><b>' + tx('Próximos destinos', 'Next destinations') + '</b><button type="button" class="hx-lnk" data-rec>' + tx('Sorpréndeme', 'Surprise me') + '</button></div>' + D.ideas.slice(0, 4).map(function (x) {
+      return '<button type="button" class="hp-tk sq" data-idea="' + ideaAt(x) + '"><span class="hp-tph" data-wiki="' + esc(x.wiki) + '"></span><span class="hp-tm"><b>' + (Mundo.flag(x.cc) || '') + ' ' + esc(x.t) + '</b><small>' + esc(x.sub) + '</small></span><span class="hp-tst"><small>' + tx('Ir en', 'Go in') + '</small><b>' + esc(monName(x.month).slice(0, 3)) + '</b></span></button>';
+    }).join('') + '</div>';
+    h += '<button type="button" class="hp-blank sq rv-h" data-new><small>' + tx('Tarjeta de embarque', 'Boarding pass') + '</small><span class="hp-q"><small>' + tx('Destino', 'Destination') + '</small><b>' + tx('¿A dónde vamos?', 'Where to?') + '</b></span>' +
+      '<span class="hp-grid"><span><small>' + tx('Salida', 'Departs') + '</small><b>—</b></span><span><small>' + tx('Días', 'Days') + '</small><b>—</b></span></span><em>' + ic('plus') + tx('Crear un viaje', 'Create a trip') + '</em></button>';
+    return h;
+  }
+
+  /* 3 · Revista: portada con el próximo viaje, listas numeradas e inspiración del mes */
+  function homeRevista(D) {
+    var now = new Date(), h = '<div class="hr-mast rv-h"><span>' + esc(D.mon) + ' ' + now.getFullYear() + '</span><span>' + tx('Tus viajes · nº ', 'Your trips · no. ') + Math.max(1, D.trips.length) + '</span></div>';
+    if (D.next) {
+      var t = D.next, id = esc(t.id);
+      h += '<button type="button" class="hr-cover rv-h" data-open="' + id + '"' + bg(t.cover) + '><span class="hm-shade"></span><small class="hr-k">' + tx('En portada', 'Cover story') + '</small>' +
+        '<span class="hr-lines">' + (D.must.length ? '<span><b>' + D.must.length + '</b> ' + tx('imprescindibles', 'must-sees') + '</span>' : '') + '<span><b data-wxt>–</b> ' + esc(D.wxn) + '</span></span>' +
+        '<b class="hr-ti">' + esc(t.title) + '</b><small>' + esc(D.when) + ' · ' + esc(D.range) + '</small></button>';
+      if (!D.live && D.chk.all) h += '<div class="hr-sec rv-h"><div class="hr-h"><b>' + tx('Antes de salir', 'Before you go') + '</b><small>' + D.chk.pc + ' %</small></div>' + tasksHTML(D, 4, 'num') + '</div>';
+      if (D.must.length) h += '<div class="hr-sec rv-h"><div class="hr-h"><b>' + tx('No te lo pierdas', 'Don’t miss') + '</b><small>' + D.mustGot + '/' + D.must.length + '</small></div><ol class="hr-must">' + D.must.slice(0, 4).map(function (c, i) {
+        return '<li><button type="button" data-cr="' + esc(t.ref.id + '|' + c.id) + '"><i>' + ('0' + (i + 1)).slice(-2) + '</i><span>' + esc(c.ti) + (c.got ? '<em>' + tx('Visto', 'Seen') + '</em>' : '') + '</span><u' + bg(c.img) + '></u></button></li>';
+      }).join('') + '</ol></div>';
+    }
+    h += extrasHTML(D);
+    if (D.ideas.length) {
+      var f = D.ideas[0];
+      h += '<div class="hr-sec rv-h"><div class="hr-h"><b>' + tx('Inspiración de ' + D.mon, D.mon + ' inspiration') + '</b><button type="button" class="hx-lnk" data-rec>' + tx('Sorpréndeme', 'Surprise me') + '</button></div>' +
+        ideaCard(f, 'hr-feat') + '<div class="hr-two">' + D.ideas.slice(1, 3).map(function (x) { return ideaCard(x, 'hr-sm'); }).join('') + '</div></div>';
+    }
+    var mo = D.ideas.slice(3, 6); if (mo.length < 3) mo = D.ideas.slice(0, 3);
+    h += '<button type="button" class="hr-next sq rv-h" data-new><span class="hr-mos">' + mo.map(function (x) { return '<i data-wiki="' + esc(x.wiki) + '"></i>'; }).join('') + '</span><span class="hm-shade"></span>' +
+      '<span class="hr-nt"><small>' + tx('Próximo número', 'Next issue') + '</small><b>' + tx('¿Dónde será tu próxima portada?', 'Where will your next cover be?') + '</b><em>' + ic('plus') + tx('Crear un viaje', 'Create a trip') + '</em></span></button>';
+    return h;
+  }
+
+  /* 4 · Línea del tiempo: de hoy en adelante, con el viaje en su fecha y una idea en cada mes que viene */
+  function homeRuta(D) {
+    var now = new Date(), h = '<div class="ht">', t = D.next, used = {};
+    function node(cls, when, body, d) { return '<div class="ht-n ' + cls + ' rv-h" style="--d:' + (d || 0) + 'ms"><span class="ht-dot"></span><small class="ht-w">' + when + '</small>' + body + '</div>'; }
+    h += node('ht-now', tx('Hoy', 'Today') + ' · ' + sd(now.toISOString().slice(0, 10)), '<p class="ht-p">' + (t ? (D.live ? tx('Estás en ' + esc(t.title) + ': día ' + D.day + ' de ' + t.days + '.', 'You’re on ' + esc(t.title) + ': day ' + D.day + ' of ' + t.days + '.') : esc(D.when) + ' ' + tx('para ', 'until ') + esc(t.title) + '. <span class="ht-wx"><b data-wxt>–</b> ' + esc(D.wxn) + '</span>') : tx('No tienes viajes a la vista. Aquí abajo, ideas para los próximos meses.', 'No trips ahead. Below, ideas for the coming months.')) + '</p>');
+    if (t && !D.live && D.chk.all) h += node('', tx('Antes de salir', 'Before you go') + ' · ' + D.chk.done + '/' + D.chk.all, '<div class="card ht-c">' + tasksHTML(D, 2) + '</div>', 40);
+    if (t) {
+      var stack = D.must.slice(0, 4);
+      h += node('ht-tr', (D.live ? tx('Ahora', 'Now') : sd(t.start)) + ' · ' + tx('Empieza tu viaje', 'Your trip starts'), '<button type="button" class="ht-trip" data-open="' + esc(t.id) + '"' + bg(t.cover) + '><span class="hm-shade"></span><b>' + esc(t.title) + '</b><small>' + esc(D.range) + ' · ' + t.days + ' ' + tx('días', 'days') + '</small>' +
+        (stack.length ? '<span class="ht-st">' + stack.map(function (c) { return '<i' + bg(c.img) + '></i>'; }).join('') + '<em>' + D.must.length + ' ' + tx('imprescindibles', 'must-sees') + '</em></span>' : '') + '</button>', 80);
+    }
+    var ex = extrasHTML(D); if (ex) h += '<div class="ht-x">' + ex + '</div>';
+    // los meses que vienen, cada uno con una idea de su época
+    var m0 = (t && t.end ? new Date(t.end + 'T12:00:00Z') : now).getUTCMonth() + 2, yr = (t && t.end ? new Date(t.end + 'T12:00:00Z') : now).getUTCFullYear();
+    for (var k = 0; k < 4 && window.Juego; k++) {
+      var mm = (m0 - 1 + k) % 12 + 1, y = yr + Math.floor((m0 - 1 + k) / 12), x = Juego.ideasIn(D.known, mm, 1, used)[0];
+      if (!x) continue; used[x.wiki] = 1;
+      h += node('ht-id', monName(mm) + (y !== now.getFullYear() ? ' ' + y : ''), '<button type="button" class="ht-idea sq" data-idea="' + ideaAt(x) + '"><span class="ht-iph" data-wiki="' + esc(x.wiki) + '"></span><span><b>' + (Mundo.flag(x.cc) || '') + ' ' + esc(x.t) + '</b><small>' + esc(x.sub) + '</small></span>' + ic('chev') + '</button>', 120 + k * 40);
+    }
+    h += node('ht-ad', tx('Y luego…', 'And then…'), '<button type="button" class="ht-add sq" data-new><span>' + ic('plus') + '</span><b>' + tx('Añade aquí tu próximo viaje', 'Add your next trip here') + '</b><small>' + tx('o deja que la app te proponga uno', 'or let the app suggest one') + '</small></button><button type="button" class="hx-lnk ht-rec" data-rec>' + tx('Recomiéndame un viaje', 'Recommend me a trip') + '</button>', 300);
+    return h + '</div>';
+  }
+
+  /* 5 · Widgets: como la pantalla de inicio del móvil, cuadrados que se leen de un vistazo */
+  function homeWidgets(D) {
+    var h = '<div class="hw rv-h">', t = D.next, O = D.O;
+    var nw = '<button type="button" class="hw-w hw-wide hw-new sq" data-new><span class="hw-glb">' + ic('plus') + '</span><span><b>' + tx('Nuevo viaje', 'New trip') + '</b><small>' + tx('Destino y fechas, y la guía se hace sola', 'Pick a place and dates, the guide builds itself') + '</small></span></button>' +
+      '<button type="button" class="hw-w hw-wide card hw-rec sq" data-rec><span class="hw-glb">✦</span><span><b>' + tx('Recomiéndame un viaje', 'Recommend me a trip') + '</b><small>' + tx('Una idea según la época del año', 'An idea for the time of year') + '</small></span>' + ic('chev') + '</button>';
+    if (!t) h += nw;
+    if (t) {
+      var id = esc(t.id);
+      h += '<button type="button" class="hw-w hw-trip" data-open="' + id + '"' + bg(t.cover) + '><span class="hm-shade"></span><small>' + (D.live ? tx('De viaje', 'Travelling') : tx('Próximo viaje', 'Next trip')) + '</small><span class="hw-cd"><b>' + (D.live ? D.day : Math.max(0, D.dd)) + '</b><span>' + (D.live ? tx('día de ' + t.days, 'day of ' + t.days) : D.dd === 1 ? tx('día', 'day') : tx('días', 'days')) + '</span></span><b class="hw-ti">' + esc(t.title) + '</b><small>' + esc(D.range) + '</small></button>' +
+        '<button type="button" class="hw-w card" data-open="' + id + '" data-grp="ida"><small class="hw-l">' + ic('check') + tx('Maleta', 'Packing') + '</small>' + ring(D.chk.pc, D.chk.pc + '<i>%</i>') + '<small>' + D.chk.done + ' ' + tx('de', 'of') + ' ' + D.chk.all + '</small></button>' +
+        '<button type="button" class="hw-w card hw-wx" data-open="' + id + '" data-grp="wx"><small class="hw-l">' + ic('cloud') + tx('Tiempo', 'Weather') + '</small><b class="hw-big" data-wxt>–</b><small data-wxn>' + esc(D.wxn) + '</small></button>';
+      if (D.must.length) h += '<button type="button" class="hw-w hw-must" data-open="' + id + '"' + bg((D.must.filter(function (c) { return !c.got; })[0] || D.must[0]).img) + '><span class="hm-shade"></span><small>' + tx('Imprescindibles', 'Must-sees') + '</small><b>' + D.mustGot + '<i>/' + D.must.length + '</i></b></button>';
+    }
+    if (O.nextBadge) h += '<button type="button" class="hw-w card hw-bdg" data-go="profile"><small class="hw-l">' + tx('Siguiente insignia', 'Next badge') + '</small>' + O.nextBadgeHTML + '<small>' + esc(O.nextBadge.name) + ' · ' + O.nextBadge.have + '/' + O.nextBadge.need + '</small></button>';
+    if (D.ideas.length) h += '<div class="hw-w hw-wide hw-ideas"><div class="hw-sl">' + D.ideas.map(function (x) {
+      return '<button type="button" data-idea="' + ideaAt(x) + '"><span class="idea-ph" data-wiki="' + esc(x.wiki) + '"></span><span class="hm-shade"></span><small>' + tx('Idea para ', 'Idea for ') + esc(monName(x.month)) + '</small><b>' + (Mundo.flag(x.cc) || '') + ' ' + esc(x.t) + '</b><span>' + esc(x.sub) + '</span></button>';
+    }).join('') + '</div><span class="hw-dots">' + D.ideas.map(function (x, i) { return '<i class="' + (i ? '' : 'on') + '"></i>'; }).join('') + '</span></div>';
+    if (t) h += nw;
+    return h + '</div>' + extrasHTML(D);
+  }
+
+  /* 6 · Clásico: el Home de la 3.15 (sin la copia de seguridad, que está en Perfil) */
+  function homeClasico(D) {
+    var O = D.O, trips = D.trips, nextT = D.next, h = '';
+    if (nextT) {
+      h += '<button type="button" class="hm-next rv-h" data-open="' + esc(nextT.id) + '"' + bg(nextT.cover) + '><span class="hm-shade"></span>' +
+        '<span class="hm-ey">Tu próximo viaje</span><span class="hm-cd">' + esc(nextT.status === 'now' ? 'En curso · día ' + D.day + ' de ' + nextT.days : D.dd === 0 ? '¡Es hoy!' : D.dd === 1 ? 'Mañana' : 'Faltan ' + D.dd + ' días') + '</span><b>' + esc(nextT.title) + '</b><small>' + esc(dateLbl(nextT.start)) + ' – ' + esc(dateLbl(addDays(nextT.start, Math.max(0, nextT.days - 1)))) + '</small><span class="hm-go">Abrir la guía' + ic('chev') + '</span></button>';
+    } else {
+      h += '<button type="button" class="hm-next empty rv-h" data-new><span class="hm-ey">Sin viajes a la vista</span><b>¿A dónde vamos?</b><small>Crea una guía nueva en un par de minutos, con datos reales.</small><span class="hm-go">Crear un viaje' + ic('chev') + '</span></button>';
+    }
+    h += extrasHTML(D);
+    var fan = O.recent.slice(0, 3);
+    h += '<div class="hm-two">' +
+      '<button type="button" class="card hm-t rv-h" data-go="profile" style="--d:60ms"><span class="hm-tt">' + ic('user') + 'Perfil</span><span class="hm-big">' + O.badgesOn + '<i>/' + O.badgesMax + '</i></span><small>insignias</small><small>' + trips.length + (trips.length === 1 ? ' viaje' : ' viajes') + ' · ' + O.totalDays + ' días</small></button>' +
+      '<button type="button" class="card hm-t rv-h" data-go="album" style="--d:120ms"><span class="hm-tt">' + ic('star') + 'Álbum</span>' +
+      (fan.length ? '<span class="hm-fan">' + fan.map(function (c, i) { return '<i class="' + (c.img ? '' : 'noph') + '" style="--r:' + (i - 1) * 9 + 'deg;--x:' + (i - 1) * 22 + 'px' + (c.img ? ';background-image:url(&quot;' + esc(c.img) + '&quot;)' : '') + '"></i>'; }).join('') + '</span>' : '<span class="hm-big">' + O.got + '<i>/' + O.all + '</i></span>') +
+      '<small>' + O.got + ' de ' + O.all + ' cromos</small></button></div>';
+    if (nextT) {
+      h += mustRow(D);
+      h += '<div class="hm-two">' +
+        '<button type="button" class="card hm-t rv-h" data-open="' + esc(nextT.id) + '" data-grp="ida" style="--d:200ms"><span class="hm-tt">' + ic('check') + 'Listo para salir</span><span class="hm-big">' + D.chk.pc + '<i>%</i></span><span class="hm-prog"><i style="width:' + D.chk.pc + '%"></i></span><small>' + D.chk.done + ' de ' + D.chk.all + ' tareas</small></button>' +
+        '<button type="button" class="card hm-t rv-h" data-open="' + esc(nextT.id) + '" data-grp="wx" style="--d:240ms"><span class="hm-tt">' + ic('cloud') + 'Tiempo</span><span class="hm-big" data-wxt>–</span><small data-wxn>' + esc(D.wxn) + '</small></button></div>';
+    }
+    if (O.nextBadge) h += '<button type="button" class="card hm-b rv-h" data-go="profile" style="--d:280ms">' + O.nextBadgeHTML + '<span><small>Siguiente insignia</small><b><span>' + esc(O.nextBadge.name) + '</span> · <span>' + esc({ copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' }[O.nextBadge.next]) + '</span></b><span class="bdg-bar"><i style="width:' + Math.round(O.nextBadge.frac * 100) + '%"></i></span></span><em class="hm-bn">' + O.nextBadge.have + '/' + O.nextBadge.need + '</em></button>';
+    if (D.ideas.length) h += '<div class="rv-h" style="--d:300ms"><div class="pf-h">' + tx('Ideas para ' + D.mon, 'Ideas for ' + D.mon) + '</div><div class="idea-row">' + D.ideas.map(function (x) { return ideaCard(x); }).join('') + '</div></div>';
+    h += '<button type="button" class="btn navy sq big-btn rv-h" data-new style="--d:320ms">' + ic('plus') + 'Nuevo viaje</button>';
+    return h;
+  }
+
+  var HOME_FN = { cuenta: homeCuenta, pase: homePase, revista: homeRevista, ruta: homeRuta, widgets: homeWidgets, clasico: homeClasico };
+  function styleChips() {
+    var cur = homeStyle();
+    return HOME_STYLES.map(function (s) { return '<button type="button" class="opt' + (s[0] === cur ? ' on' : '') + '" data-hs="' + s[0] + '">' + esc(tx(s[1], s[2])) + '</button>'; }).join('');
   }
   function renderHome() {
     var box = $('#homeBox');
     return Album.overview().then(function (O) {
-      var trips = O.trips, nextT = trips.filter(function (t) { return t.status !== 'past'; }).sort(function (a, b) { return String(a.start).localeCompare(String(b.start)); })[0];
-      var h = '';
-      if (nextT) {
-        var dd = daysTo(nextT.start), when = nextT.status === 'now' ? 'En curso · día ' + (1 - dd) + ' de ' + nextT.days : dd === 0 ? '¡Es hoy!' : dd === 1 ? 'Mañana' : 'Faltan ' + dd + ' días';
-        h += '<button type="button" class="hm-next rv-h" data-open="' + esc(nextT.id) + '"' + (nextT.cover ? ' style="background-image:url(&quot;' + esc(nextT.cover) + '&quot;)"' : '') + '><span class="hm-shade"></span>' +
-          '<span class="hm-ey">Tu próximo viaje</span><span class="hm-cd">' + esc(when) + '</span><b>' + esc(nextT.title) + '</b><small>' + esc(dateLbl(nextT.start)) + ' – ' + esc(dateLbl(addDays(nextT.start, Math.max(0, nextT.days - 1)))) + '</small><span class="hm-go">Abrir la guía' + ic('chev') + '</span></button>';
-      } else {
-        h += '<button type="button" class="hm-next empty rv-h" data-new><span class="hm-ey">Sin viajes a la vista</span><b>¿A dónde vamos?</b><small>Crea una guía nueva en un par de minutos, con datos reales.</small><span class="hm-go">Crear un viaje' + ic('chev') + '</span></button>';
-      }
-      if (window.Juego) {
-        var G = Juego.get(), nP = Juego.total(G), kP = ['r', 'g', 's', 'c'].filter(function (k) { return G.bag.some(function (b) { return b.k === k; }); })[0] || 'c';
-        if (nP) h += '<button type="button" class="card hm-row sq rv-h" data-go="album" style="--d:30ms"><span class="hm-pk k-' + kP + '"><span class="pk-foil"></span></span><span><b>' + (nP === 1 ? 'Tienes 1 sobre' : 'Tienes ' + nP + ' sobres') + '</b><small>Ábrelo en tu álbum</small></span>' + ic('chev') + '</button>';
-        // durante un viaje: los retos de hoy
-        if (nextT && nextT.status === 'now') h += '<div class="card hm-ret rv-h"><b>Retos de hoy</b><ul>' + Juego.challenges().map(function (c) { return '<li class="' + (c.done ? 'ok' : '') + '">' + esc(c.t) + '</li>'; }).join('') + '</ul></div>';
-        // recuerdos: un viaje de estas fechas en otros años
-        var nowD = new Date(), mem = trips.filter(function (t) {
-          if (t.status !== 'past' || !t.start) return false;
-          var d0 = new Date(t.start + 'T12:00:00Z'), same = new Date(Date.UTC(nowD.getFullYear(), d0.getUTCMonth(), d0.getUTCDate(), 12));
-          return Math.abs(same - nowD) < 8 * 864e5 && d0.getUTCFullYear() < nowD.getFullYear();
-        })[0];
-        if (mem) {
-          var yrs = nowD.getFullYear() - +mem.start.slice(0, 4);
-          h += '<button type="button" class="card hm-row sq rv-h" data-open="' + esc(mem.id) + '"><span class="hm-ph"' + (mem.cover ? ' style="background-image:url(&quot;' + esc(mem.cover) + '&quot;)"' : '') + '></span><span><b>' + (yrs === 1 ? 'Hace 1 año' : 'Hace ' + yrs + ' años') + '</b><small>' + esc(mem.title) + '</small></span>' + ic('chev') + '</button>';
-        }
-      }
-      // perfil y álbum, uno al lado del otro
-      var fan = O.recent.slice(0, 3);
-      h += '<div class="hm-two">' +
-        '<button type="button" class="card hm-t rv-h" data-go="profile" style="--d:60ms"><span class="hm-tt">' + ic('user') + 'Perfil</span><span class="hm-big">' + O.badgesOn + '<i>/' + O.badgesMax + '</i></span><small>insignias</small><small>' + trips.length + (trips.length === 1 ? ' viaje' : ' viajes') + ' · ' + O.totalDays + ' días</small></button>' +
-        '<button type="button" class="card hm-t rv-h" data-go="album" style="--d:120ms"><span class="hm-tt">' + ic('star') + 'Álbum</span>' +
-        (fan.length ? '<span class="hm-fan">' + fan.map(function (c, i) { return '<i class="' + (c.img ? '' : 'noph') + '" style="--r:' + (i - 1) * 9 + 'deg;--x:' + (i - 1) * 22 + 'px' + (c.img ? ';background-image:url(&quot;' + esc(c.img) + '&quot;)' : '') + '"></i>'; }).join('') + '</span>' : '<span class="hm-big">' + O.got + '<i>/' + O.all + '</i></span>') +
-        '<small>' + O.got + ' de ' + O.all + ' cromos</small></button></div>';
-      // del próximo viaje: imprescindibles y preparativos
-      if (nextT) {
-        var T = nextT.ref, must = Album.cromosOf(T, Album.get()).filter(function (c) { return c.must; }).slice(0, 10), st = checklistStat(T), pc = st.all ? Math.round(st.done / st.all * 100) : 0;
-        if (must.length) h += '<div class="hm-sec rv-h" style="--d:160ms"><div class="hm-h"><b>Imprescindibles</b><small>' + must.filter(function (c) { return c.got; }).length + ' de ' + must.length + '</small></div><div class="hm-scroll">' + must.map(function (c) {
-          return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(T.id + '|' + c.id) + '"' + (c.img ? ' style="background-image:url(&quot;' + esc(c.img) + '&quot;)"' : '') + '><span>' + esc(c.ti) + '</span></button>';
-        }).join('') + '</div></div>';
-        h += '<div class="hm-two">' +
-          '<button type="button" class="card hm-t rv-h" data-open="' + esc(nextT.id) + '" style="--d:200ms"><span class="hm-tt">' + ic('check') + 'Listo para salir</span><span class="hm-big">' + pc + '<i>%</i></span><span class="hm-prog"><i style="width:' + pc + '%"></i></span><small>' + st.done + ' de ' + st.all + ' tareas</small></button>' +
-          '<div class="card hm-t rv-h" id="hmWx" style="--d:240ms"><span class="hm-tt">' + ic('cloud') + 'Tiempo</span><span class="hm-big">–</span><small>' + esc((T.b.trip.wx[0] || {}).n || '') + '</small></div></div>';
-      }
-      // siguiente insignia y crear
-      if (O.nextBadge) h += '<button type="button" class="card hm-b rv-h" data-go="profile" style="--d:280ms">' + O.nextBadgeHTML + '<span><small>Siguiente insignia</small><b><span>' + esc(O.nextBadge.name) + '</span> · <span>' + esc({ copper: 'Cobre', silver: 'Plata', gold: 'Oro', emerald: 'Esmeralda', ruby: 'Rubí' }[O.nextBadge.next]) + '</span></b><span class="bdg-bar"><i style="width:' + Math.round(O.nextBadge.frac * 100) + '%"></i></span></span><em class="hm-bn">' + O.nextBadge.have + '/' + O.nextBadge.need + '</em></button>';
-      if (window.Juego && window.Mundo) {
-        var known = {}; trips.forEach(function (t) { (Mundo.cached(t.ref) || []).forEach(function (c) { known[c] = 1; }); });
-        var IDS = Juego.ideas(known, 6), mon = new Date().toLocaleDateString(window.Lang ? Lang.get() : 'es', { month: 'long' });
-        if (IDS.length) {
-          h += '<div class="rv-h" style="--d:300ms"><div class="pf-h">' + (window.Lang && Lang.get() === 'en' ? 'Ideas for ' + mon : 'Ideas para ' + mon) + '</div><div class="idea-row">' + IDS.map(function (x, i) {
-            return '<button type="button" class="idea sq" data-idea="' + i + '"><span class="idea-ph" data-wiki="' + esc(x.wiki) + '"></span><span class="idea-t"><span class="idea-fl">' + (Mundo.flag(x.cc) || '') + '</span><b>' + esc(x.t) + '</b><small>' + esc(x.sub) + '</small></span></button>';
-          }).join('') + '</div></div>';
-          IDEAS_NOW = IDS;
-        }
-        // copia de seguridad: los datos solo están en este dispositivo
-        var GB = Juego.get(), hasData = O.got > 0 || trips.some(function (t) { return /^u-/.test(t.id); });
-        if (hasData && Date.now() - (GB.backup || 0) > 30 * 864e5) h += '<button type="button" class="card hm-row sq rv-h" data-go="profile" style="--d:310ms"><span class="hm-tt" style="margin:0">' + ic('check') + '</span><span><b>Haz una copia de seguridad</b><small>Tus viajes solo están en este dispositivo</small></span>' + ic('chev') + '</button>';
-      }
-      h += '<button type="button" class="btn navy sq big-btn rv-h" data-new style="--d:320ms">' + ic('plus') + 'Nuevo viaje</button>';
-      box.innerHTML = h;
-      if (nextT) homeWeather(nextT);
-      $$('.idea-ph[data-wiki]', box).forEach(function (el) { Juego.ideaImg(el.getAttribute('data-wiki')).then(function (u) { if (u) { el.style.backgroundImage = 'url("' + u + '")'; el.classList.add('on'); } }); });
+      IDEAS_NOW = [];
+      var D = homeData(O), st = homeStyle();
+      HOME = D;
+      box.className = 'hs-' + st;
+      box.innerHTML = HOME_FN[st](D) + '<div class="hx-style rv-h"><small>' + tx('Diseño de Home', 'Home layout') + '</small><div class="hx-chips">' + styleChips() + '</div></div>';
+      if (D.next) wxFill(D.next);
+      $$('[data-wiki]', box).forEach(function (el) { Juego.ideaImg(el.getAttribute('data-wiki')).then(function (u) { if (u) { el.style.backgroundImage = 'url("' + u + '")'; el.classList.add('on'); } }); });
+      // widget de ideas: puntos que siguen al deslizar
+      var sl = $('.hw-sl', box);
+      if (sl) sl.addEventListener('scroll', function () { var i = Math.round(sl.scrollLeft / sl.clientWidth); $$('.hw-dots i', box).forEach(function (d, k) { d.classList.toggle('on', k === i); }); }, { passive: true });
     });
   }
-  // previsión si faltan menos de 2 semanas; si no, temperaturas típicas de esas fechas
-  function homeWeather(t) {
-    var el = $('#hmWx'), w = t.ref.b.trip.wx[0]; if (!el || !w) return;
-    var d = daysTo(t.start), big = $('.hm-big', el);
-    function typical() { if (w.hi != null) { big.innerHTML = w.hi + '<i>°</i>'; el.lastChild.textContent = w.n + ' · típico ' + w.lo + '–' + w.hi + '°'; } else el.style.opacity = .6; }
-    if (d > 14 || d < -30 || w.lat == null) { typical(); return; }
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + w.lat + '&longitude=' + w.lon + '&daily=temperature_2m_max,temperature_2m_min&timezone=auto&start_date=' + (d > 0 ? t.start : new Date().toISOString().slice(0, 10)) + '&forecast_days=1'.replace('&forecast_days=1', '&end_date=' + (d > 0 ? t.start : new Date().toISOString().slice(0, 10))))
-      .then(function (r) { return r.json(); }).then(function (j) { big.innerHTML = Math.round(j.daily.temperature_2m_max[0]) + '<i>°</i>'; el.lastChild.textContent = w.n + ' · mín. ' + Math.round(j.daily.temperature_2m_min[0]) + '°'; }).catch(typical);
+  function setHomeStyle(s) {
+    try { localStorage.setItem('guia-home', s); } catch (e) {}
+    $$('[data-hs]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-hs') === s); });
+    var v = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0];
+    if (v && v.getAttribute('data-vt') === 'home') renderHome().then(function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }
+  document.addEventListener('click', function (e) {
+    var hs = e.target.closest('[data-hs]'), tk = e.target.closest('[data-tick]'), rc = e.target.closest('[data-rec]');
+    if (hs) setHomeStyle(hs.getAttribute('data-hs'));
+    if (rc) openRec();
+    if (tk && HOME && HOME.next) {
+      // marcar una tarea desde Home: se guarda donde la guarda la guía
+      var C = HOME.chk, ck = {}; try { ck = JSON.parse(localStorage.getItem(C.ns + 'checked') || '{}') || {}; } catch (err) {}
+      ck[tk.getAttribute('data-tick')] = true;
+      try { localStorage.setItem(C.ns + 'checked', JSON.stringify(ck)); } catch (err) {}
+      tk.closest('li').classList.add('ok');
+      try { if (navigator.vibrate) navigator.vibrate(10); } catch (err) {}
+      setTimeout(renderHome, 650);
+    }
+  });
+  // previsión si faltan menos de 2 semanas; si no, temperaturas típicas de esas fechas
+  function wxFill(t) {
+    var w = t.ref.b.trip.wx[0]; if (!w) return;
+    var d = daysTo(t.start), day = d > 0 ? t.start : new Date().toISOString().slice(0, 10);
+    function put(hi, note) { $$('[data-wxt]').forEach(function (el) { el.textContent = hi == null ? '–' : hi + '°'; }); $$('[data-wxn]').forEach(function (el) { el.textContent = note; }); }
+    function typical() { if (w.hi != null) put(w.hi, w.n + ' · ' + tx('típico ', 'typical ') + w.lo + '–' + w.hi + '°'); }
+    if (d > 14 || d < -30 || w.lat == null) { typical(); return; }
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + w.lat + '&longitude=' + w.lon + '&daily=temperature_2m_max,temperature_2m_min&timezone=auto&start_date=' + day + '&end_date=' + day)
+      .then(function (r) { return r.json(); }).then(function (j) { put(Math.round(j.daily.temperature_2m_max[0]), w.n + ' · ' + tx('mín. ', 'min ') + Math.round(j.daily.temperature_2m_min[0]) + '°'); }).catch(typical);
+  }
+
+  /* ---------- Recomiéndame un viaje: una idea de temporada a pantalla completa ---------- */
+  function openRec() {
+    if (!window.Juego || $('#recBox')) return;
+    var known = HOME ? HOME.known : {}, seen = {}, cur = null;
+    var box = document.createElement('div'); box.id = 'recBox'; box.className = 'rcm';
+    box.innerHTML = '<div class="rec-top"><small>' + tx('Te recomendamos', 'We recommend') + '</small><button type="button" class="wz-x" data-recx aria-label="' + tx('Cerrar', 'Close') + '">' + ic('x') + '</button></div><div class="rec-stage"></div>' +
+      '<div class="rec-act"><button type="button" class="btn ghost sq" data-recnext>' + tx('Otra idea', 'Another idea') + '</button><button type="button" class="btn navy sq" data-recgo>' + tx('Crear este viaje', 'Plan this trip') + ic('chev') + '</button></div>';
+    document.body.appendChild(box);
+    function show(dir) {
+      cur = Juego.recommend(known, seen); if (!cur) { seen = {}; cur = Juego.recommend(known, seen); }
+      if (!cur) return;
+      seen[cur.wiki] = 1;
+      var stg = $('.rec-stage', box), old = $('.rec-card', stg);
+      if (old) { old.classList.add('out'); setTimeout(function () { old.remove(); }, 380); }
+      var why = [tx('Buen momento: ', 'Good time: ') + monName(cur.month)];
+      if (!known[cur.cc]) why.push(tx('Un país nuevo para ti', 'A new country for you'));
+      var c = document.createElement('div'); c.className = 'rec-card' + (dir ? ' in' : '');
+      c.innerHTML = '<span class="rec-ph" data-wiki="' + esc(cur.wiki) + '"></span><span class="hm-shade"></span><div class="rec-t"><span class="rec-fl">' + (Mundo.flag(cur.cc) || '') + ' ' + esc(cur.country.name) + '</span><b>' + esc(cur.t) + '</b><p>' + esc(cur.sub) + '</p>' +
+        '<span class="rec-why">' + why.map(function (w) { return '<i>' + esc(w) + '</i>'; }).join('') + '</span><span class="rec-ms">' + tx('Mejor época', 'Best time') + ': ' + cur.months.map(function (m) { return monName(m).slice(0, 3); }).join(' · ') + '</span></div>';
+      stg.appendChild(c);
+      Juego.ideaImg(cur.wiki).then(function (u) { var p = $('.rec-ph', c); if (u && p) { p.style.backgroundImage = 'url("' + u.replace('/500px-', '/960px-') + '")'; p.classList.add('on'); } });
+    }
+    function close() { box.classList.add('out'); setTimeout(function () { box.remove(); }, 280); }
+    box.addEventListener('click', function (e) {
+      if (e.target.closest('[data-recx]')) close();
+      else if (e.target.closest('[data-recnext]')) { show(1); try { if (navigator.vibrate) navigator.vibrate(8); } catch (err) {} }
+      else if (e.target.closest('[data-recgo]') && cur) { close(); newTrip(cur); }
+    });
+    if (window.Lang) Lang.watch(box);
+    show(0);
+  }
+  window.addEventListener('pageshow', function () { var x = $('#recBox'); if (x) x.remove(); });
 
   document.addEventListener('juego:change', function () { var v = $$('.vn').filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0]; if (v && v.getAttribute('data-vt') === 'home') renderHome(); });
   renderList();
+  (function () { var ip = $('#tpPh'), I0 = window.Juego ? Juego.ideas({}, 3)[new Date().getDate() % 3] : null; if (ip && I0) Juego.ideaImg(I0.wiki).then(function (u) { if (u) { ip.style.backgroundImage = 'url("' + u + '")'; ip.classList.add('on'); } }); })();
   completeEnglish();
   var t0 = location.hash.slice(1);
   setTab(['trips', 'album', 'profile'].indexOf(t0) >= 0 ? t0 : 'home');

@@ -300,7 +300,7 @@ window.Juego = (function () {
     ['Edimburgo en Hogmanay', 'Edinburgh for Hogmanay', 'La Nochevieja escocesa', 'The Scottish New Year', [12, 1], 'Edimburgo', 'GB', 'Reino Unido', 'United Kingdom', 'Q145'],
     ['Kioto en flor', 'Kyoto in blossom', 'Cerezos en templos y canales', 'Cherry blossom by temples and canals', [3, 4], 'Kioto', 'JP', 'Japón', 'Japan', 'Q17'],
     ['Holanda en tulipanes', 'Holland in tulip season', 'Campos de flores y Ámsterdam en bici', 'Flower fields and Amsterdam by bike', [4, 5], 'Keukenhof', 'NL', 'Países Bajos', 'Netherlands', 'Q55'],
-    ['Sevilla en primavera', 'Seville in spring', 'Azahar, patios y Feria de Abril', 'Orange blossom, patios and the April Fair', [3, 4, 5], 'Sevilla', 'ES', 'España', 'Spain', 'Q29'],
+    ['Sevilla en primavera', 'Seville in spring', 'Azahar, patios y Feria de Abril', 'Orange blossom, patios and the April Fair', [3, 4, 5], 'Plaza_de_España_(Sevilla)', 'ES', 'España', 'Spain', 'Q29'],
     ['La Toscana en coche', 'Tuscany by car', 'Colinas, cipreses y pueblos medievales', 'Hills, cypresses and medieval towns', [4, 5, 6, 9, 10], 'Val_d%27Orcia', 'IT', 'Italia', 'Italy', 'Q38'],
     ['Cinque Terre a pie', 'Cinque Terre on foot', 'El sendero entre los cinco pueblos', 'The trail between the five villages', [4, 5, 6, 9], 'Cinque_Terre', 'IT', 'Italia', 'Italy', 'Q38'],
     ['Lisboa al sol', 'Lisbon in the sun', 'Miradores, tranvías y pastéis de nata', 'Viewpoints, trams and pastéis de nata', [3, 4, 5, 6, 9, 10], 'Lisboa', 'PT', 'Portugal', 'Portugal', 'Q45'],
@@ -329,9 +329,26 @@ window.Juego = (function () {
   function ideas(known, n) {
     var d = new Date(), m = d.getMonth() + 1, m2 = m % 12 + 1, en = window.Lang && Lang.get() === 'en', wk = Math.floor(d.getTime() / 6048e5);
     var list = IDEAS.filter(function (x) { return x[4].indexOf(m) >= 0 || x[4].indexOf(m2) >= 0; }).map(function (x, i) {
-      return { t: en ? x[1] : x[0], sub: en ? x[3] : x[2], wiki: x[5], cc: x[6], country: { name: en ? x[8] : x[7], cc: x[6], wd: x[9] }, month: x[4].indexOf(m) >= 0 ? m : m2, k: (i * 7 + wk * 13) % 17 + (known[x[6]] ? 100 : 0) };
+      return { t: en ? x[1] : x[0], sub: en ? x[3] : x[2], wiki: x[5], cc: x[6], country: { name: en ? x[8] : x[7], cc: x[6], wd: x[9] }, month: x[4].indexOf(m) >= 0 ? m : m2, months: x[4], k: (i * 7 + wk * 13) % 17 + (known[x[6]] ? 100 : 0) };
     });
     return list.sort(function (a, b) { return a.k - b.k; }).slice(0, n || 6);
+  }
+  function ideaOf(x, mon) { var en = window.Lang && Lang.get() === 'en'; return { t: en ? x[1] : x[0], sub: en ? x[3] : x[2], wiki: x[5], cc: x[6], country: { name: en ? x[8] : x[7], cc: x[6], wd: x[9] }, month: mon, months: x[4] }; }
+  // ideas de un mes concreto (la línea del tiempo de Home), sin repetir las ya usadas
+  function ideasIn(known, mon, n, skip) {
+    var wk = Math.floor(Date.now() / 6048e5);
+    return IDEAS.map(function (x, i) { return { x: x, k: (i * 7 + wk * 13) % 17 + (known[x[6]] ? 100 : 0) }; })
+      .filter(function (o) { return o.x[4].indexOf(mon) >= 0 && !(skip || {})[o.x[5]]; })
+      .sort(function (a, b) { return a.k - b.k; }).slice(0, n || 3).map(function (o) { return ideaOf(o.x, mon); });
+  }
+  // «Recomiéndame un viaje»: lo que mejor cuadra pronto, mejor en un país nuevo, con algo de azar
+  function recommend(known, seen) {
+    var m = new Date().getMonth() + 1;
+    var c = IDEAS.filter(function (x) { return !(seen || {})[x[5]]; }).map(function (x) {
+      var dist = 99, best = m; x[4].forEach(function (mm) { var d = (mm - m + 12) % 12; if (d < dist) { dist = d; best = mm; } });
+      return { x: x, mon: best, s: dist + (known[x[6]] ? 3 : 0) + Math.random() * 4 };
+    }).sort(function (a, b) { return a.s - b.s; })[0];
+    return c ? ideaOf(c.x, c.mon) : null;
   }
   // foto de la idea: la miniatura del artículo de Wikipedia, guardada para la próxima vez
   function ideaImg(wiki) {
@@ -345,5 +362,5 @@ window.Juego = (function () {
     }).catch(function () { return ''; });
   }
 
-  return { TEST: TEST, presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
+  return { TEST: TEST, presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideasIn: ideasIn, recommend: recommend, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
 })();

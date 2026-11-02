@@ -4472,7 +4472,10 @@ var View = (function () {
 
   /* ---------- Arranque ---------- */
   var diff = detectLive();
-  if (state.liveDay >= 0) setTab(state.liveDay + 1, 'force');
+  // desde Home: «Listo para salir» abre la maleta y «Tiempo» la previsión (guia-goto, una sola vez)
+  var goto0 = null; try { goto0 = localStorage.getItem('guia-goto'); localStorage.removeItem('guia-goto'); } catch (e) {}
+  if (goto0 && document.getElementById('grp-' + goto0)) { state.tab = -1; setTab(0, 'force'); setTimeout(function () { openGroup(goto0); }, 120); }
+  else if (state.liveDay >= 0) setTab(state.liveDay + 1, 'force');
   else { var st = store.get('tab', 0); state.tab = -1; setTab(st, 'force'); }
   syncSim();
   setupReveal(false);
