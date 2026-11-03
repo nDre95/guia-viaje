@@ -715,7 +715,7 @@ window.Mundo = (function () {
         if (A) { if (n === 0) A.show('maleta', 'walk'); else if (n <= L) A.show('avion', 'drive'); else { A.show('fiesta', 'act-jump'); var en = window.Lang && Lang.get() === 'en', nt = R.seq.length; A.say(en ? nt + (nt === 1 ? ' trip!' : ' trips!') : '¡' + nt + (nt === 1 ? ' viaje!' : ' viajes!'), 2200); } }
         recGlide(n, n <= 0 || n > L ? 1600 : 2300, function () {
           if (A && R.playing && n >= 0 && n <= L) {
-            var t = R.seq[n].t, k = Pj.theme(cached(t.ref) || [], t.start);
+            var t = R.seq[n].t, cu = Pj.culture && Math.random() < .4 ? Pj.culture((cached(t.ref) || [])[0], t.start, t.title) : '', k = cu || Pj.theme(cached(t.ref) || [], t.start);
             A.show(k, A.idleOf(k)); A.say(A.phrase(k), 1800);
           }
           R.tm = setTimeout(next, n > L ? 2400 : 2400);

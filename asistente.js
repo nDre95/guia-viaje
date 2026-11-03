@@ -17,6 +17,8 @@ window.Asistente = (function () {
   // no siempre: a veces sí y a veces no (Pj.maybe), y nunca dos seguidos
   function pj(kind, target, p) { if (!window.Pj || !kind) return; lastPj = kind; setTimeout(function () { Pj.maybe(kind, { target: target }, p == null ? .8 : p); }, 300); }
   function ccs() { return A.countries.map(function (k) { return k.cc; }); }
+  // nombres de países y ciudades: así Escocia, Azores o Laponia tienen sus propios personajes aunque el país sea otro
+  function hint() { return A.countries.map(function (k) { return k.name; }).concat(A.cities.map(function (c) { return c.name || ''; })).join(' '); }
   function fresh() {
     var t = new Date(); t.setDate(t.getDate() + 30);
     return { countries: [], cities: [], start: t.toISOString().slice(0, 10), mode: 'transit', pace: 'normal', style: 'spread', ints: {}, open: {}, fin: { t: '', p: '' }, fout: { t: '', p: '' }, fixed: [], title: '' };
@@ -39,6 +41,7 @@ window.Asistente = (function () {
 
   function open(o) {
     cfg = o || cfg; A = fresh(); page = 0; done = null; busy = false; lastPj = '';
+    if (window.Pj && Pj.fresh) Pj.fresh();
     // desde una idea de temporada: el país ya elegido y la fecha en su mes
     var pre = (o || {}).preset;
     if (pre && pre.country) {
@@ -92,7 +95,7 @@ window.Asistente = (function () {
     P.draw($('.wz-c', el));
     foot();
     // al entrar en algunas páginas, de vez en cuando, alguien pasa por allí
-    var walk = { ciudades: 'pie', aloja: 'siesta', billetes: 'avion', horario: 'madruga', gustos: 'ciudad' }[P.id];
+    var walk = { ciudades: (window.Pj && Pj.animal && Math.random() < .5 && Pj.animal(ccs(), A.start, hint())) || 'pie', aloja: 'siesta', billetes: 'avion', horario: 'madruga', gustos: 'ciudad' }[P.id];
     if (walk && window.Pj) setTimeout(function () { if (PAGES[page] === P) Pj.maybe(walk, {}, .45); }, 900);
   }
   function foot() {
@@ -166,7 +169,7 @@ window.Asistente = (function () {
         if (!A.countries.some(function (k) { return k.cc === h.cc; })) {
           var k = { name: h.name, cc: h.cc, wd: h.wd, lat: h.lat, lon: h.lon, bb: h.bb };
           A.countries.push(k);
-          pj(window.Pj && Pj.forPlace(ccs(), A.start), function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; }, .9);
+          pj(window.Pj && Pj.forPlace(ccs(), A.start, hint()), function () { var l = $$('#wzPicked .wz-country'); return l[l.length - 1]; }, .9);
           Motor.placeInfo(h.name).then(function (i) { if (i) { k.text = i.text; if (PAGES[page].id === 'pais') paint(); } });
           Motor.suggestCities(k.wd).catch(function () { return []; }).then(function (r) { k.sug = r; if (PAGES[page].id === 'pais') paint(); });
         }
@@ -389,7 +392,7 @@ window.Asistente = (function () {
       if (g) {
         var id = g.getAttribute('data-g'), G = GUSTOS.filter(function (x) { return x.id === id; })[0], on = G.subs.some(function (x) { return A.ints[x[0]]; });
         // primer toque: se marca todo el grupo y se abre el detalle; después abre o cierra
-        if (!A.open[id] && !on) { G.subs.forEach(function (x) { A.ints[x[0]] = 1; }); A.open[id] = 1; pj({ cultura: 'ciudad', arte: 'arte', ciudad: 'compras', natura: 'monte', comer: 'chef', peques: 'globo' }[id], function () { var x = c.querySelector('[data-g="' + id + '"]'); return x && x.closest('.wz-g'); }); }
+        if (!A.open[id] && !on) { G.subs.forEach(function (x) { A.ints[x[0]] = 1; }); A.open[id] = 1; pj({ cultura: 'ciudad', arte: 'arte', ciudad: 'compras', natura: (window.Pj && Pj.animal && Math.random() < .5 && Pj.animal(ccs(), A.start, hint())) || 'monte', comer: 'chef', peques: 'globo' }[id], function () { var x = c.querySelector('[data-g="' + id + '"]'); return x && x.closest('.wz-g'); }); }
         else A.open[id] = !A.open[id];
         paint();
       }

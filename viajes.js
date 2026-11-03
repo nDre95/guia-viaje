@@ -213,7 +213,7 @@
     $$('.vn').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-vt') === t); });
     if (t === 'home') renderHome(); else if (t === 'trips') renderList(); else if (t === 'album') Album.renderAlbum(); else if (t === 'profile') renderProfile();
     // de vez en cuando, alguien cruza la pantalla al abrir Viajes o el Álbum
-    if (window.Pj && (t === 'trips' || t === 'album')) setTimeout(function () { Pj.maybe(t === 'trips' ? pickOne(['maleta', 'avion', 'bici', 'globos']) : pickOne(['ciudad', 'japon', 'paris']), { ground: window.innerHeight - 100 }, .3); }, 700);
+    if (window.Pj && (t === 'trips' || t === 'album')) setTimeout(function () { Pj.maybe(t === 'trips' ? pickOne(['maleta', 'avion', 'bici', 'globos', 'surf', 'tuktuk', 'pinguino']) : pickOne(['ciudad', 'japon', 'paris', 'panda', 'koala', 'oveja', 'tucan', 'gaitero', 'farolillos', 'flamingos']), { ground: window.innerHeight - 100 }, .3); }, 700);
     window.scrollTo(0, 0);
   }
   $$('.vn').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-vt')); }); });
@@ -668,7 +668,7 @@
       });
       stg.appendChild(c);
       photo($('.rec-ph', c), cur.wiki, true);
-      var cu = Pj.culture ? Pj.culture(cur.cc, '2026-' + ('0' + cur.month).slice(-2) + '-15') : '', k = (cu && Math.random() < .5 ? cu : '') || ideaPj(cur) || (cat && CAT_PJ[cat]), act = $('.rec-act', box);
+      var cu = Pj.culture ? Pj.culture(cur.cc, '2026-' + ('0' + cur.month).slice(-2) + '-15', cur.t + ' ' + cur.wiki) : '', k = (cu && Math.random() < .5 ? cu : '') || ideaPj(cur) || (cat && CAT_PJ[cat]), act = $('.rec-act', box);
       if (window.Pj && k) setTimeout(function () { if (box.isConnected) Pj.play(k, { ground: act.getBoundingClientRect().top - 10 }); }, 450);
     }
     function close() { if (window.Pj) Pj.stop(); box.classList.add('out'); setTimeout(function () { box.remove(); }, 280); }
