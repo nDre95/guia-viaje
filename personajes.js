@@ -218,8 +218,9 @@ window.Pj = (function () {
   }
   // la sabana: acacia, jirafa comiendo, león tumbado y el jeep con el explorador y sus prismáticos
   function savanna() {
-    var sk = pick(SKIN), sp = '';
-    [[124, 84], [133, 90], [140, 82], [128, 92], [146, 70], [149, 58]].forEach(function (q) { sp += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
+    var sk = pick(SKIN), sp = '', sn = '';
+    [[124, 84], [133, 90], [140, 82], [128, 92]].forEach(function (q) { sp += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
+    [[146, 70], [149, 58]].forEach(function (q) { sn += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
     return '<svg class="pj-fig" viewBox="0 0 220 140" width="186" height="118" aria-hidden="true"><g class="pj-all">' +
       '<path d="M0 120 Q110 110 220 120 L220 140 L0 140 Z" fill="#d9b65e"/><path d="M20 121 l3 -6 l2 6 M60 117 l3 -7 l2 7 M190 118 l3 -6 l2 6 M205 121 l2 -5 l2 5" stroke="#9c8a3a" stroke-width="1.5" fill="none"/>' +
       '<path d="M190 120 Q188 92 180 76" stroke="#6e4524" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M186 92 Q196 84 204 78" stroke="#6e4524" stroke-width="3" fill="none"/>' +
@@ -227,10 +228,10 @@ window.Pj = (function () {
       // jirafa: el cuello sube y baja hacia la acacia
       '<g class="pj-gir"><path d="M120 118 L121 96 M127 118 L127 97 M139 118 L138 96 M145 118 L144 95" stroke="#e8b04a" stroke-width="4" stroke-linecap="round"/>' +
       '<ellipse cx="132" cy="90" rx="17" ry="9" fill="#e8b04a"/><g class="pj-neck"><path d="M142 88 L156 54" stroke="#e8b04a" stroke-width="8" stroke-linecap="round"/>' +
-      '<ellipse cx="160" cy="51" rx="8" ry="4.6" fill="#e8b04a" transform="rotate(-12 160 51)"/><path d="M155 47 l-1 -6 M159 46 l0 -6" stroke="#b06a24" stroke-width="2" stroke-linecap="round"/><circle cx="160" cy="49" r="1.2" fill="#222"/></g>' + sp +
+      '<ellipse cx="160" cy="51" rx="8" ry="4.6" fill="#e8b04a" transform="rotate(-12 160 51)"/><path d="M155 47 l-1 -6 M159 46 l0 -6" stroke="#b06a24" stroke-width="2" stroke-linecap="round"/><circle cx="160" cy="49" r="1.2" fill="#222"/>' + sn + '</g>' + sp +
       '<path d="M116 88 Q110 92 112 100" stroke="#e8b04a" stroke-width="2" fill="none"/></g>' +
       // león tumbado con su melena
-      '<g class="pj-lion"><ellipse cx="34" cy="114" rx="20" ry="8" fill="#d9a441"/><path class="pj-tail" d="M53 113 Q66 108 64 100" stroke="#d9a441" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="64" cy="99" r="3" fill="#8a4a1a"/>' +
+      '<g class="pj-lion"><ellipse cx="34" cy="114" rx="20" ry="8" fill="#d9a441"/><g class="pj-tail"><path d="M53 113 Q66 108 64 100" stroke="#d9a441" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="64" cy="99" r="3" fill="#8a4a1a"/></g>' +
       '<circle cx="16" cy="106" r="12" fill="#a8642a"/><circle cx="15" cy="107" r="7" fill="#e2b25a"/><circle cx="12.5" cy="105.5" r="1.1" fill="#222"/><circle cx="17.5" cy="105.5" r="1.1" fill="#222"/><path d="M13.5 109.5 Q15 111 16.5 109.5" stroke="#222" stroke-width="1" fill="none"/></g>' +
       // jeep con el explorador
       '<g class="pj-jeep"><rect x="66" y="98" width="46" height="16" rx="4" fill="#6b7d3a"/><path d="M72 98 L76 86 L100 86 L104 98 Z" fill="#7f9147"/><rect x="79" y="88" width="18" height="9" rx="2" fill="#bfe0f2"/>' +
@@ -325,18 +326,19 @@ window.Pj = (function () {
   }
   // safari: cada uno por su cuenta (jirafa, león y jeep), mirando a la derecha
   function giraffe() {
-    var c = '#e8b04a', sp = '';
-    [[34, 78], [44, 84], [52, 76], [40, 90], [58, 64], [61, 50], [64, 38]].forEach(function (q) { sp += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
+    var c = '#e8b04a', sp = '', sn = '';
+    [[34, 78], [44, 84], [52, 76], [40, 90]].forEach(function (q) { sp += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
+    [[58, 64], [61, 50], [64, 38]].forEach(function (q) { sn += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="2.6" fill="#b06a24"/>'; });
     return '<svg class="pj-fig" viewBox="0 0 90 150" width="81" height="135" aria-hidden="true"><g class="pj-all">' +
       '<g class="pj-lga"><path d="M30 92 L28 142 M54 92 L56 142" stroke="' + c + '" stroke-width="5" stroke-linecap="round"/></g><g class="pj-lgb"><path d="M38 92 L40 142 M48 92 L46 142" stroke="#d29a3a" stroke-width="5" stroke-linecap="round"/></g>' +
       '<path d="M24 82 Q16 88 18 100" stroke="' + c + '" stroke-width="2" fill="none"/><ellipse cx="42" cy="84" rx="20" ry="11" fill="' + c + '"/>' +
       '<g class="pj-neck2"><path d="M55 80 L66 28" stroke="' + c + '" stroke-width="9" stroke-linecap="round"/><ellipse cx="72" cy="24" rx="10" ry="5.5" fill="' + c + '" transform="rotate(-14 72 24)"/>' +
-      '<path d="M66 19 l-1 -7 M71 18 l0 -7" stroke="#b06a24" stroke-width="2.4" stroke-linecap="round"/><circle cx="73" cy="22" r="1.4" fill="#222"/></g>' + sp + '</g></svg>';
+      '<path d="M66 19 l-1 -7 M71 18 l0 -7" stroke="#b06a24" stroke-width="2.4" stroke-linecap="round"/><circle cx="73" cy="22" r="1.4" fill="#222"/>' + sn + '</g>' + sp + '</g></svg>';
   }
   function lion() {
     var c = '#d9a441';
     return '<svg class="pj-fig" viewBox="0 0 120 80" width="108" height="72" aria-hidden="true"><g class="pj-all">' +
-      '<path class="pj-tail" d="M18 40 Q4 34 6 22" stroke="' + c + '" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="6" cy="21" r="3.5" fill="#8a4a1a"/>' +
+      '<g class="pj-ltail"><path d="M18 40 Q4 34 6 22" stroke="' + c + '" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="6" cy="21" r="3.5" fill="#8a4a1a"/></g>' +
       '<g class="pj-lga"><path d="M26 50 L24 74 M78 50 L80 74" stroke="#c8913a" stroke-width="7" stroke-linecap="round"/></g><g class="pj-lgb"><path d="M36 52 L38 74 M70 52 L68 74" stroke="' + c + '" stroke-width="7" stroke-linecap="round"/></g>' +
       '<ellipse cx="52" cy="46" rx="34" ry="14" fill="' + c + '"/>' +
       '<g class="pj-lhd"><circle cx="90" cy="32" r="17" fill="#a8642a"/><circle cx="93" cy="34" r="10.5" fill="#e2b25a"/><circle cx="90" cy="31" r="1.5" fill="#222"/><circle cx="98" cy="31" r="1.5" fill="#222"/>' +
@@ -375,7 +377,7 @@ window.Pj = (function () {
   // vaca de las Highlands: pelo largo rojizo, flequillo y cuernos
   function cow() {
     var c = '#b5652b', d = '#8f4a1c';
-    return fig(130, 100, 117, 90, '<path class="pj-tail" d="M22 46 Q10 52 12 70" stroke="' + c + '" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M8 68 l4 9 l4 -9z" fill="' + d + '"/>' +
+    return fig(130, 100, 117, 90, '<g class="pj-ctail"><path d="M22 46 Q10 52 12 70" stroke="' + c + '" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M8 68 l4 9 l4 -9z" fill="' + d + '"/></g>' +
       legs('M34 64 L32 92 M80 64 L82 92', 'M44 66 L46 92 M70 66 L68 92', d, c, 8) +
       '<path d="M20 50 Q22 28 50 28 L78 28 Q98 30 96 52 Q96 70 84 72 Q82 66 78 72 Q74 66 70 72 Q66 66 62 72 Q58 66 54 72 Q50 66 46 72 Q42 66 38 72 Q34 66 30 72 Q20 68 20 50Z" fill="' + c + '"/>' +
       '<path d="M30 38 q4 7 0 14 M44 34 q4 7 0 14 M58 36 q4 7 0 14 M72 34 q4 7 0 14 M84 40 q4 7 0 14" stroke="' + d + '" stroke-width="1.6" fill="none" opacity=".6"/>' +
@@ -464,7 +466,7 @@ window.Pj = (function () {
   // tigre: como el león, con rayas (y el mismo rugido)
   function tiger() {
     var c = '#e2782f', k = '#2a2a2e';
-    return fig(120, 80, 108, 72, '<path class="pj-tail2" d="M20 40 Q4 34 6 20" stroke="' + c + '" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M8 30 l4 1 M6 24 l4 1" stroke="' + k + '" stroke-width="2"/>' +
+    return fig(120, 80, 108, 72, '<g class="pj-tail2"><path d="M20 40 Q4 34 6 20" stroke="' + c + '" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M8 30 l4 1 M6 24 l4 1" stroke="' + k + '" stroke-width="2"/></g>' +
       legs('M26 50 L24 74 M78 50 L80 74', 'M36 52 L38 74 M70 52 L68 74', '#cc6a28', c, 7) +
       '<ellipse cx="52" cy="46" rx="34" ry="13" fill="' + c + '"/><ellipse cx="52" cy="55" rx="26" ry="4.5" fill="#f7e3cc"/><path d="M32 35 q3 8 0 14 M44 34 q3 9 0 16 M56 34 q3 9 0 16 M68 35 q3 8 0 14" stroke="' + k + '" stroke-width="2.6" fill="none"/>' +
       '<g class="pj-lhd"><circle cx="82" cy="21" r="5" fill="' + c + '"/><circle cx="98" cy="20" r="5" fill="' + c + '"/><circle cx="90" cy="32" r="15" fill="' + c + '"/><ellipse cx="94" cy="38" rx="9" ry="6.5" fill="#f7f3ec"/>' +

@@ -1068,7 +1068,11 @@ html[data-theme="dark"] .mw-stamp .pm{color:#cfd6e6}
 .pj-trunk{transform-origin:117px 54px;transition:transform .5s cubic-bezier(.3,1.4,.5,1)}
 .pj.act-trumpet .pj-trunk,.pj-still .pj-trunk{animation:pjTrunk 1.6s ease-in-out infinite}
 @keyframes pjTrunk{0%,100%{transform:none}40%,70%{transform:rotate(-78deg)}}
-.pj-tail2{transform-origin:20px 40px;animation:pjTail 1.1s ease-in-out infinite alternate}
+/* cada cola gira desde donde nace en su propio dibujo (antes el león suelto usaba el giro de la sabana y la cola se le iba del cuerpo) */
+.pj-tail2{transform-origin:20px 40px;animation:pjTailS 1.1s ease-in-out infinite alternate}
+.pj-ltail{transform-origin:18px 40px;animation:pjTailS 1.1s ease-in-out infinite alternate}
+.pj-ctail{transform-origin:22px 46px;animation:pjTailS 1.4s ease-in-out infinite alternate}
+@keyframes pjTailS{from{transform:rotate(-10deg)}to{transform:rotate(12deg)}}
 .pj-bh2{transform-origin:36px 44px}
 .pj.act-peck .pj-bh2,.pj-still .pj-bh2{animation:pjPeck .3s ease-in-out 6 alternate}
 @keyframes pjPeck{to{transform:rotate(14deg)}}
