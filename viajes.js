@@ -355,6 +355,7 @@
     $$('[data-ckd]').forEach(function (el) { el.textContent = C.done; });
     $$('[data-ckpc]').forEach(function (el) { el.textContent = C.pc; });
     $$('[data-ckbar]').forEach(function (el) { el.style.width = C.pc + '%'; });
+    placePath(true);
     // la tachada se pliega y entra la siguiente pendiente, sin volver a pintar la página
     setTimeout(function () {
       li.style.height = li.offsetHeight + 'px'; void li.offsetHeight; li.classList.add('gone');
@@ -407,7 +408,7 @@
   }
   function tileReady(D) { var C = D.chk; return '<button type="button" class="card hm-t" data-open="' + esc(D.next.id) + '" data-grp="ida"><span class="hm-tt">' + ic('check') + tx('Listo para salir', 'Ready to go') + '</span><span class="hm-big"><span data-ckpc>' + C.pc + '</span><i>%</i></span><span class="hm-prog"><i data-ckbar style="width:' + C.pc + '%"></i></span><small><span data-ckd>' + C.done + '</span>' + tx(' de ', ' of ') + C.all + tx(' tareas', ' tasks') + '</small></button>'; }
   // el tiempo con su dibujo (sol, nubes, lluvia, nieve…), como en la previsión de la guía
-  function tileWeather(D) { return '<button type="button" class="card hm-t" data-open="' + esc(D.next.id) + '" data-grp="wx"><span class="hm-tt">' + ic('cloud') + tx('Tiempo', 'Weather') + '</span><span class="hm-wx"><svg class="ic hm-wxi" data-wxi><use href="#i-cloudsun"></use></svg><span class="hm-big" data-wxt>–</span></span><small data-wxn>' + esc(D.wxn) + '</small></button>'; }
+  function tileWeather(D) { return '<button type="button" class="card hm-t" data-open="' + esc(D.next.id) + '" data-grp="wx"><span class="hm-tt">' + ic('cloud') + tx('Tiempo', 'Weather') + '</span><span class="hm-wx"><svg class="ic hm-wxi" data-wxi><use href="#i-cloudsun"></use></svg><span class="hm-big" data-wxt>–</span></span><small data-wxn>' + esc(D.wxn) + '</small><small class="hm-wxtip" data-wxtip></small><span class="hm-wxpj" data-wxpj></span></button>'; }
   function mustPage(D) {
     var t = D.next, T = t.ref, all = Album.cromosOf(T, Album.get()).filter(function (c) { return c.must; }), got = all.filter(function (c) { return c.got; }).length;
     var old = $('#mustBox'); if (old) old.remove();
@@ -425,7 +426,7 @@
   function homeCuenta(D) {
     var h = heroHTML(D);
     if (!D.next) return h + ideasRow(D) + newCard(D) + extrasHTML(D);
-    h += '<div class="hm-four rv-h" style="--d:60ms">' + tileReady(D) + tileWeather(D) + '</div>';
+    h += pathHTML(D) + '<div class="hm-four rv-h" style="--d:60ms">' + tileReady(D) + tileWeather(D) + '</div>';
     if (D.must.length) h += '<div class="hm-sec rv-h" style="--d:120ms"><div class="hm-h"><b>' + tx('Imprescindibles', 'Must-sees') + '</b><button type="button" class="hx-lnk" data-mustall>' + tx('Ver todos', 'See all') + ' · ' + D.mustGot + '/' + D.must.length + '</button></div><div class="hm-scroll">' + D.must.map(function (c) {
       return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(D.next.ref.id + '|' + c.id) + '"' + bg(c.img) + '><span>' + esc(c.ti) + '</span></button>';
     }).join('') + '</div></div>';
@@ -568,6 +569,7 @@
       box.className = 'hs-' + st;
       box.innerHTML = HOME_FN[st](D) + '<div class="hx-style rv-h"><small>' + tx('Diseño de Home', 'Home layout') + '</small><div class="hx-chips">' + styleChips() + '</div></div>';
       if (D.next) wxFill(D.next);
+      placePath(false);
       $$('[data-wiki]', box).forEach(function (el) { Juego.ideaImg(el.getAttribute('data-wiki')).then(function (u) { if (u) { el.style.backgroundImage = 'url("' + u + '")'; el.classList.add('on'); } }); });
       // widget de ideas: puntos que siguen al deslizar
       var sl = $('.hw-sl', box);
@@ -594,18 +596,79 @@
   function wxFill(t) {
     var w = t.ref.b.trip.wx[0]; if (!w) return;
     var d = daysTo(t.start), day = d > 0 ? t.start : new Date().toISOString().slice(0, 10);
-    function put(hi, note, code, typ) {
+    function put(hi, note, code, typ, lo) {
       $$('[data-wxt]').forEach(function (el) { el.textContent = hi == null ? '–' : hi + '°'; });
       $$('[data-wxn]').forEach(function (el) { el.textContent = note; });
       // sin previsión, el dibujo sale de las temperaturas típicas
       var k = !typ ? wxIcon(code) : w.lo != null && w.lo <= 0 ? 'snow' : w.hi != null && w.hi >= 24 ? 'sun' : 'cloudsun';
       $$('[data-wxi]').forEach(function (el) { el.innerHTML = '<use href="#i-' + k + '"></use>'; el.setAttribute('class', 'ic hm-wxi k-' + k); });
+      wxDress(hi, typ ? w.lo : lo, k);
     }
     function typical() { if (w.hi != null) put(w.hi, w.n + ' · ' + tx('típico ', 'typical ') + w.lo + '–' + w.hi + '°', null, 1); }
     if (d > 14 || d < -30 || w.lat == null) { typical(); return; }
     fetch('https://api.open-meteo.com/v1/forecast?latitude=' + w.lat + '&longitude=' + w.lon + '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=' + day + '&end_date=' + day)
-      .then(function (r) { return r.json(); }).then(function (j) { put(Math.round(j.daily.temperature_2m_max[0]), w.n + ' · ' + tx('mín. ', 'min ') + Math.round(j.daily.temperature_2m_min[0]) + '°', j.daily.weather_code[0]); }).catch(typical);
+      .then(function (r) { return r.json(); }).then(function (j) { var lo = Math.round(j.daily.temperature_2m_min[0]); put(Math.round(j.daily.temperature_2m_max[0]), w.n + ' · ' + tx('mín. ', 'min ') + lo + '°', j.daily.weather_code[0], 0, lo); }).catch(typical);
   }
+
+  /* ---------- Personajes en Home (personajes.js): el camino hasta el viaje y el tiempo vestido. Nunca dentro de la guía ---------- */
+  function pjOn() { return !!(window.Pj && Pj.allowed && Pj.allowed()); }
+  function tripHint(t) { var m = (t.ref && t.ref.b && t.ref.b.meta) || {}; return [t.title].concat((m.generated || {}).cities || (m.mapCities || []).map(function (c) { return c.es; })).join(' '); }
+  function tripMascot(t, role) { return Pj.mascot((window.Mundo && Mundo.cached(t.ref)) || [], t.start, tripHint(t), t.id, role); }
+  // la ropa sale de la previsión: paraguas si llueve, abrigo si hace frío, gafas con sol y calor
+  function wxDress(hi, lo, k) {
+    if (!pjOn()) return;
+    var d = k === 'rain' || k === 'bolt' ? ['lluvia', tx('Lleva paraguas', 'Bring an umbrella')] : k === 'snow' || (lo != null && lo <= 2) || (hi != null && hi <= 7) ? ['nieve', tx('Abrígate bien', 'Wrap up warm')]
+      : hi != null && hi >= 27 ? ['playa', tx('Agua y protector solar', 'Water and sunscreen')] : k === 'sun' && hi != null && hi >= 20 ? ['relax', tx('Gafas de sol', 'Sunglasses')] : ['pie', tx('Buen tiempo para andar', 'Good weather for walking')];
+    $$('[data-wxtip]').forEach(function (el) { el.textContent = d[1]; });
+    $$('[data-wxpj]').forEach(function (el) { if (el.getAttribute('data-k') === d[0]) return; el.setAttribute('data-k', d[0]); el.innerHTML = ''; el.appendChild(Pj.figure(d[0])); });
+  }
+  // dónde va el personaje: la mitad por los días que pasan (los últimos 60) y la mitad por la lista de antes de salir
+  function walkAt(D) { var tp = Math.max(0, Math.min(1, 1 - D.dd / 60)); return Math.max(.05, Math.min(.95, .5 * tp + .5 * (D.chk.all ? D.chk.pc / 100 : tp))); }
+  function pathHTML(D) {
+    if (!pjOn() || !D.next || D.live || D.dd < 1) return '';
+    var k = tripMascot(D.next, 'walk'); if (!k) return '';
+    D.walkK = k;
+    return '<div class="card hm-path rv-h" style="--d:40ms"><div class="hm-h in"><b>' + tx('Camino al viaje', 'Road to the trip') + '</b><small data-pathtx></small></div>' +
+      '<div class="hmp-w"><svg class="hmp-svg" viewBox="0 0 320 92"><path class="hmp-all" d="M14 74 C88 74 104 30 166 34 S268 60 304 20"/><path class="hmp-on" d="M14 74 C88 74 104 30 166 34 S268 60 304 20"/></svg>' +
+      '<i class="hmp-dot a" data-pt="0"></i><i class="hmp-dot b" data-pt=".55"></i><i class="hmp-dot c" data-pt="1"></i>' +
+      '<span class="hmp-l" data-pt="0" data-dy="14">' + tx('Hoy', 'Today') + '</span><span class="hmp-l" data-pt=".55" data-dy="14" data-lst></span><span class="hmp-l end" data-pt="1" data-dy="-34">' + esc(sd(D.next.start)) + '</span>' +
+      '<button type="button" class="hmp-pj" data-pjw aria-label="' + esc(Pj.phrase(k) || k) + '"></button></div></div>';
+  }
+  // coloca hitos y personaje sobre la curva; con «move», anda desde donde estaba hasta su sitio nuevo
+  function placePath(move, tries) {
+    var D = HOME, w = $('.hmp-w'); if (!D || !w || !D.walkK) return;
+    var sv = $('.hmp-svg', w), pa = $('.hmp-all', sv), on = $('.hmp-on', sv), L = pa.getTotalLength(), sw = sv.getBoundingClientRect().width, p = walkAt(D), C = D.chk;
+    // hasta que la tarjeta no está dibujada, la curva no mide nada: se vuelve a intentar
+    if (!L || !sw) { if ((tries || 0) < 20) setTimeout(function () { placePath(move, (tries || 0) + 1); }, 150); return; }
+    var sc = sw / 320, R0 = sv.getBoundingClientRect(), Rw = w.getBoundingClientRect(), ox = R0.left - Rw.left, oy = R0.top - Rw.top;
+    function pt(f) { var q = pa.getPointAtLength(L * f); return { x: q.x * sc + ox, y: q.y * sc + oy }; }
+    $$('[data-pt]', w).forEach(function (el) { var q = pt(+el.getAttribute('data-pt')); el.style.left = q.x + 'px'; el.style.top = (q.y + (+el.getAttribute('data-dy') || 0)) + 'px'; });
+    var ls = $('[data-lst]', w), ok = C.all && C.pc >= 100;
+    if (ls) { ls.textContent = C.all ? (ok ? '✓ ' : '') + tx('Maleta', 'Packing') : ''; ls.classList.toggle('ok', ok); }
+    $('.hmp-dot.b', w).classList.toggle('ok', ok);
+    var t = $('[data-pathtx]'); if (t) t.textContent = C.all ? tx('Lista: ', 'List: ') + C.done + tx(' de ', ' of ') + C.all : (D.dd === 1 ? tx('Mañana', 'Tomorrow') : tx('Faltan ' + D.dd + ' días', D.dd + ' days to go'));
+    on.style.strokeDasharray = L.toFixed(1); on.style.strokeDashoffset = (L * (1 - p)).toFixed(1);
+    var b = $('[data-pjw]', w), f = b.firstChild, from = move && b._p != null ? b._p : 0;
+    if (!f) { f = Pj.figure(D.walkK); f.className = f.className.replace(/\s(act-\w+|drive)/g, ''); b.appendChild(f); }
+    var veh = /pj-veh/.test(f.className), steps = [], n = 14;
+    for (var i = 0; i <= n; i++) { var q = pt(from + (p - from) * i / n); steps.push({ transform: 'translate(' + q.x.toFixed(1) + 'px,' + q.y.toFixed(1) + 'px)' }); }
+    b._p = p;
+    if (Math.abs(p - from) < .005 || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { b.style.transform = steps[n].transform; return; }
+    f.classList.add(veh ? 'drive' : 'walk');
+    var a = b.animate(steps, { duration: 900 + Math.abs(p - from) * 2600, easing: 'ease-in-out', fill: 'forwards', delay: move ? 0 : 500 });
+    a.finished.then(function () { b.style.transform = steps[n].transform; f.classList.remove('walk', 'drive'); }).catch(function () {});
+  }
+  var pathRz = 0;
+  window.addEventListener('resize', function () { clearTimeout(pathRz); pathRz = setTimeout(function () { var b = $('[data-pjw]'); if (b && HOME && HOME.chk) { b._p = walkAt(HOME); placePath(true); } }, 200); });
+  // tocar al personaje del camino: dice su frase y da un saltito
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pjw]'); if (!b || !HOME || !HOME.walkK) return;
+    var f = b.firstChild, txt = Pj.phrase(HOME.walkK); if (!f || !txt) return;
+    var o = f.querySelector('.pj-say'); if (o) o.parentNode.removeChild(o);
+    var s = document.createElement('span'); s.className = 'pj-say'; s.textContent = txt; f.appendChild(s);
+    f.classList.add('act-hop');
+    setTimeout(function () { f.classList.remove('act-hop'); s.classList.add('out'); setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 260); }, 1500);
+  });
 
   // el personaje de cada idea según su categoría
   var CAT_PJ = { escapada: 'maleta', africa: 'safari', isla: 'isla', comida: 'chef', nieve: 'nieve', playa: 'playa', naturaleza: 'monte', ciudad: 'ciudad' };

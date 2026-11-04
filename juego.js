@@ -215,12 +215,18 @@ window.Juego = (function () {
     return picks.sort(function (a, b) { return RANK[a.tier] - RANK[b.tier]; });
   }
   // el sobre recién ganado: cae girando, con luz y destellos alrededor; se gira con el dedo. onOpen = abrirlo ya
-  function presentPack(kind, tripTitle, onOpen) {
+  // pjK: personajes del viaje que asoman por encima del sobre (personajes.js; solo en la web)
+  function pjPeek(pjK) { return window.Pj && pjK && pjK.length && Pj.allowed() ? '<div class="pk-pj n' + pjK.length + '">' + pjK.map(function (k) { return '<span data-pkpj="' + esc(k) + '"></span>'; }).join('') + '</div>' : ''; }
+  function pjFill(box, pjK) {
+    Array.prototype.forEach.call(box.querySelectorAll('[data-pkpj]'), function (el, i) { if (el.firstChild) return; var f = Pj.figure(el.getAttribute('data-pkpj')); el.appendChild(f);
+      if (!i) { var t = Pj.phrase(pjK[0]); if (t) setTimeout(function () { var b = document.createElement('span'); b.className = 'pj-say'; b.textContent = t; f.appendChild(b); setTimeout(function () { b.classList.add('out'); }, 2200); }, 700); } });
+  }
+  function presentPack(kind, tripTitle, onOpen, pjK) {
     var old = document.getElementById('pk3Box'); if (old) old.remove();
     var box = watch(document.createElement('div')), sp = '';
     for (var k = 0; k < 14; k++) sp += '<i style="--a:' + (k * 360 / 14 + Math.random() * 14).toFixed(0) + 'deg;--d:' + (118 + Math.random() * 70).toFixed(0) + 'px;--t:' + (Math.random() * 2.4).toFixed(2) + 's"></i>';
     box.id = 'pk3Box'; box.className = 'pk3 k-' + kind;
-    box.innerHTML = '<div class="pk3-stage"><span class="pk3-rays"></span><span class="pk3-ring"></span><span class="pk3-sp">' + sp + '</span>' +
+    box.innerHTML = pjPeek(pjK) + '<div class="pk3-stage"><span class="pk3-rays"></span><span class="pk3-ring"></span><span class="pk3-sp">' + sp + '</span>' +
       '<div class="pk3-w"><div class="pk3-b"><div class="pk3-f"><span class="pk-foil"></span><span class="pk3-gl"></span><span class="pk-lb"><small>Guía de viaje</small><b>' + esc(PACK[kind]) + '</b><small>' + esc(tripTitle || 'Mejora tus cromos') + '</small></span></div>' +
       '<div class="pk3-k"><span class="pk3-gl"></span><span class="pk3-logo">G</span><small>Guía de viaje</small></div></div></div></div>' +
       '<div class="pk3-txt"><b>' + esc(PACK[kind]) + ' conseguido</b><p>Gíralo con el dedo</p>' +
@@ -241,9 +247,10 @@ window.Juego = (function () {
       if (a.getAttribute('data-p3') === 'open' && onOpen) onOpen();
     });
     document.body.appendChild(box);
+    pjFill(box, pjK);
   }
   // abre un sobre de ese tipo y viaje; pool = todos los cromos canjeados: solo valen los de su viaje
-  function openPack(kind, tripId, cromos, done) {
+  function openPack(kind, tripId, cromos, done, pjK) {
     var g = get(), at = -1; g.bag.some(function (b, i) { if (b.k === kind && b.t === tripId) { at = i; return true; } return false; });
     if (at < 0) return;
     var pool = cromos.filter(function (c) { return c.got && (!tripId || c.trip === tripId); });
@@ -257,7 +264,7 @@ window.Juego = (function () {
     box.id = 'pkBox'; box.className = 'pk k-' + kind;
     function close() { box.remove(); document.dispatchEvent(new Event('juego:change')); if (done) done(); }
     function pack() {
-      box.innerHTML = '<div class="pk-in"><button type="button" class="pk-pack sq" data-pk="tear"><span class="pk-foil"></span><span class="pk-lb"><small>Guía de viaje</small><b>' + esc(PACK[kind]) + '</b><small>Mejora tus cromos</small></span></button><p class="pk-hint">Toca para abrirlo</p></div>';
+      box.innerHTML = pjPeek(pjK) + '<div class="pk-in"><button type="button" class="pk-pack sq" data-pk="tear"><span class="pk-foil"></span><span class="pk-lb"><small>Guía de viaje</small><b>' + esc(PACK[kind]) + '</b><small>Mejora tus cromos</small></span></button><p class="pk-hint">Toca para abrirlo</p></div>';
     }
     function card() {
       var x = cards[i];
@@ -273,12 +280,13 @@ window.Juego = (function () {
     box.addEventListener('click', function (e) {
       var a = e.target.closest('[data-pk]'); if (!a) return;
       var w = a.getAttribute('data-pk');
-      if (w === 'tear') { a.classList.add('torn'); setTimeout(function () { i = 0; card(); }, 620); }
+      if (w === 'tear') { a.classList.add('torn'); var pp = box.querySelector('.pk-pj'); if (pp) pp.classList.add('cheer'); setTimeout(function () { i = 0; card(); }, 620); }
       else if (w === 'next') { i++; if (i < cards.length) card(); else all(); }
       else close();
     });
     pack();
     document.body.appendChild(box);
+    pjFill(box, pjK);
   }
   // ¿ya pasó el viaje? Entonces no se puede pedir estar allí: basta la foto
   function isPast(start, days) { if (!start) return false; var e = new Date(start + 'T12:00:00Z'); e.setUTCDate(e.getUTCDate() + Math.max(0, days - 1)); return e.toISOString().slice(0, 10) < today(); }

@@ -1128,6 +1128,66 @@ html[data-theme="dark"] .mw-stamp .pm{color:#cfd6e6}
 .pj-lan{transform-origin:88px 90px;animation:pjLan 1.6s ease-in-out infinite alternate}
 @keyframes pjLan{from{transform:rotate(-8deg)}to{transform:rotate(8deg)}}
 .pj.act-lantern .pj-armR,.pj-still.pj-farolillos .pj-armR,.pj-still.pj-corea .pj-armR{transform:rotate(-58deg)}
+/* personajes en Home, perfil, pasaporte, quiz y sobres (nunca dentro de la guía) */
+/* camino al viaje */
+.hm-path{margin:12px 0 0;padding-bottom:12px}
+.hmp-w{position:relative;margin:0 -4px;padding-top:44px}
+.hmp-svg{display:block;width:100%;height:auto;overflow:visible}
+.hmp-all{fill:none;stroke:var(--orange);stroke-width:2.6;stroke-dasharray:1 7;stroke-linecap:round;opacity:.55}
+.hmp-on{fill:none;stroke:var(--orange);stroke-width:3.6;stroke-linecap:round;transition:stroke-dashoffset 1.4s var(--ease)}
+.hmp-dot{position:absolute;z-index:1;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--bone2,#fff);border:2.5px solid var(--orange);box-sizing:border-box}
+.hmp-dot.a{background:var(--orange)}
+.hmp-dot.b.ok{background:var(--green);border-color:var(--green)}
+.hmp-dot.c{width:17px;height:17px;margin:-8.5px 0 0 -8.5px;border-width:3px}
+.hmp-l{position:absolute;z-index:1;transform:translateX(-50%);font-size:11.5px;font-weight:750;color:var(--txt3);white-space:nowrap}
+.hmp-l:nth-of-type(1){transform:translateX(-25%)}
+.hmp-l.ok{color:var(--green)}
+.hmp-l.end{transform:translateX(-80%);color:var(--orange-t)}
+.hmp-pj{position:absolute;left:0;top:0;z-index:2;width:0;height:0;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hmp-pj .pj.pj-still{position:absolute;left:0;bottom:0;margin:0;transform:translateX(-50%) scale(.4);transform-origin:50% 100%}
+.hmp-pj .pj-veh.pj-still{transform:translateX(-50%) scale(.5)}
+.hmp-pj .pj-say,.hm-wxpj .pj-say{font-size:30px;padding:12px 22px;border-radius:26px}
+/* el tiempo, vestido */
+.hm-wxpj{position:absolute;right:8px;bottom:6px;pointer-events:none}
+.hm-wxpj .pj.pj-still{margin:0;transform:scale(.4);transform-origin:100% 100%;animation:pjIn .5s cubic-bezier(.3,1.5,.5,1) both}
+.hm-t small[data-wxn],.hm-t .hm-wxtip{max-width:calc(100% - 40px)}
+.hm-t .hm-wxtip{color:var(--txt2);font-weight:700}
+.hm-t .hm-wxtip:empty{display:none}
+/* mis personajes */
+.pjc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 14px}
+.pjc-t{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:1px;height:150px;padding:8px 6px 10px;border:0;border-radius:18px;background:var(--g-bg);box-shadow:var(--g-sh);font:inherit;color:var(--txt);cursor:pointer;overflow:hidden;transition:transform .45s var(--spring)}
+.pjc-t:active{transform:scale(.96)}
+.pjc-t.lk{background:rgba(127,127,127,.09);box-shadow:none;cursor:default}
+.pjc-f{display:flex;align-items:flex-end;justify-content:center;width:100%;height:98px}
+.pjc-f .pj.pj-still{margin:0}
+.pjc-f svg{width:auto;height:94px;max-width:100px}
+.pjc-t b{margin-top:6px;font-size:12.5px;font-weight:750;line-height:1.15;text-align:center}
+.pjc-t small{font-size:11px;font-weight:650;color:var(--txt3);min-height:13px}
+.pjc-t.lk b{color:var(--txt3)}
+.pjc-t.lk svg{filter:brightness(0);opacity:.14}
+.pjc-t.lk .pj-shadow,.pjc-t.lk .pj::before,.pjc-t.lk .pj::after{display:none}
+.pjc-t.fresh{animation:pjcIn .8s .2s cubic-bezier(.3,1.5,.5,1) both;box-shadow:0 0 0 2px var(--orange),var(--g-sh)}
+@keyframes pjcIn{0%{opacity:0;transform:scale(.6) rotate(-6deg)}100%{opacity:1;transform:none}}
+/* sellos con el dibujo del sitio */
+.pps-ink{display:block;width:4.6em;height:3.4em;background:var(--c);-webkit-mask:center/contain no-repeat;mask:center/contain no-repeat}
+.pps.has-ink .fl{display:none}
+.pps.rect .pps-ink,.pps.oval .pps-ink{height:3em}
+/* el acompañante del quiz */
+.pj.pj-buddy{position:absolute;left:auto;top:auto;right:12px;bottom:calc(var(--safe-b) + 12px);z-index:5;pointer-events:none;transform:scale(.54);transform-origin:100% 100%;will-change:auto}
+.pj-buddy .pj-say{left:auto;right:10px;transform:none;padding:12px 22px;border-radius:26px;font-size:30px;animation-name:pjSayL}
+.pj-buddy .pj-say::after{left:auto;right:40px}
+.pj.act-shrug .pj-armL{transform:rotate(52deg)}.pj.act-shrug .pj-armR{transform:rotate(-52deg)}
+.pj.act-shrug .pj-head{transform:rotate(-8deg) translateY(2px)}
+.pj.act-shrug .pj-mouth{transform:translateY(2px) scaleY(-1);transform-origin:50px 52px}
+/* quien asoma de un sobre */
+.pk{flex-direction:column}
+.pk-pj{position:relative;z-index:3;display:flex;align-items:flex-end;justify-content:center;gap:6px;height:112px;margin-bottom:-30px;pointer-events:none;animation:pjIn .6s .25s cubic-bezier(.3,1.5,.5,1) both}
+.pk-pj > span{display:flex;align-items:flex-end}
+.pk-pj .pj.pj-still{margin:0}
+.pk-pj svg{width:auto;height:104px;max-width:150px}
+.pk-pj.n2 svg,.pk-pj.n3 svg{height:86px;max-width:104px}
+.pk-pj.cheer .pj-fig{animation:pjHop .34s cubic-bezier(.3,.7,.4,1) 3 alternate}
+.pk-pj .pj-say{font-size:13px}
 /* Álbum: portada tipo revista */
 .alh{position:relative;display:grid;grid-template-columns:1fr auto;gap:6px 10px;margin:4px 0 6px;padding:18px;border-radius:26px;overflow:hidden;color:#f3eee5;
   background:radial-gradient(120% 120% at 100% 0%,rgba(242,154,82,.45),transparent 55%),linear-gradient(150deg,#3b3e46,#1f2126);box-shadow:0 18px 40px -22px rgba(0,0,0,.7)}

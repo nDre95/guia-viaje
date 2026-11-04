@@ -243,9 +243,10 @@ window.Mundo = (function () {
     function stamp(r) {
       var col = 0; for (var k = 0; k < r.c.length; k++) col += r.c.charCodeAt(k);
       var shape = ['circ', 'rect', 'oval'][hashOf(r.c, 3)], rot = hashOf(r.c + 'r', 25) - 12, dx = hashOf(r.c + 'x', 17) - 8, dy = hashOf(r.c + 'y', 13) - 6;
-      var d = r.sl ? new Date(r.sl.at + 'T12:00:00Z') : null, isNew = r.sl && !r.sl.shown;
-      return '<button type="button" class="pps ' + shape + (r.sl ? ' sealed' + (isNew ? ' fresh' : '') : r.next ? ' next' : ' open') + '"' + (r.sl ? ' data-post="' + esc(r.sl.t) + '"' : r.next ? '' : ' data-post="' + esc(r.trips[0].id) + '"') + ' data-cc="' + esc(r.key) + '" style="--c:' + STAMP[col % STAMP.length] + ';--r:' + rot + 'deg;--x:' + dx + 'px;--y:' + dy + 'px">' +
-        '<span class="fl">' + (flag(r.c) || '🌍') + '</span><b>' + esc(name(r.c)) + '</b><small>' + (r.sl ? esc(d.toLocaleDateString(lg(), { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase()) : r.next ? 'Por visitar' : 'Sin sellar') + '</small></button>';
+      var d = r.sl ? new Date(r.sl.at + 'T12:00:00Z') : null, isNew = r.sl && !r.sl.shown, t0 = r.trips[0] || {}, hint = [t0.title].concat(t0.ref ? citiesOf(t0) : []).join(' ');
+      var pk = window.Pj && Pj.mascot && Pj.allowed() ? Pj.placeKey(r.c, hint) : '', ik = pk ? Pj.mascot([r.c], t0.start, pk !== r.c ? hint : '', pk, 'ink') : '', nm = (pk && Pj.placeName(pk)) || name(r.c);
+      return '<button type="button" class="pps ' + shape + (ik ? ' has-ink' : '') + (r.sl ? ' sealed' + (isNew ? ' fresh' : '') : r.next ? ' next' : ' open') + '"' + (r.sl ? ' data-post="' + esc(r.sl.t) + '"' : r.next ? '' : ' data-post="' + esc(r.trips[0].id) + '"') + ' data-cc="' + esc(r.key) + '" style="--c:' + STAMP[col % STAMP.length] + ';--r:' + rot + 'deg;--x:' + dx + 'px;--y:' + dy + 'px">' +
+        '<span class="fl">' + (flag(r.c) || '🌍') + '</span>' + (ik ? '<i class="pps-ink" data-ink="' + esc(ik) + '"></i>' : '') + '<b>' + esc(nm) + '</b><small>' + (r.sl ? esc(d.toLocaleDateString(lg(), { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase()) : r.next ? 'Por visitar' : 'Sin sellar') + '</small></button>';
     }
     var pages = [];
     // tapa
@@ -300,6 +301,7 @@ window.Mundo = (function () {
       else go(cur + +b.getAttribute('data-pn'));
     });
     window.addEventListener('resize', size);
+    Array.prototype.forEach.call(v.querySelectorAll('[data-ink]'), function (el) { var u = Pj.ink(el.getAttribute('data-ink')); if (u) { el.style.webkitMaskImage = u; el.style.maskImage = u; } });
     if (window.Lang) Lang.watch(v);
     document.body.appendChild(v);
     size(); L.forEach(function (el) { setA(el, 0, false); }); label();
@@ -430,6 +432,7 @@ window.Mundo = (function () {
     var P = quizPool(trips), Q = quizQuestions(P), i = 0, hits = 0, box = document.createElement('div'), tid = trips[0].id, wait = quizLeft(tid);
     if (!Q.length) return;
     box.id = 'qzBox'; box.className = 'qz'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+    var t0 = trips[0], bk = window.Pj && Pj.buddy && Pj.allowed() && t0.ref ? Pj.mascot(cached(t0.ref) || [], t0.start, [t0.title].concat(citiesOf(t0)).join(' '), t0.id, 'person') : '', BD = bk ? Pj.buddy(box, bk) : null, en = lg() === 'en';
     function close() { box.remove(); if (onEnd) onEnd(); }
     function waitHTML(ms, best) {
       return '<div class="qz-wt"><small>Próximo intento en</small><b data-cd="' + (Date.now() + ms) + '">' + clock(ms) + '</b>' + (best != null ? '<small>Récord: ' + best + '/5</small>' : '') + '</div>';
@@ -445,6 +448,7 @@ window.Mundo = (function () {
         '<span class="qz-bar"><i style="width:' + (i / Q.length * 100) + '%"></i></span><h3>' + esc(title) + '</h3>' +
         (q.type === 'photo' ? '<div class="qz-ph" style="background-image:url(&quot;' + esc(q.q.img) + '&quot;)"></div>' : q.type === 'text' ? '<p class="qz-tx">' + esc(maskName(q.q.lead, q.q.ti)) + '</p>' : '') +
         '<div class="qz-opts">' + q.opts.map(function (o, k) { return '<button type="button" class="qz-o sq" data-o="' + k + '">' + esc(o) + '</button>'; }).join('') + '</div><div class="qz-next" hidden></div></div>';
+      if (BD) BD.attach();
     }
     function result() {
       var S = quizStore(); S.played = (S.played || 0) + 1; S.best = Math.max(S.best || 0, hits); if (hits >= 5) S.perfect = (S.perfect || 0) + 1; S.hits = (S.hits || 0) + hits;
@@ -455,12 +459,14 @@ window.Mundo = (function () {
       box.innerHTML = '<div class="qz-in qz-end"><b class="qz-score">' + hits + '<i>/' + Q.length + '</i></b><h3>' + esc(hits === Q.length ? 'Perfecto' : hits * 2 >= Q.length ? 'Bien' : 'Hay que repasar') + '</h3><p class="qz-tx">Has acertado ' + hits + ' de ' + Q.length + '</p><div class="qz-rew"><p class="' + (pack ? 'on' : '') + '">' + (pack ? Juego.PACK[pack] + ' conseguido' : hits >= 2 ? 'Hoy ya ganaste el sobre de este viaje' : 'Con 2 aciertos ya ganas un sobre') + '</p></div>' +
         waitHTML(quizLeft(tid) || QZ_MS) +
         '<div class="btn-row">' + (back ? '<button type="button" class="btn navy sq" data-qz="back">Otro viaje</button>' : '') + '<button type="button" class="btn ghost sq" data-qz="close">Cerrar</button></div></div>';
+      if (BD) { BD.attach(); BD.react(hits * 2 >= Q.length ? 'yes' : 'no'); BD.say(hits === Q.length ? (en ? 'Perfect!' : '¡Perfecto!') : hits * 2 >= Q.length ? (en ? 'Well done!' : '¡Bien hecho!') : (en ? 'Almost…' : 'Casi…'), 2200); }
       // el sobre ganado aparece en grande, en 3D
       if (pack && Juego.presentPack) setTimeout(function () {
         if (!document.body.contains(box)) return;
+        var pkj = bk ? Pj.forPack(cached(t0.ref) || [], t0.start, [t0.title].concat(citiesOf(t0)).join(' '), t0.id, pack) : null;
         Juego.presentPack(pack, trips[0].title, window.Album && Album.allCards ? function () {
-          Album.allCards().then(function (cards) { Juego.openPack(pack, tid, cards, function () { if (Album.renderAlbum) Album.renderAlbum(); }); });
-        } : null);
+          Album.allCards().then(function (cards) { Juego.openPack(pack, tid, cards, function () { if (Album.renderAlbum) Album.renderAlbum(); }, pkj); });
+        } : null, pkj);
       }, 700);
     }
     box.addEventListener('click', function (e) {
@@ -477,6 +483,7 @@ window.Mundo = (function () {
       var q = Q[i], pick = q.opts[+o.getAttribute('data-o')], good = pick === q.ok;
       if (i === 0) mark();
       if (good) hits++;
+      if (BD) { BD.react(good ? 'yes' : 'no'); BD.say(good ? (en ? 'Yes!' : '¡Bien!') : (en ? 'Not quite' : 'Casi'), 1100); }
       Array.prototype.forEach.call(box.querySelectorAll('.qz-o'), function (b, k) { b.disabled = true; if (q.opts[k] === q.ok) b.classList.add('ok'); else if (b === o) b.classList.add('no'); });
       var nx = box.querySelector('.qz-next');
       nx.hidden = false;

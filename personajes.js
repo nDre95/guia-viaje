@@ -1135,15 +1135,16 @@ window.Pj = (function () {
     BR: ['samba', 'tucan'], CR: ['tucan', 'mono', 'loro'], CO: ['loro'], PA: ['tucan'], ID: ['mono', 'tortuga'], MY: ['mono'], MV: ['tortuga', 'delfin'], SC: ['tortuga'],
     KE: ['flamingos', 'elefante'], TZ: ['flamingos', 'elefante'], BW: ['elefante'], ZW: ['elefante'], ZM: ['elefante'] };
   // regiones que no son un país en los datos (Escocia es «GB»): se reconocen por el nombre del viaje, del país o de las ciudades
-  var REGION = [[/escocia|scotland|edimburgo|edinburgh|glasgow|highlands|inverness|skye|loch|stirling|aberdeen/i, ['gaitero', 'highlands', 'nessie', 'vaca', 'oveja']],
-    [/azores|açores/i, ['ballena', 'delfin']], [/hawai/i, ['surf', 'tortuga']], [/gal[aá]pagos/i, ['tortuga']], [/laponia|lapland|rovaniemi|troms|abisko|kiruna/i, ['reno', 'aurora:w', 'osopolar:w']],
-    [/patagonia|ushuaia|vald[eé]s|tierra del fuego/i, ['pinguino', 'ballena']], [/gales|wales|irlanda del norte|northern ireland/i, ['oveja']]];
+  var REGION = [[/escocia|scotland|edimburgo|edinburgh|glasgow|highlands|inverness|skye|loch|stirling|aberdeen/i, ['gaitero', 'highlands', 'nessie', 'vaca', 'oveja'], 'SCT', 'Escocia', 'Scotland', 'GB'],
+    [/azores|açores/i, ['ballena', 'delfin'], 'AZR', 'Azores', 'Azores', 'PT'], [/hawai/i, ['surf', 'tortuga'], 'HAW', 'Hawái', 'Hawaii', 'US'], [/gal[aá]pagos/i, ['tortuga'], 'GAL', 'Galápagos', 'Galápagos', 'EC'],
+    [/laponia|lapland|rovaniemi|troms|abisko|kiruna/i, ['reno', 'aurora:w', 'osopolar:w'], 'LAP', 'Laponia', 'Lapland', 'FI'],
+    [/patagonia|ushuaia|vald[eé]s|tierra del fuego/i, ['pinguino', 'ballena'], 'PAT', 'Patagonia', 'Patagonia', 'AR'], [/gales|wales|irlanda del norte|northern ireland/i, ['oveja'], 'WLS', 'Gales', 'Wales', 'GB']];
+  function regionOf(cc, hint) { var r = null; if (hint) REGION.forEach(function (x) { if (!r && x[0].test(hint) && (!cc || x[5] === cc)) r = x; }); return r; }
   var ANIMALS = 'vaca nessie oveja panda koala pinguino osopolar reno alce elefante elefanteIn tigre tucan loro mono delfin tortuga ballena flamingos highlands canguro andes camello safari'.split(' ');
   // lo típico del sitio; «:w» solo en invierno (esquí, auroras, renos) y «:s» solo en verano (surf, ballenas), según el hemisferio
   function cultList(cc, iso, hint) {
     var m = iso ? +String(iso).slice(5, 7) : new Date().getMonth() + 1; if (SOUTH.indexOf(cc) >= 0) m = (m + 5) % 12 + 1;
-    var win = m >= 11 || m <= 3, sum = m >= 5 && m <= 9, l = null;
-    if (hint) REGION.forEach(function (r) { if (!l && r[0].test(hint)) l = r[1]; });
+    var win = m >= 11 || m <= 3, sum = m >= 5 && m <= 9, R = regionOf('', hint), l = R && R[1];
     return (l || CULT[cc] || []).filter(function (k) { return /:w$/.test(k) ? win : /:s$/.test(k) ? sum : true; }).map(function (k) { return k.replace(/:[ws]$/, ''); });
   }
   function culture(cc, iso, hint) { var l = cultList(cc, iso, hint); return l.length ? pick(l) : ''; }
@@ -1174,5 +1175,66 @@ window.Pj = (function () {
     return 'ciudad';
   }
 
-  return { play: play, maybe: maybe, stop: stop, figure: figure, cast: cast, journey: journey, theme: theme, culture: culture, forPlace: forPlace, animal: animal, fresh: function () { trapNext = true; lastAt = 0; }, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); } };
+  /* ---------- La mascota de cada sitio: siempre la misma para un viaje (Home, perfil, pasaporte, quiz y sobres) ---------- */
+  function hashN(x, n) { var h = 7; x = String(x || ''); for (var i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) % 99991; return n ? h % n : h; }
+  var WALKS = 'vaca oveja pinguino osopolar reno alce elefante elefanteIn tigre tortuga flamingo leon jirafa canguro'.split(' ');
+  // role: 'walk' (anda por un camino), 'person' (salta y se encoge), 'animal' (asoma de un sobre), 'ink' (silueta de un sello) o '' (cualquiera)
+  function fits(k, role) {
+    var K = KINDS[k]; if (!K || K.group) return false;
+    if (role === 'person') return !K.vehicle;
+    if (role === 'walk') return !K.vehicle || WALKS.indexOf(k) >= 0;
+    if (role === 'animal') return !!K.animal;
+    if (role === 'ink') return k !== 'taxi' && k !== 'londres' && k !== 'tranvia';
+    return true;
+  }
+  function stills(l) { var o = []; l.forEach(function (k) { var K = KINDS[k]; if (K && K.group) K.group.forEach(function (g) { if (o.indexOf(g) < 0) o.push(g); }); else if (K && o.indexOf(k) < 0) o.push(k); }); return o; }
+  function mascot(ccs, iso, hint, seed, role) {
+    var cc = (ccs || [])[0] || '', l = stills(cultList(cc, iso, hint)).filter(function (k) { return fits(k, role); });
+    if (!l.length && role !== 'animal') { var t = theme(ccs, iso); t = t === 'isla' ? 'playa' : t === 'safari' ? 'monte' : t; if (fits(t, role)) l = [t]; }
+    return l.length ? l[hashN(seed || cc + (hint || ''), l.length)] : '';
+  }
+  // hasta tres del sitio, para los sobres de rubí (en Escocia: vaca, gaitero y oveja)
+  function forPack(ccs, iso, hint, seed, tier) {
+    if (tier === 'r') { var t3 = trio(ccs, iso, hint); if (t3.length > 1) return t3; }
+    var k = mascot(ccs, iso, hint, seed, 'animal') || mascot(ccs, iso, hint, seed, 'walk'); return k ? [k] : [];
+  }
+  function trio(ccs, iso, hint) { return stills(cultList((ccs || [])[0] || '', iso, hint)).filter(function (k) { return fits(k, 'walk') || fits(k, 'animal'); }).slice(0, 3); }
+  // cada sitio con personaje propio cuenta una vez: los países de CULT y las regiones (Escocia, Azores…)
+  function placeKey(cc, hint) { var R = regionOf(cc, hint); return R ? R[2] : cc; }
+  function placeName(key) { var R = REGION.filter(function (x) { return x[2] === key; })[0]; return R ? (en() ? R[4] : R[3]) : ''; }
+  function places() { return Object.keys(CULT).concat(REGION.map(function (x) { return x[2]; })); }
+  function placeKind(key) { var R = REGION.filter(function (x) { return x[2] === key; })[0]; return mascot([R ? R[5] : key], '2026-07-01', R ? R[3] : '', key, 'ink') || ''; }
+  // la silueta para un sello: el dibujo usado como máscara, que se rellena con la tinta
+  var INK = {};
+  function ink(kind) {
+    var K = KINDS[kind]; if (!K) return '';
+    if (!INK[kind]) INK[kind] = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent((K.vehicle ? vehicle(K) : person(K, 'ink' + kind, { skin: '#000', hair: '#000' })).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')) + '")';
+    return INK[kind];
+  }
+  function phrase(kind) { var K = KINDS[kind]; return K && K.say ? (en() ? K.say[1] : K.say[0]) : ''; }
+  // un acompañante quieto en una esquina que reacciona (el quiz): salta al acertar y se encoge de hombros al fallar
+  function buddy(box, kind) {
+    var K = KINDS[kind], B = { el: null, attach: function () {}, react: function () {}, say: function () {} };
+    if (!box || !K || off()) return B;
+    var e = document.createElement('div'); e.className = 'pj pj-buddy pj-in pj-' + kind + (K.vehicle ? ' pj-veh' : '');
+    e.innerHTML = (K.vehicle ? vehicle(K) : person(K, Math.random().toString(36).slice(2, 7))) + '<span class="pj-shadow"></span>';
+    var t1 = 0, t2 = 0;
+    B.el = e;
+    B.attach = function () { if (e.parentNode !== box) box.appendChild(e); };
+    B.react = function (type) {
+      e.className = e.className.replace(/\s(act-\w+|gear)/g, ''); void e.offsetWidth;
+      if (reduced()) return;
+      e.classList.add(type === 'yes' ? 'act-jump' : type === 'no' ? 'act-shrug' : 'act-' + (K.idle || 'wave'));
+      clearTimeout(t1); t1 = setTimeout(function () { e.className = e.className.replace(/\s(act-\w+)/g, ''); }, 1700);
+    };
+    B.say = function (txt, ms) {
+      if (!txt) return; var o = e.querySelector('.pj-say'); if (o) o.remove();
+      var b = document.createElement('span'); b.className = 'pj-say'; b.textContent = txt; e.appendChild(b);
+      clearTimeout(t2); t2 = setTimeout(function () { b.classList.add('out'); setTimeout(function () { b.remove(); }, 260); }, ms || 1500);
+    };
+    return B;
+  }
+
+  return { play: play, maybe: maybe, stop: stop, figure: figure, cast: cast, journey: journey, theme: theme, culture: culture, forPlace: forPlace, animal: animal, fresh: function () { trapNext = true; lastAt = 0; }, kinds: Object.keys(KINDS), enabled: function () { return !off() && !reduced(); },
+    allowed: function () { return !off(); }, mascot: mascot, trio: trio, placeKey: placeKey, placeName: placeName, places: places, placeKind: placeKind, forPack: forPack, ink: ink, phrase: phrase, buddy: buddy, hash: hashN };
 })();
