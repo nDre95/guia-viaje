@@ -713,9 +713,12 @@
     var veh = /pj-veh/.test(f.className), steps = [], n = 14;
     for (var i = 0; i <= n; i++) { var q = pt(from + (p - from) * i / n); steps.push({ transform: 'translate(' + q.x.toFixed(1) + 'px,' + q.y.toFixed(1) + 'px)' }); }
     b._p = p;
+    // se coloca al principio de su tramo antes de que se vea (si no, durante la espera aparecía en la esquina de arriba)
+    b.classList.add('on');
     if (Math.abs(p - from) < .005 || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { b.style.transform = steps[n].transform; return; }
+    b.style.transform = steps[0].transform;
     f.classList.add(veh ? 'drive' : 'walk');
-    var a = b.animate(steps, { duration: 900 + Math.abs(p - from) * 2600, easing: 'ease-in-out', fill: 'forwards', delay: move ? 0 : 500 });
+    var a = b.animate(steps, { duration: 900 + Math.abs(p - from) * 2600, easing: 'ease-in-out', fill: 'both', delay: move ? 0 : 500 });
     a.finished.then(function () { b.style.transform = steps[n].transform; f.classList.remove('walk', 'drive'); }).catch(function () {});
   }
   var pathRz = 0;

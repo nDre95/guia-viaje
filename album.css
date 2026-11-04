@@ -1187,6 +1187,7 @@ html[data-theme="dark"] .mw-stamp .pm{color:#cfd6e6}
 .hmp-l.ok{color:var(--green)}
 .hmp-l.end{transform:translateX(-80%);color:var(--orange-t)}
 .hmp-pj{position:absolute;left:0;top:0;z-index:2;width:0;height:0;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hmp-pj:not(.on){visibility:hidden}
 .hmp-pj .pj.pj-still{position:absolute;left:0;bottom:0;margin:0;transform:translateX(-50%) scale(.4);transform-origin:50% 100%}
 .hmp-pj .pj-veh.pj-still{transform:translateX(-50%) scale(.5)}
 .hmp-pj .pj-say,.hm-wxpj .pj-say{font-size:30px;padding:12px 22px;border-radius:26px}
