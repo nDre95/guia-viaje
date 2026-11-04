@@ -622,17 +622,80 @@
     $$('[data-wxtip]').forEach(function (el) { el.textContent = d[1]; });
     $$('[data-wxpj]').forEach(function (el) { if (el.getAttribute('data-k') === d[0]) return; el.setAttribute('data-k', d[0]); el.innerHTML = ''; el.appendChild(Pj.figure(d[0])); });
   }
+
+  /* ---------- Lo que hay que hacer hasta el viaje, con fecha ----------
+     Las tareas de «antes de salir» no llevan fecha: cada una cae en una etapa según su grupo y su texto (documentos y visados
+     con más antelación, reservas un mes antes, dinero una semana antes, la maleta la víspera); se añade el check-in de ida
+     si hay vuelos, y lo de la vuelta va en «Antes de volver». Lo que ya debería estar hecho sube a «Cuanto antes». */
+  var RD_PH = [['w6', 42, 'Seis semanas antes', 'Six weeks before'], ['w4', 30, 'Un mes antes', 'A month before'], ['w2', 14, 'Dos semanas antes', 'Two weeks before'],
+    ['d7', 7, 'Una semana antes', 'A week before'], ['d3', 3, 'Tres días antes', 'Three days before'], ['d1', 1, 'La víspera', 'The day before']];
+  // [etapa, nombre corto para el camino de Home] según el grupo y el texto en español de la tarea
+  function rdRule(g, i) {
+    var x = (i.id + ' ' + i.t).toLowerCase(), doc = g === 'doc' || /^(reserva|entrada)/i.test(i.t);
+    if (g === 'vdoc' || g === 'vmaleta' || g === 'fin') return ['back', /check-?in/.test(x) ? 'Check-in' : ''];
+    if (/^fotos|copias/.test(x)) return ['d3', ''];
+    if (/\beta\b|visad|\bvisa\b/.test(x)) return ['w6', /\beta\b/.test(x) ? 'ETA' : tx('Visado', 'Visa')];
+    if (/pasaporte|\bdni\b/.test(x)) return ['w6', tx('Pasaporte', 'Passport')];
+    if (/seguro/.test(x)) return ['w4', tx('Seguro', 'Insurance')];
+    if (/carnet|carné/.test(x)) return ['w4', tx('Carné', 'Licence')];
+    // las reservas solo en la lista de documentos o si la tarea empieza por «Reserva»: «Snacks para el coche» no es una reserva
+    if (doc && /vuelo|billete/.test(x)) return ['w4', tx('Vuelos', 'Flights')];
+    if (doc && /hotel|aloja/.test(x)) return ['w4', tx('Hoteles', 'Hotels')];
+    if (doc && /coche|alquiler/.test(x)) return ['w4', tx('Coche', 'Car')];
+    if (doc && /entrada|tour|ticket|reserva/.test(x)) return ['w2', tx('Entradas', 'Tickets')];
+    if (/abre|horario|comprobar|confirm/.test(x)) return ['d3', ''];
+    if (g === 'din' || /tarjeta|efectivo|roaming|esim/.test(x)) return ['d7', /roaming|esim/.test(x) ? 'Roaming' : ''];
+    if (g === 'car' || /mapa|offline|sin conexión|guía/.test(x)) return ['d3', ''];
+    return ['d1', tx('Maleta', 'Packing')];
+  }
+  function rdChecked(ns, o) { try { if (o) localStorage.setItem(ns + 'checked', JSON.stringify(o)); return JSON.parse(localStorage.getItem(ns + 'checked') || '{}') || {}; } catch (e) { return o || {}; } }
+  function roadData(t) {
+    var T = t.ref, ns = (T.b.meta.storage || T.b.meta.id || T.id) + ':', ck = rdChecked(ns), E = isEn() ? (T.b.trip_en || {}).checklist || {} : {}, today = new Date().toISOString().slice(0, 10);
+    var ph = RD_PH.map(function (p) { return { k: p[0], lb: tx(p[2], p[3]), date: addDays(t.start, -p[1]), items: [] }; });
+    var back = { k: 'back', lb: tx('Antes de volver', 'Before flying home'), date: addDays(t.start, Math.max(0, t.days - 2)), items: [] }, by = { back: back }, fly = false;
+    ph.forEach(function (p) { by[p.k] = p; });
+    (T.b.trip.checklist || []).forEach(function (c) {
+      (c.items || []).forEach(function (i) {
+        var r = rdRule(c.id, i), e = ((E[c.id] || {}).items || {})[i.id] || {};
+        if (/vuelo|embarque|check-?in/i.test(i.t)) fly = true;
+        by[r[0]].items.push({ id: i.id, t: e.t || i.t, n: e.n || i.n || '', imp: i.imp ? 1 : 0, short: r[1], done: !!ck[i.id] });
+      });
+    });
+    // el check-in de ida no está en las listas: abre 24–48 h antes del vuelo
+    if (fly) by.d1.items.unshift({ id: '_xcheckin', t: tx('Check-in online del vuelo de ida', 'Online check-in for the outbound flight'), n: tx('Suele abrir 24–48 h antes. Guarda la tarjeta de embarque en el móvil.', 'It usually opens 24–48 h before. Keep the boarding pass on your phone.'), imp: 1, short: 'Check-in', done: !!ck._xcheckin });
+    by.d3.items.unshift({ id: '_xwx', t: tx('Mirar la previsión y ajustar la maleta', 'Check the forecast and adjust your packing'), n: tx('A tres días ya es bastante fiable.', 'Three days out it is fairly reliable.'), imp: 0, short: '', done: !!ck._xwx });
+    // lo que ya tendría que estar hecho, arriba
+    var late = [], next = [];
+    ph.forEach(function (p) { if (p.date < today) { p.items.forEach(function (i) { if (!i.done) late.push(i); }); } else if (p.items.length) next.push(p); });
+    late.sort(function (a, b) { return b.imp - a.imp; });
+    var all = ph.concat([back]).reduce(function (n, p) { return n + p.items.length; }, 0), done = ph.concat([back]).reduce(function (n, p) { return n + p.items.filter(function (i) { return i.done; }).length; }, 0);
+    return { t: t, ns: ns, today: today, late: late, next: next, back: back, all: all, done: done };
+  }
+  // dos hitos para el camino de Home (lo más importante que queda y el check-in), sin cargarlo
+  // en el camino de Home, solo dos pasos del propio viaje con su fecha: hacer la maleta y el check-in (lo demás, en la línea del tiempo)
+  function roadMarks(R, dd) {
+    var out = [];
+    R.next.forEach(function (p) {
+      var f = Math.max(.22, Math.min(.86, daysTo(p.date) / Math.max(1, dd)));
+      if (p.items.some(function (i) { return !i.done && i.short === tx('Maleta', 'Packing'); }) && !out.some(function (m) { return m.k === 'mal'; })) out.push({ k: 'mal', lb: tx('Maleta', 'Packing'), f: Math.max(.2, f - .22), date: p.date });
+      p.items.forEach(function (i) { if (!i.done && i.short === 'Check-in' && !out.some(function (m) { return m.k === 'ci'; })) out.push({ k: 'ci', lb: 'Check-in', f: f, date: p.date }); });
+    });
+    return out.sort(function (a, b) { return a.f - b.f; });
+  }
   // dónde va el personaje: la mitad por los días que pasan (los últimos 60) y la mitad por la lista de antes de salir
   function walkAt(D) { var tp = Math.max(0, Math.min(1, 1 - D.dd / 60)); return Math.max(.05, Math.min(.95, .5 * tp + .5 * (D.chk.all ? D.chk.pc / 100 : tp))); }
   function pathHTML(D) {
     if (!pjOn() || !D.next || D.live || D.dd < 1) return '';
     var k = tripMascot(D.next, 'walk'); if (!k) return '';
     D.walkK = k;
-    return '<div class="card hm-path rv-h" style="--d:40ms"><div class="hm-h in"><b>' + tx('Camino al viaje', 'Road to the trip') + '</b><small data-pathtx></small></div>' +
+    var R = roadData(D.next), M = roadMarks(R, D.dd), lt = [], seenL = {};
+    R.late.forEach(function (i) { var s = i.short || ''; if (i.imp && s && !seenL[s]) { seenL[s] = 1; lt.push(s); } });
+    var lateTx = R.late.length ? tx('Ya toca: ', 'Due now: ') + lt.slice(0, 3).join(' · ') + (R.late.length > Math.min(3, lt.length) ? ' ' + tx('y ' + (R.late.length - Math.min(3, lt.length)) + ' más', 'and ' + (R.late.length - Math.min(3, lt.length)) + ' more') : '') : '';
+    return '<div class="card hm-path rv-h" data-road style="--d:40ms"><div class="hm-h in"><b>' + tx('Camino al viaje', 'Road to the trip') + '</b><small class="hmp-more"><span data-pathtx></span>' + ic('chev') + '</small></div>' +
       '<div class="hmp-w"><svg class="hmp-svg" viewBox="0 0 320 92"><path class="hmp-all" d="M14 74 C88 74 104 30 166 34 S268 60 304 20"/><path class="hmp-on" d="M14 74 C88 74 104 30 166 34 S268 60 304 20"/></svg>' +
-      '<i class="hmp-dot a" data-pt="0"></i><i class="hmp-dot b" data-pt=".55"></i><i class="hmp-dot c" data-pt="1"></i>' +
-      '<span class="hmp-l" data-pt="0" data-dy="14">' + tx('Hoy', 'Today') + '</span><span class="hmp-l" data-pt=".55" data-dy="14" data-lst></span><span class="hmp-l end" data-pt="1" data-dy="-34">' + esc(sd(D.next.start)) + '</span>' +
-      '<button type="button" class="hmp-pj" data-pjw aria-label="' + esc(Pj.phrase(k) || k) + '"></button></div></div>';
+      '<i class="hmp-dot a" data-pt="0"></i>' + M.map(function (m, j) { return '<i class="hmp-dot b" data-pt="' + m.f.toFixed(3) + '"></i><span class="hmp-l" data-pt="' + m.f.toFixed(3) + '" data-dy="12">' + esc(m.lb) + '<em>' + esc(sd(m.date)) + '</em></span>'; }).join('') +
+      '<i class="hmp-dot c" data-pt="1"></i><span class="hmp-l hmp-hoy" data-pt="0" data-dy="12">' + tx('Hoy', 'Today') + '</span><span class="hmp-l end" data-pt="1" data-dy="-34">' + esc(sd(D.next.start)) + '</span>' +
+      '<button type="button" class="hmp-pj" data-pjw aria-label="' + esc(Pj.phrase(k) || k) + '"></button></div>' + (lateTx ? '<p class="hmp-late">' + esc(lateTx) + '</p>' : '') + '</div>';
   }
   // coloca hitos y personaje sobre la curva; con «move», anda desde donde estaba hasta su sitio nuevo
   function placePath(move, tries) {
@@ -643,10 +706,7 @@
     var sc = sw / 320, R0 = sv.getBoundingClientRect(), Rw = w.getBoundingClientRect(), ox = R0.left - Rw.left, oy = R0.top - Rw.top;
     function pt(f) { var q = pa.getPointAtLength(L * f); return { x: q.x * sc + ox, y: q.y * sc + oy }; }
     $$('[data-pt]', w).forEach(function (el) { var q = pt(+el.getAttribute('data-pt')); el.style.left = q.x + 'px'; el.style.top = (q.y + (+el.getAttribute('data-dy') || 0)) + 'px'; });
-    var ls = $('[data-lst]', w), ok = C.all && C.pc >= 100;
-    if (ls) { ls.textContent = C.all ? (ok ? '✓ ' : '') + tx('Maleta', 'Packing') : ''; ls.classList.toggle('ok', ok); }
-    $('.hmp-dot.b', w).classList.toggle('ok', ok);
-    var t = $('[data-pathtx]'); if (t) t.textContent = C.all ? tx('Lista: ', 'List: ') + C.done + tx(' de ', ' of ') + C.all : (D.dd === 1 ? tx('Mañana', 'Tomorrow') : tx('Faltan ' + D.dd + ' días', D.dd + ' days to go'));
+    var t = $('[data-pathtx]'); if (t) t.textContent = C.all ? tx('Lista: ', 'List: ') + C.done + tx(' de ', ' of ') + C.all : tx('Ver todo', 'See all');
     on.style.strokeDasharray = L.toFixed(1); on.style.strokeDashoffset = (L * (1 - p)).toFixed(1);
     var b = $('[data-pjw]', w), f = b.firstChild, from = move && b._p != null ? b._p : 0;
     if (!f) { f = Pj.figure(D.walkK); f.className = f.className.replace(/\s(act-\w+|drive)/g, ''); b.appendChild(f); }
@@ -660,14 +720,58 @@
   }
   var pathRz = 0;
   window.addEventListener('resize', function () { clearTimeout(pathRz); pathRz = setTimeout(function () { var b = $('[data-pjw]'); if (b && HOME && HOME.chk) { b._p = walkAt(HOME); placePath(true); } }, 200); });
-  // tocar al personaje del camino: dice su frase y da un saltito
+
+  // la línea del tiempo completa, a pantalla completa (se abre al tocar el camino)
+  function roadPage(D) {
+    var t = D.next, R = roadData(t), old = $('#roadBox'); if (old) old.parentNode.removeChild(old);
+    var v = document.createElement('div'); v.id = 'roadBox'; v.className = 'msp rdm';
+    function li(i) {
+      return '<li class="' + (i.done ? 'ok' : '') + (i.imp ? ' rd-imp' : '') + '"><button type="button" class="hx-tk" data-rdtick="' + esc(i.id) + '" aria-label="' + tx('Hecho', 'Done') + '">' + ic('check') + '</button><span data-rdnote><b>' + esc(i.t) + '</b>' + (i.imp ? '<em>' + tx('Importante', 'Important') + '</em>' : '') + (i.n ? '<small>' + esc(i.n) + '</small>' : '') + '</span></li>';
+    }
+    // etapas largas: las 5 primeras pendientes y «Ver N más»
+    function node(cls, title, sub, items, extra) {
+      var L = (items || []).slice().sort(function (a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0) || b.imp - a.imp; }), cut = L.length > 6 ? 5 : L.length;
+      return '<section class="rdm-n ' + cls + '"><i class="rdm-dot"></i><header><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</header>' + (extra || '') +
+        (L.length ? '<ul>' + L.map(function (i, k) { return k < cut ? li(i) : li(i).replace('<li class="', '<li class="rd-more '); }).join('') + '</ul>' + (cut < L.length ? '<button type="button" class="rdm-mo" data-rdmore>' + tx('Ver ' + (L.length - cut) + ' más', 'See ' + (L.length - cut) + ' more') + '</button>' : '') : '') + '</section>';
+    }
+    var nd = R.next.map(function (p) { var left = p.items.filter(function (i) { return !i.done; }).length; return node(left ? '' : 'done', esc(p.lb), esc(dateLbl(p.date)) + ' · ' + (left ? left + tx(' por hacer', ' to do') : tx('todo hecho', 'all done')), p.items); }).join('');
+    var pj = '<span class="rdm-pj" data-rdpj></span>';
+    v.innerHTML = '<div class="msp-top"><button type="button" class="rec-bk" data-rdx>' + ic('chev') + tx('Home', 'Home') + '</button><small>' + esc(t.title) + '</small><span></span></div>' +
+      '<div class="msp-in"><h2>' + tx('Camino al viaje', 'Road to the trip') + '</h2><p><span data-rdn>' + R.done + '</span>' + tx(' de ', ' of ') + R.all + tx(' cosas hechas · faltan ', ' things done · ') + D.dd + (D.dd === 1 ? tx(' día', ' day to go') : tx(' días', ' days to go')) + '</p>' +
+      '<div class="rdm-tl">' +
+      (R.late.length ? node('late', tx('Cuanto antes', 'As soon as possible'), tx('Ya tendría que estar hecho', 'This should be done by now'), R.late) : '') +
+      node('today', tx('Hoy', 'Today'), esc(dateLbl(R.today)), null, pj) + nd +
+      node('go', tx('¡Empieza el viaje!', 'The trip begins!'), esc(dateLbl(t.start)), null, '<button type="button" class="btn navy sq rdm-open" data-open="' + esc(t.id) + '">' + tx('Abrir la guía', 'Open the guide') + '</button>') +
+      (R.back.items.length ? node(R.back.items.every(function (i) { return i.done; }) ? 'done' : '', esc(R.back.lb), esc(dateLbl(R.back.date)), R.back.items) : '') +
+      '</div></div>';
+    v.addEventListener('click', function (e) {
+      if (e.target.closest('[data-rdx]') || e.target.closest('[data-open]')) { v.classList.add('out'); setTimeout(function () { if (v.parentNode) v.parentNode.removeChild(v); }, 280); renderHome(); return; }
+      var mo = e.target.closest('[data-rdmore]'); if (mo) { mo.parentNode.classList.add('rd-all'); mo.parentNode.removeChild(mo); return; }
+      var nt = e.target.closest('[data-rdnote]'); if (nt) { nt.parentNode.classList.toggle('rd-op'); return; }
+      var tk = e.target.closest('[data-rdtick]'); if (!tk) return;
+      var id = tk.getAttribute('data-rdtick'), ck = rdChecked(R.ns), l = tk.closest('li');
+      if (ck[id]) delete ck[id]; else ck[id] = true;
+      rdChecked(R.ns, ck); l.classList.toggle('ok', !!ck[id]);
+      try { if (navigator.vibrate) navigator.vibrate(10); } catch (err) {}
+      var n = $('[data-rdn]', v); if (n) n.textContent = +n.textContent + (ck[id] ? 1 : -1);
+    });
+    document.body.appendChild(v);
+    // el personaje del viaje espera en «Hoy»
+    var sp = $('[data-rdpj]', v); if (sp && D.walkK && pjOn()) sp.appendChild(Pj.figure(D.walkK));
+  }
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-pjw]'); if (!b || !HOME || !HOME.walkK) return;
-    var f = b.firstChild, txt = Pj.phrase(HOME.walkK); if (!f || !txt) return;
-    var o = f.querySelector('.pj-say'); if (o) o.parentNode.removeChild(o);
-    var s = document.createElement('span'); s.className = 'pj-say'; s.textContent = txt; f.appendChild(s);
-    f.classList.add('act-hop');
-    setTimeout(function () { f.classList.remove('act-hop'); s.classList.add('out'); setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 260); }, 1500);
+    var b = e.target.closest('[data-pjw]');
+    // tocar al personaje del camino: dice su frase y da un saltito
+    if (b && HOME && HOME.walkK) {
+      var f = b.firstChild, txt = Pj.phrase(HOME.walkK); if (!f || !txt) return;
+      var o = f.querySelector('.pj-say'); if (o) o.parentNode.removeChild(o);
+      var s = document.createElement('span'); s.className = 'pj-say'; s.textContent = txt; f.appendChild(s);
+      f.classList.add('act-hop');
+      setTimeout(function () { f.classList.remove('act-hop'); s.classList.add('out'); setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 260); }, 1500);
+      return;
+    }
+    // tocar el resto de la tarjeta abre la línea del tiempo completa
+    if (e.target.closest('[data-road]') && HOME && HOME.next) roadPage(HOME);
   });
 
   // el personaje de cada idea según su categoría
