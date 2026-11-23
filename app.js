@@ -527,6 +527,7 @@ var Core = (function () {
     // entre dos actividades sin tramo de la guía: el paseo cuenta en el horario (o el coche / transporte si es largo)
     function shortLeg(lst, a, b) {
       if (!a || a.lat == null || b.lat == null || dist(a, b) < 0.15) return;
+      if (b.by || a.byOut) { addLeg(lst, a, b, true, b.by || a.byOut); return; }   // en taxi o coche, aunque sea cerca
       var w = travel(a, b, 'walk'), wm = w ? w.min : dist(a, b) * 1.3 / 4.5 * 60, wk = w ? w.km : dist(a, b) * 1.3;
       // a recoger el coche de alquiler aún no hay coche: andando o en transporte público
       if (wm <= 25) addLeg(lst, a, b, true, 'walk');
