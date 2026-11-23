@@ -109,9 +109,9 @@ window.Juego = (function () {
   }
   /* ---------- Canjear un cromo: primero se comprueba dónde estás, luego la foto ---------- */
   var FAR_MAX = 20;   // hasta aquí puede ser un fallo del GPS o del punto guardado; más lejos, no estás allí
-  // MODO PRUEBA (lo pidió el usuario el 2 nov 2026, para trastear): los cromos se canjean a mano y hay quiz de
-  // cualquier viaje, aunque no haya empezado. Para volver a las reglas normales: TEST = false
-  var TEST = true;
+  // MODO PRUEBA (2 nov 2026, quitado el 23 nov 2026 antes de Escocia): con TEST = true los cromos se canjean a mano y hay
+  // quiz de cualquier viaje. Ahora solo se canjea estando en el sitio (GPS + foto), sin «canjear sin verificar»
+  var TEST = false;
   function redeem(it, title, past, done) {
     var old = document.getElementById('qzBox'); if (old) old.remove();
     var box = watch(document.createElement('div')); box.id = 'qzBox'; box.className = 'qz';
@@ -130,10 +130,10 @@ window.Juego = (function () {
         // el margen de error del GPS también cuenta, hasta 300 m
         if (r.km <= radiusOf(it) + Math.min(r.acc, 300) / 1000) { gps = true; photo('Estás aquí. Ahora hazte la foto para canjearlo.'); return; }
         var d = r.km < 10 ? r.km.toFixed(1).replace('.', window.Lang && Lang.get() === 'en' ? '.' : ',') : String(Math.round(r.km));
-        page('Estás a ' + d + ' km de este sitio.', '<button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button>' + (r.km <= FAR_MAX ? '<button type="button" class="rd-alt sq" data-rd="unv">Estoy aquí: canjear sin verificar</button>' : ''));
+        page('Estás a ' + d + ' km de este sitio.', '<button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button>');
       }, function (e) {
-        if (e && e.code === 1) page('La app no tiene permiso para ver tu ubicación.', '<ol class="rd-steps"><li>Abre <b>Ajustes</b> en el iPhone.</li><li>Entra en <b>Privacidad y seguridad</b> y luego en <b>Localización</b>.</li><li>Activa la localización y busca <b>Safari</b> en la lista: elige «Al usar la app».</li><li>Vuelve aquí y comprueba de nuevo.</li></ol><button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button><button type="button" class="rd-alt sq" data-rd="unv">Canjear sin verificar</button>');
-        else page('El GPS no consigue situarte. Prueba al aire libre.', '<button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button><button type="button" class="rd-alt sq" data-rd="unv">Canjear sin verificar</button>');
+        if (e && e.code === 1) page('La app no tiene permiso para ver tu ubicación.', '<ol class="rd-steps"><li>Abre <b>Ajustes</b> en el iPhone.</li><li>Entra en <b>Privacidad y seguridad</b> y luego en <b>Localización</b>.</li><li>Activa la localización y busca <b>Safari</b> en la lista: elige «Al usar la app».</li><li>Vuelve aquí y comprueba de nuevo.</li></ol><button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button>');
+        else page('El GPS no consigue situarte. Prueba al aire libre.', '<button type="button" class="btn navy sq rd-go" data-rd="retry">Volver a comprobar</button>');
       });
     }
     box.addEventListener('click', function (e) {
@@ -142,7 +142,6 @@ window.Juego = (function () {
       if (!b) return;
       if (b.getAttribute('data-rd') === 'test') { box.remove(); done(null, false, true); return; }
       if (b.getAttribute('data-rd') === 'retry') check();
-      else { unv = true; photo('Se marcará como «sin verificar». Hazte la foto para canjearlo.'); }
     });
     box.addEventListener('change', function (e) {
       if (!e.target.matches('[data-rdfile]') || !e.target.files[0]) return;
@@ -150,7 +149,8 @@ window.Juego = (function () {
       done(file, gps, unv);
     });
     document.body.appendChild(box);
-    if (past || it.lat == null) photo(past ? 'Este viaje ya pasó: basta con una foto tuya del sitio.' : 'Hazte la foto para canjearlo.');
+    // solo desde el sitio, también en viajes pasados (lo pidió el usuario el 23 nov 2026); sin coordenadas no se puede comprobar
+    if (it.lat == null) photo('Hazte la foto para canjearlo.');
     else check();
   }
 
@@ -426,6 +426,44 @@ window.Juego = (function () {
       return u;
     }).catch(function () { return ''; });
   }
+
+  /* ---------- Borrado de lo hecho en modo prueba (23 nov 2026, antes del viaje a Escocia; una vez por dispositivo) ----------
+     Cromos, rarezas, fotos propias, postal y sello de Escocia; los sobres de Escocia y los de antes sin viaje; y los quizzes,
+     que hasta ahora solo se habían jugado en modo prueba. */
+  (function resetPrueba() {
+    var FLAG = 'guia-reset-prueba-1', TID = 'escocia-2026', pre = TID + '|';
+    try { if (localStorage.getItem(FLAG)) return; } catch (e) { return; }
+    function js(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+    function put(k, o) { try { localStorage.setItem(k, JSON.stringify(o)); } catch (e) {} }
+    var al = js('guia-album'); if (al) { Object.keys(al).forEach(function (k) { if (k.indexOf(pre) === 0) delete al[k]; }); put('guia-album', al); }
+    if (localStorage.getItem(KEY)) {
+      var g = get();
+      Object.keys(g.own).forEach(function (k) { if (k.indexOf(pre) === 0) delete g.own[k]; });
+      g.bag = g.bag.filter(function (b) { return b.t && b.t !== TID; });
+      Object.keys(g.claimed).forEach(function (k) { if (/^quiz:/.test(k)) delete g.claimed[k]; });
+      save(g);
+    }
+    try { localStorage.removeItem('guia-quiz'); } catch (e) {}
+    var se = js('guia-sellos'); if (se) { Object.keys(se).forEach(function (k) { if (se[k] && se[k].t === TID) delete se[k]; }); put('guia-sellos', se); }
+    var pi = js('guia-postales'); if (pi && pi[TID]) { delete pi[TID]; put('guia-postales', pi); }
+    // el plan de Escocia se rehízo (sin coche): fuera los cambios de prueba en los días (orden, quitadas, cambios);
+    // se quedan los hoteles apuntados, la lista de antes de salir, los gastos y la fecha
+    var cu = js('esc4:custom'); if (cu) put('esc4:custom', cu.hotels ? { hotels: cu.hotels } : {});
+    try { localStorage.removeItem('esc4:skipped'); } catch (e) {}
+    function idbDel(name, store, test) {
+      if (!window.indexedDB) return;
+      try {
+        var q = indexedDB.open(name, 1);
+        q.onupgradeneeded = function () { q.result.createObjectStore(store, store === 'p' ? { keyPath: 'id' } : undefined); };
+        q.onsuccess = function () {
+          try { var s = q.result.transaction(store, 'readwrite').objectStore(store), c = s.openCursor(); c.onsuccess = function () { var r = c.result; if (!r) return; if (test(String(r.key))) r.delete(); r.continue(); }; } catch (e) {}
+        };
+      } catch (e) {}
+    }
+    idbDel('guia-fotos', 'f', function (k) { return k.indexOf(pre) === 0; });
+    idbDel('guia-postales', 'p', function (k) { return k === TID; });
+    try { localStorage.setItem(FLAG, new Date().toISOString().slice(0, 10)); } catch (e) {}
+  })();
 
   return { TEST: TEST, presentPack: presentPack, get: get, save: save, rate: rate, tierOf: tierOf, RANK: RANK, cardHTML: cardHTML, TIER: TIER, PACK: PACK, BY_HITS: BY_HITS, toast: toast, total: total, onQuiz: onQuiz, onVisit: onVisit, challenges: challenges, redeem: redeem, radiusOf: radiusOf, locate: locate, ready: ready, photo: photo, savePhoto: savePhoto, openPack: openPack, ideas: ideas, ideasIn: ideasIn, recommend: recommend, CATS: CATS, ideaImg: ideaImg, watch: watch, today: today, isPast: isPast };
 })();

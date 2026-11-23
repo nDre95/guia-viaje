@@ -1145,6 +1145,34 @@ html[data-theme="dark"] .mw-stamp .pm{color:#cfd6e6}
 .hmp-late{margin:2px 0 0;font-size:12.5px;font-weight:700;color:var(--orange-t)}
 .hm-path{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .45s var(--spring)}
 .hm-path:active{transform:scale(.985)}
+/* «Listo para salir» dentro del camino */
+.hm-one{grid-template-columns:1fr}
+.hmp-rd{display:flex;align-items:center;gap:12px;margin:4px 0 2px}
+.hmp-pc{font-family:var(--serif);font-size:30px;line-height:1;flex:0 0 auto}
+.hmp-pc i{font-style:normal;font-size:15px;color:var(--txt3)}
+.hmp-rdt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hmp-rdt small{font-size:12.5px;color:var(--txt3);font-weight:600}
+.hmp-rdt small b{color:var(--txt);font-weight:700}
+/* el tiempo a lo ancho, una casilla por día */
+.hm-wxw{position:relative;margin:12px 0 14px;padding-bottom:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hm-wxw .hm-h{padding-right:60px;min-height:28px;align-items:center}
+.hm-wxw .hm-h b{display:flex;align-items:center;gap:6px}
+.hm-wxw .hm-h b .ic{width:18px;height:18px}
+.hm-wxw .hm-wxtip{font-size:12.5px;color:var(--txt2);font-weight:700}
+.hm-wxw .hm-wxtip:empty{display:none}
+.hm-wxw .hm-wxpj{top:2px;bottom:auto}
+.hm-wxw .hm-wxpj .pj.pj-still{transform-origin:100% 0}
+.hmw-sc{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin:8px -16px 0;padding:2px 16px 8px;scroll-padding:0 16px;scrollbar-width:thin;scrollbar-color:var(--fill2) transparent;-webkit-overflow-scrolling:touch}
+.hmw-sc::-webkit-scrollbar{height:4px}
+.hmw-sc::-webkit-scrollbar-thumb{background:var(--fill2);border-radius:2px}
+.hmw-d{flex:0 0 calc((100% - 24px) / 4);min-width:72px;scroll-snap-align:start;background:var(--fill2);border-radius:16px;padding:10px 6px 9px;display:flex;flex-direction:column;align-items:center;gap:1px;text-align:center}
+.hmw-d small{font-size:11.5px;font-weight:700;color:var(--txt2);white-space:nowrap}
+.hmw-d .hm-wxi{width:32px;height:32px;flex:0 0 32px;margin:4px 0 3px}
+.hmw-d b{font-family:var(--serif);font-size:22px;line-height:1.05;font-weight:400}
+.hmw-d span{font-size:12px;color:var(--txt3);font-weight:600}
+.hmw-d em{font-style:normal;font-size:11px;color:var(--txt2);font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+.hmw-d i{font-style:normal;font-size:10.5px;color:var(--txt3);white-space:nowrap}
+.hmw-d.fc i{color:#4f8fc4;font-weight:700}
 .hmp-more{display:inline-flex;align-items:center;gap:2px}
 .hmp-more .ic{width:15px;height:15px;opacity:.6}
 /* la línea del tiempo hasta el viaje */

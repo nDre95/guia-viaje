@@ -409,6 +409,48 @@
   function tileReady(D) { var C = D.chk; return '<button type="button" class="card hm-t" data-open="' + esc(D.next.id) + '" data-grp="ida"><span class="hm-tt">' + ic('check') + tx('Listo para salir', 'Ready to go') + '</span><span class="hm-big"><span data-ckpc>' + C.pc + '</span><i>%</i></span><span class="hm-prog"><i data-ckbar style="width:' + C.pc + '%"></i></span><small><span data-ckd>' + C.done + '</span>' + tx(' de ', ' of ') + C.all + tx(' tareas', ' tasks') + '</small></button>'; }
   // el tiempo con su dibujo (sol, nubes, lluvia, nieve…), como en la previsión de la guía
   function tileWeather(D) { return '<button type="button" class="card hm-t" data-open="' + esc(D.next.id) + '" data-grp="wx"><span class="hm-tt">' + ic('cloud') + tx('Tiempo', 'Weather') + '</span><span class="hm-wx"><svg class="ic hm-wxi" data-wxi><use href="#i-cloudsun"></use></svg><span class="hm-big" data-wxt>–</span></span><small data-wxn>' + esc(D.wxn) + '</small><small class="hm-wxtip" data-wxtip></small><span class="hm-wxpj" data-wxpj></span></button>'; }
+  // el tiempo a lo ancho: una casilla por día del viaje (se desliza si no caben); previsión desde 14 días antes, si no, lo típico
+  function wxDaysOf(t) {
+    var b = t.ref.b, W = (b.trip && b.trip.wx) || [], DD = (b.trip && b.trip.days) || [], n = Math.max(1, t.days || DD.length || 1), out = [];
+    for (var i = 0; i < n; i++) {
+      var w = W[i] || {}, r = (DD[i] || {}).ref || {}, lat = w.lat != null ? w.lat : r.lat, lon = w.lon != null ? w.lon : r.lon;
+      var nm = isEn() && ((b.trip_en || {}).wx || [])[i] && b.trip_en.wx[i].n ? b.trip_en.wx[i].n : w.n || r.name || '';
+      out.push({ i: i, date: addDays(t.start, i), lat: lat, lon: lon, n: nm, hi: w.hi, lo: w.lo });
+    }
+    return out;
+  }
+  function wxWide(D) {
+    var t = D.next, L = wxDaysOf(t);
+    return '<div class="card hm-wxw rv-h" data-open="' + esc(t.id) + '" data-grp="wx" role="button" tabindex="0" style="--d:80ms"><div class="hm-h in"><b>' + ic('cloud') + tx('Tiempo', 'Weather') + '</b><small class="hm-wxtip" data-wxtip></small></div>' +
+      '<div class="hmw-sc">' + L.map(function (x) {
+        var wd = new Date(x.date + 'T12:00:00Z').toLocaleDateString(isEn() ? 'en-GB' : 'es', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+        return '<div class="hmw-d" data-wxday="' + x.i + '"><small>' + esc(wd) + ' ' + esc(sd(x.date)) + '</small><svg class="ic hm-wxi" data-wxdi><use href="#i-cloudsun"></use></svg><b data-wxdh>' + (x.hi != null ? x.hi + '°' : '–') + '</b><span data-wxdl>' + (x.lo != null ? x.lo + '°' : '') + '</span><em>' + esc(x.n) + '</em><i data-wxdp>' + (x.hi != null ? tx('típico', 'typical') : '') + '</i></div>';
+      }).join('') + '</div><span class="hm-wxpj" data-wxpj></span></div>';
+  }
+  function wxDays(t) {
+    var box = $('.hmw-sc'); if (!box) return;
+    var L = wxDaysOf(t), d = daysTo(t.start);
+    if (d > 14 || d + L.length < 0) return;
+    // una consulta por sitio distinto, con todas sus fechas
+    var by = {};
+    L.forEach(function (x) { if (x.lat == null) return; var k = (+x.lat).toFixed(2) + ',' + (+x.lon).toFixed(2); (by[k] = by[k] || []).push(x); });
+    Object.keys(by).forEach(function (k) {
+      var g = by[k], a = g[0].date, z = g[g.length - 1].date;
+      fetch('https://api.open-meteo.com/v1/forecast?latitude=' + g[0].lat + '&longitude=' + g[0].lon + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=' + a + '&end_date=' + z)
+        .then(function (r) { return r.json(); }).then(function (j) {
+          var dl = j && j.daily; if (!dl || !dl.time) return;
+          g.forEach(function (x) {
+            var q = dl.time.indexOf(x.date), el = $('[data-wxday="' + x.i + '"]', box); if (q < 0 || !el || dl.temperature_2m_max[q] == null) return;
+            var kk = wxIcon(dl.weather_code[q]), pp = dl.precipitation_probability_max[q];
+            $('[data-wxdi]', el).innerHTML = '<use href="#i-' + kk + '"></use>'; $('[data-wxdi]', el).setAttribute('class', 'ic hm-wxi k-' + kk);
+            $('[data-wxdh]', el).textContent = Math.round(dl.temperature_2m_max[q]) + '°';
+            $('[data-wxdl]', el).textContent = Math.round(dl.temperature_2m_min[q]) + '°';
+            $('[data-wxdp]', el).textContent = pp == null ? '' : tx('lluvia ', 'rain ') + pp + ' %';
+            el.classList.add('fc');
+          });
+        }).catch(function () {});
+    });
+  }
   function mustPage(D) {
     var t = D.next, T = t.ref, all = Album.cromosOf(T, Album.get()).filter(function (c) { return c.must; }), got = all.filter(function (c) { return c.got; }).length;
     var old = $('#mustBox'); if (old) old.remove();
@@ -426,7 +468,8 @@
   function homeCuenta(D) {
     var h = heroHTML(D);
     if (!D.next) return h + ideasRow(D) + newCard(D) + extrasHTML(D);
-    h += pathHTML(D) + '<div class="hm-four rv-h" style="--d:60ms">' + tileReady(D) + tileWeather(D) + '</div>';
+    var ph = pathHTML(D);
+    h += ph + (ph || !D.chk.all ? '' : '<div class="hm-four hm-one rv-h" style="--d:60ms">' + tileReady(D) + '</div>') + wxWide(D);
     if (D.must.length) h += '<div class="hm-sec rv-h" style="--d:120ms"><div class="hm-h"><b>' + tx('Imprescindibles', 'Must-sees') + '</b><button type="button" class="hx-lnk" data-mustall>' + tx('Ver todos', 'See all') + ' · ' + D.mustGot + '/' + D.must.length + '</button></div><div class="hm-scroll">' + D.must.map(function (c) {
       return '<button type="button" class="hm-must' + (c.got ? ' got' : '') + '" data-cr="' + esc(D.next.ref.id + '|' + c.id) + '"' + bg(c.img) + '><span>' + esc(c.ti) + '</span></button>';
     }).join('') + '</div></div>';
@@ -568,7 +611,7 @@
       HOME = D;
       box.className = 'hs-' + st;
       box.innerHTML = HOME_FN[st](D) + '<div class="hx-style rv-h"><small>' + tx('Diseño de Home', 'Home layout') + '</small><div class="hx-chips">' + styleChips() + '</div></div>';
-      if (D.next) wxFill(D.next);
+      if (D.next) { wxFill(D.next); wxDays(D.next); }
       placePath(false);
       $$('[data-wiki]', box).forEach(function (el) { Juego.ideaImg(el.getAttribute('data-wiki')).then(function (u) { if (u) { el.style.backgroundImage = 'url("' + u + '")'; el.classList.add('on'); } }); });
       // widget de ideas: puntos que siguen al deslizar
@@ -695,7 +738,12 @@
       '<div class="hmp-w"><svg class="hmp-svg" viewBox="0 0 320 92"><path class="hmp-all" d="M14 74 C88 74 104 30 166 34 S268 60 304 20"/><path class="hmp-on" d="M14 74 C88 74 104 30 166 34 S268 60 304 20"/></svg>' +
       '<i class="hmp-dot a" data-pt="0"></i>' + M.map(function (m, j) { return '<i class="hmp-dot b" data-pt="' + m.f.toFixed(3) + '"></i><span class="hmp-l" data-pt="' + m.f.toFixed(3) + '" data-dy="12">' + esc(m.lb) + '<em>' + esc(sd(m.date)) + '</em></span>'; }).join('') +
       '<i class="hmp-dot c" data-pt="1"></i><span class="hmp-l hmp-hoy" data-pt="0" data-dy="12">' + tx('Hoy', 'Today') + '</span><span class="hmp-l end" data-pt="1" data-dy="-34">' + esc(sd(D.next.start)) + '</span>' +
-      '<button type="button" class="hmp-pj" data-pjw aria-label="' + esc(Pj.phrase(k) || k) + '"></button></div>' + (lateTx ? '<p class="hmp-late">' + esc(lateTx) + '</p>' : '') + '</div>';
+      '<button type="button" class="hmp-pj" data-pjw aria-label="' + esc(Pj.phrase(k) || k) + '"></button></div>' + readyRow(D) + (lateTx ? '<p class="hmp-late">' + esc(lateTx) + '</p>' : '') + '</div>';
+  }
+  // «Listo para salir» dentro del camino: porcentaje, barra y tareas hechas (se actualizan al marcar, como la losa)
+  function readyRow(D) {
+    var C = D.chk; if (!C.all) return '';
+    return '<div class="hmp-rd"><span class="hmp-pc"><span data-ckpc>' + C.pc + '</span><i>%</i></span><span class="hmp-rdt"><small><b>' + tx('Listo para salir', 'Ready to go') + '</b> · <span data-ckd>' + C.done + '</span>' + tx(' de ', ' of ') + C.all + tx(' tareas', ' tasks') + '</small><span class="hm-prog"><i data-ckbar style="width:' + C.pc + '%"></i></span></span></div>';
   }
   // coloca hitos y personaje sobre la curva; con «move», anda desde donde estaba hasta su sitio nuevo
   function placePath(move, tries) {
@@ -706,7 +754,7 @@
     var sc = sw / 320, R0 = sv.getBoundingClientRect(), Rw = w.getBoundingClientRect(), ox = R0.left - Rw.left, oy = R0.top - Rw.top;
     function pt(f) { var q = pa.getPointAtLength(L * f); return { x: q.x * sc + ox, y: q.y * sc + oy }; }
     $$('[data-pt]', w).forEach(function (el) { var q = pt(+el.getAttribute('data-pt')); el.style.left = q.x + 'px'; el.style.top = (q.y + (+el.getAttribute('data-dy') || 0)) + 'px'; });
-    var t = $('[data-pathtx]'); if (t) t.textContent = C.all ? tx('Lista: ', 'List: ') + C.done + tx(' de ', ' of ') + C.all : tx('Ver todo', 'See all');
+    var t = $('[data-pathtx]'); if (t) t.textContent = tx('Ver todo', 'See all');
     on.style.strokeDasharray = L.toFixed(1); on.style.strokeDashoffset = (L * (1 - p)).toFixed(1);
     var b = $('[data-pjw]', w), f = b.firstChild, from = move && b._p != null ? b._p : 0;
     if (!f) { f = Pj.figure(D.walkK); f.className = f.className.replace(/\s(act-\w+|drive)/g, ''); b.appendChild(f); }
