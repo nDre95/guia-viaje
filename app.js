@@ -459,7 +459,7 @@ var Core = (function () {
     extras.forEach(function (x) {
       var def = findDef(day, x); if (!def) return;      // si no se encuentra, la original no se oculta
       var o = {}; for (var k in def) o[k] = def[k]; o.id = x.uid; o.extra = def.id; byId[o.id] = o;
-      delete o.at;                                       // un añadido nunca es un ancla
+      if (!def.pr) delete o.at;                          // un añadido nunca es un ancla (salvo los de una ruta sugerida: su bus tiene hora)
       if (o.lat == null) { o.lat = x.lat != null ? x.lat : day.ref.lat; o.lon = x.lon != null ? x.lon : day.ref.lon; }
       if (x.rep) {
         var org0 = byId[x.before];
@@ -580,7 +580,8 @@ var Core = (function () {
             // llegas a tu hotel: tramo corto desde donde acaba el trayecto de la guía
             if (x.stayLoc && x.origLat != null) shortLeg(lst, { id: it.id + '-i', lat: x.origLat, lon: x.origLon, pl: x.origPl, ti: x.origPl }, x);
           } else if (same) drs.forEach(function (d) { lst.push(d); });
-          if ((!same || (!pushed && autoLegs)) && prevX.lat != null && x.lat != null) addLeg(lst, prevX, x, same);
+          // by / byOut: a esta parada se llega (o de ella se sale) en coche o taxi, aunque el día sea a pie
+          if ((!same || (!pushed && autoLegs)) && prevX.lat != null && x.lat != null) addLeg(lst, prevX, x, same, x.by || prevX.byOut);
           if (!lst.slice(n0).some(function (d) { return !d.skip; })) shortLeg(lst, prevX, x);   // nada entre medias: el paseo también lleva su tiempo
         }
         lst.push(x);
@@ -791,7 +792,7 @@ var Core = (function () {
   // ideas de todo el viaje (extras y alternativas), sin repetir sitio
   function pool(T) {
     var out = [], seen = {};
-    function add(x) { var key = String(x.ti).toLowerCase(); if (seen[x.id] || seen[key]) return; seen[x.id] = seen[key] = 1; out.push(x); }
+    function add(x) { var key = String(x.ti).toLowerCase(); if (x.pr || seen[x.id] || seen[key]) return; seen[x.id] = seen[key] = 1; out.push(x); }
     T.days.forEach(function (d) { (d.extras || []).forEach(add); });
     T.days.forEach(function (d) { d.items.forEach(function (it) { (it.alts || []).forEach(add); }); });
     return out;
@@ -825,7 +826,7 @@ var Core = (function () {
   // definición de un plan añadido: del día, de cualquier otro día o un sitio de la guía (g-<día>-<n>)
   function findDef(day, x) {
     var T = window.TRIP, def = null;
-    function chk(e) { if (!def && e && e.id === x.id && e.t !== 'drive') def = e; }
+    function chk(e) { if (!def && e && e.id === x.id && (e.t !== 'drive' || e.pr)) def = e; }   // pr: los trayectos de una ruta sugerida sí
     (day.extras || []).forEach(chk);
     T.days.forEach(function (d) { (d.extras || []).forEach(chk); d.items.forEach(function (it) { chk(it); (it.alts || []).forEach(chk); }); });
     var gm = !def && /^g-(\w+)-(\d+)$/.exec(x.id);
@@ -1388,7 +1389,7 @@ var View = (function () {
       if (!st.some(function (e) { return C.km(e.it, o) <= 25; })) return;
       seen[k] = 1; out.push(o);
     }
-    (T.days[di].extras || []).forEach(add);
+    (T.days[di].extras || []).filter(function (o) { return !o.pr; }).forEach(add);
     C.pool(T).forEach(function (o) { if (tagsOf(o).length) add(o); });
     return out.slice(0, 16);
   }
@@ -1442,7 +1443,7 @@ var View = (function () {
     var pd = PLANS && PLANS[di], dark = pd ? e.start >= pd.sun.dusk - 20 : false;
     var inPlan = PLANS ? inPlanTest(PLANS, di) : function () { return false; }, seen = {}, base = ttMin(a, b);
     var c = C.pool(T).concat(T.days[di].extras || []).filter(function (o) {
-      if (o.lat == null || seen[o.id] || (WSU[di] || {})[o.id] || inPlan(o)) return false; seen[o.id] = 1;
+      if (o.pr || o.lat == null || seen[o.id] || (WSU[di] || {})[o.id] || inPlan(o)) return false; seen[o.id] = 1;
       var tg = tagsOf(o); if ((tg.indexOf('photo') < 0 && o.t !== 'view') || o.private) return false;
       if (tg.indexOf('night') >= 0 && !(dark && tg.indexOf('sunset') < 0 ? true : dark)) return false;   // lo que es de noche, solo si el tramo es de noche
       var ka = C.km(a, o), kb = C.km(o, b);
@@ -2175,7 +2176,7 @@ var View = (function () {
           : it.extra ? '<button type="button" class="ed-b" data-delx="' + a + ':' + it.id + '" aria-label="' + L('removeExtra') + '">' + ic('x') + '</button>'
             : '<button type="button" class="ed-b" data-alts="' + a + ':' + it.id + '" aria-label="' + L('swap') + '">' + ic('refresh') + '</button><button type="button" class="ed-b" data-skip="' + it.id + '" aria-label="' + (e.skip ? L('addBack') : L('remove')) + '">' + ic(e.skip ? 'undo' : 'x') + '</button>') + '</div>';
       }).join('');
-      var addList = (de0.extras || []).filter(function (x) { return addedE.indexOf(x.id) < 0; }).map(function (o) {
+      var addList = (de0.extras || []).filter(function (x) { return !x.pr && addedE.indexOf(x.id) < 0; }).map(function (o) {
         return optRow(o, esc(o.pl) + ' · ' + C.dur(o.d), '<button type="button" class="btn navy sq" data-addx="' + a + ':' + o.id + ':END">+ ' + L('add') + '</button>'); }).join('');
       return '<div class="sh-in"><div class="eyebrow o">' + L('day') + ' ' + (+a + 1) + ' · ' + esc(C.dateLabel(pe.ms)) + '</div><h2>' + L('editTitle') + '</h2>' +
         '<button type="button" class="btn sq ed-add" data-sheet="addday:' + a + '">' + ic('plus') + L('addAct') + '</button><p class="wx-note">' + L('editHint') + '</p>' +
@@ -2227,7 +2228,7 @@ var View = (function () {
     }
     if (kind === 'routes') {
       var dR = T.days[+a], cur = ((custom || {}).preset || {})[dR.id] || 'guia', en = I18N.lang === 'en';
-      var opts = [{ id: 'guia', ti: L('presetGuide'), short: L('presetGuideShort'), lead: L('presetGuideLead') }].concat((dR.routes || []).map(function (r) { return { id: r.id, ti: en && r.ti_en ? r.ti_en : r.ti, short: en && r.short_en ? r.short_en : r.short || r.ti, lead: en && r.lead_en ? r.lead_en : r.lead }; }));
+      var opts = [{ id: 'guia', ti: L('presetGuide'), short: L('presetGuideShort'), lead: (en ? dR.guideLead_en : dR.guideLead) || L('presetGuideLead') }].concat((dR.routes || []).map(function (r) { return { id: r.id, ti: en && r.ti_en ? r.ti_en : r.ti, short: en && r.short_en ? r.short_en : r.short || r.ti, lead: en && r.lead_en ? r.lead_en : r.lead }; }));
       // cada ruta simulada una vez: qué imprescindibles incluye y sus cifras
       var sims = opts.map(function (o) { var ps = SIM ? presetState(+a, o.id, custom, SKIPS ? SKIPS() : {}) : null; return ps ? SIM(+a, ps.cu, ps.sk) : null; });
       var musts = dR.items.concat(dR.extras || []).filter(function (o) { return o.must; }).sort(function (x, y) { return y.must - x.must; });
@@ -2480,7 +2481,7 @@ var View = (function () {
       }
       near.forEach(function (z) { push(z.o, nearRow(z), indoor(z.o)); });
       // 4) más planes a cubierto (de camino, o hasta 40 km) y, si no es comida, cafés y pubs del día
-      if (base.lat != null) C.pool(T).concat(dd0.extras || []).filter(function (o) { return okIdea(o) && indoor(o) && (!corridor || onWay(o)); })
+      if (base.lat != null) C.pool(T).concat(dd0.extras || []).filter(function (o) { return !o.pr && okIdea(o) && indoor(o) && (!corridor || onWay(o)); })
         .map(function (o) { return { o: o, km: C.km(base, o), det: corridor ? detour(o) : null }; }).filter(function (z) { return corridor || z.km <= 40; })
         .sort(function (p, q) { return corridor ? p.det - q.det : p.km - q.km; }).slice(0, 8)
         .forEach(function (z) { push(z.o, nearRow(z), true); });
@@ -2501,7 +2502,7 @@ var View = (function () {
       plans.forEach(function (pp) { pp.ev.forEach(function (e) { if (e.skip) return; usedA[e.it.id] = 1; usedA[String(e.it.ti).toLowerCase()] = 1; if (e.it.extra) usedA[e.it.extra] = 1; if (e.it.altId) usedA[e.it.altId] = 1; }); });
       var seenA = {}, candA = [], inPlanA = inPlanTest(plans, +a);
       (dA.extras || []).concat(C.pool(T)).forEach(function (o) {
-        if (seenA[o.id] || seenA[tkey(o.ti)] || o.lat == null || o.fuel || o.t === 'car' || o.t === 'hotel' || o.t === 'drive' || usedA[o.id] || usedA[String(o.ti).toLowerCase()] || inPlanA(o)) return;
+        if (o.pr || seenA[o.id] || seenA[tkey(o.ti)] || o.lat == null || o.fuel || o.t === 'car' || o.t === 'hotel' || o.t === 'drive' || usedA[o.id] || usedA[String(o.ti).toLowerCase()] || inPlanA(o)) return;
         seenA[o.id] = 1; seenA[tkey(o.ti)] = 1;
         var nb = null, nk = 1e9; liveA.forEach(function (e) { var k = C.km(e.it, o); if (k < nk) { nk = k; nb = e.it; } });
         if (liveA.some(function (e) { return sameThing(e.it, o); }) || candA.some(function (z) { return sameThing(z.o, o); })) return;
