@@ -418,6 +418,8 @@ var Core = (function () {
     var cs = custom || {}, swaps = cs.swaps || {}, extras = (cs.extras || {})[day.id] || [], order = (cs.order || {})[day.id];
     var sunPos = (cs.sunPos || {})[day.id] || {}, prefAt = (cs.prefAt || {})[day.id] || {}, holes = (cs.gaps || {})[day.id] || {}, stays = cs.hotels || {}, freeAt = (cs.free || {})[day.id] || {}, dursR = (cs.durs || {})[day.id] || {};
     var replaced = {};
+    // ruta con hideSkip: lo que quita no se ve (es otro plan del día, no algo que quitaste tú)
+    var prR = (day.routes || []).filter(function (r) { return r.id === ((cs.preset || {})[day.id]); })[0], hideSk = prR && prR.hideSkip ? prR.skip || [] : [];
     function copy(it) {
       if (it.mo && it.mo.indexOf(month) < 0) { off.push(it); return null; }
       var x = {}, alt = it.alts && swaps[it.id] != null ? it.alts[swaps[it.id]] : null;
@@ -442,6 +444,7 @@ var Core = (function () {
         if (hst.name) { x.pl = hst.name; x.q = hst.name + (hst.addr && !/^https?:/.test(hst.addr) ? ', ' + hst.addr : ''); x.ti = L(it.t === 'hotel' ? 'stayIn' : hst.bf === false ? 'stayOutNoBf' : 'stayOut', hst.name); }
         if (it.t === 'hotel' && hst.arr) x.at = hst.arr;
       }
+      if (x.skip && hideSk.indexOf(it.id) >= 0) x.hidden = true;
       if (!it.extra && replaced[it.id]) { x.skip = true; x.hidden = true; x.auto = false; }
       else if (!it.extra && holes[it.id] && it.t !== 'drive') {
         var hz = holes[it.id];
