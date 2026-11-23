@@ -992,9 +992,11 @@ html{overflow-x:hidden}
 .rt-row .bl-n{flex:1;min-width:0}
 
 /* tiempo previsto bajo la hora de cada actividad */
-.ev-wx{display:flex;flex-direction:column;align-items:center;gap:0;margin-top:6px;font-size:10.5px;font-weight:700;color:var(--txt3);line-height:1.15;font-variant-numeric:tabular-nums}
-.ev-wx .ic{width:15px;height:15px;margin-bottom:1px}
-.ev-wx em{font-style:normal;font-size:10px;color:#1f5fbf}
+/* 3.36: pastilla alineada a la derecha como la hora y los minutos: icono y grados en una línea, la lluvia debajo */
+.ev-wx{display:inline-flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;column-gap:2px;row-gap:1px;max-width:44px;box-sizing:border-box;margin-top:7px;padding:3px 5px 3px 4px;border-radius:8px;background:var(--fill);font-size:10.5px;font-weight:700;color:var(--txt2);line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev-wx .ic{width:13px;height:13px;flex:0 0 13px}
+.ev-wx em{flex-basis:100%;text-align:center;font-style:normal;font-size:9.5px;color:#1f5fbf}
+.ev-time small{margin-top:1px}
 .ev-wx.wet{color:#1f5fbf}
 .dark .ev-wx{color:rgba(255,255,255,.7)}
 
