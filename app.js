@@ -554,7 +554,7 @@ var Core = (function () {
         if (it.sun) {
           // atardecer: si está cerca de donde estás, sin tramo; si está lejos, se va hasta allí y lo siguiente sale desde ahí
           var far = prevX && prevX.lat != null && x.lat != null && dist(prevX, x) * 1.35 > (autoLegs || it.extra ? legMin : 5);
-          if (far) { addLeg(lst, prevX, x, false); prev = it; }
+          if (far) { addLeg(lst, prevX, x, false, x.by || prevX.byOut); prev = it; }
           else { shortLeg(lst, prevX, x); if (!prev) prev = it; }
           if (x.lat != null) prevX = x;          // lo siguiente sale desde aquí
           lst.push(x); return;
