@@ -1615,9 +1615,10 @@ var View = (function () {
       (touched ? '<button type="button" class="gapadd ghost sq" data-resetday="' + i + '">' + ic('undo') + resetLbl(d, custom, L('resetDay')) + '</button>' : '') + '</div></div>';
     var off = p.off.map(function (it) { return '<p class="muted small" style="margin:4px 4px 0">' + esc(L('offSeason', it.ti)) + '</p>'; }).join('');
 
+    // el itinerario va justo tras la luz del día; paradas, «antes de empezar» y comer/beber, debajo
+    var below = sh(L('stops'), stopsArr.filter(function (e) { return !e.skip; }).length) + hs(stops, '', ' aria-label="' + L('stopsAria') + '"') +
+      sh(L('beforeStart'), tiles.length) + hs(tiles.join('')) + guideHTML(d, i);
     return cover + lightCard +
-      sh(L('stops'), stopsArr.filter(function (e) { return !e.skip; }).length) + hs(stops, '', ' aria-label="' + L('stopsAria') + '"') +
-      sh(L('beforeStart'), tiles.length) + hs(tiles.join('')) + guideHTML(d, i) +
       sh(L('itinerary'), null, '<span class="sh-btns js-only"><button type="button" class="btn ghost sq sh-edit" data-sheet="route:' + i + '">' + ic('map') + L('mapBtn') + '</button>' +
         ((p.day.routes || []).length ? '<button type="button" class="btn ghost sq sh-edit" data-sheet="routes:' + i + '">' + ic('route') + L('routesBtn') + '<i class="sh-n">' + ((p.day.routes || []).length + 1) + '</i></button>' : '') +
         '<button type="button" class="btn navy sq sh-edit" data-sheet="edit:' + i + '">' + ic('grip') + L('editDay') + '</button>' +
@@ -1631,7 +1632,7 @@ var View = (function () {
       '<div class="pr-seg vw-seg js-only" role="group" aria-label="' + L('viewT') + '"><button type="button" class="pr-sb sq" data-view="full">' + ic('camera') + L('viewFull') + '</button><button type="button" class="pr-sb sq" data-view="list">' + ic('list') + L('viewList') + '</button></div>' +
       '<p class="sh-hint2 js-only">' + L('tlHint') + ' · ' + L('dragHint') + '</p>' +
       '<div class="tl" data-tl="' + i + '"><div class="tl-scrub js-only" data-scrub="' + i + '" aria-hidden="true"></div>' +
-      '<div class="nowline js-only" aria-hidden="true"><span class="nl-pill"><i class="live-dot"></i><b>--:--</b></span><button type="button" class="nl-sync" data-sync aria-label="' + L('sync') + '">' + ic('refresh') + '</button></div>' + tl + '</div>' + off;
+      '<div class="nowline js-only" aria-hidden="true"><span class="nl-pill"><i class="live-dot"></i><b>--:--</b></span><button type="button" class="nl-sync" data-sync aria-label="' + L('sync') + '">' + ic('refresh') + '</button></div>' + tl + '</div>' + off + below;
   }
 
   /* ---------- Presupuesto ---------- */
